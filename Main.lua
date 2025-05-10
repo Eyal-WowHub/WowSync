@@ -1,0 +1,1 @@
+local addon = LibStub("Addon-1.0"):New(...)
