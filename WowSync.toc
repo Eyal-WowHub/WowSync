@@ -1,4 +1,4 @@
-## Interface: 110100
+## Interface: 110105
 
 ## Title: Wow|cff40a5f7Sync|r
 ## Notes: Sync your action bars, talents, macros and settings across characters with a single click.
