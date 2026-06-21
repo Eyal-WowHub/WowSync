@@ -5,6 +5,7 @@
 ## IconTexture: Interface\AddOns\WowSync\Logo
 ## Version: @project-version@
 ## Author: Eyal Alon
+## AddonCompartmentFunc: WowSync_OnAddonCompartmentClick
 
 ## SavedVariables: WowSyncDB
 
@@ -13,5 +14,24 @@ Libs\LibStub\LibStub.lua
 Libs\Contracts\Contracts.lua
 Libs\Addon\Addon.lua
 Libs\CharacterInfo\CharacterInfo.lua
+
+Core\Constants.lua
+Core\Colorizer.lua
+
+Storage\ProfileManager.lua
+
+Modules\ActionBars.lua
+Modules\Talents.lua
+Modules\Macros.lua
+Modules\Keybindings.lua
+Modules\Chat.lua
+Modules\CombatLog.lua
+Modules\EditMode.lua
+Modules\Addons.lua
+Modules\Settings.lua
+
+Core\API.lua
+
+Locales\enUS.lua
 
 Main.lua
