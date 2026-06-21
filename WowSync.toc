@@ -26,6 +26,8 @@ Storage\ProfileStore.lua
 Storage\RevertManager.lua
 Storage\ProfileManager.lua
 
+Locales\enUS.lua
+
 Modules\ActionBars.lua
 Modules\Talents.lua
 Modules\Macros.lua
@@ -37,7 +39,5 @@ Modules\Addons.lua
 Modules\Settings.lua
 
 Core\API.lua
-
-Locales\enUS.lua
 
 Main.lua

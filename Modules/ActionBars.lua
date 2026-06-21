@@ -2,6 +2,7 @@ local _, addon = ...
 local ActionBars = addon:NewObject("ActionBars")
 
 local ProfileManager = addon:GetObject("ProfileManager")
+local L = addon.L
 
 --[[ Slot Layout (see https://warcraft.wiki.gg/wiki/ActionSlot)
     Spec-specific (change when switching spec):
@@ -217,7 +218,7 @@ end
 
 function ActionBars:CanApply(meta)
     if meta.ClassID ~= PlayerUtil.GetClassID() then
-        return true, "Only common actions will be applied"
+        return true, L["Only common actions will be applied"]
     end
     return true
 end

@@ -21,6 +21,9 @@ L["X: skipped - Y"] = "%s: skipped - %s"
 L["  X (Y) - Z"] = "  %s (%s) - %s"
 L["  X: reverted"] = "  %s: reverted"
 
+-- Module warnings
+L["Only common actions will be applied"] = "Only common actions will be applied"
+
 -- Usage
 L["Usage:"] = "Usage:"
 L["  /ws save <name> - Save current setup as a profile"] = "  /ws save <name> - Save current setup as a profile"
