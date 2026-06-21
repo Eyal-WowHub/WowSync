@@ -11,12 +11,14 @@ local DB_DEFAULTS = {
 }
 
 local function ToggleUI()
-    if C_AddOns.IsAddOnLoaded("WowSync_UI") then
-        WowSyncUI_Toggle()
-    elseif C_AddOns.LoadAddOn("WowSync_UI") then
-        WowSyncUI_Toggle()
-    else
+    if not C_AddOns.IsAddOnLoaded("WowSync_UI") and not C_AddOns.LoadAddOn("WowSync_UI") then
         addon:Print(L["WowSync_UI addon not found."])
+        return
+    end
+
+    local ok = pcall(WowSyncUI_Toggle)
+    if not ok then
+        addon:Print(L["Could not open the WowSync window."])
     end
 end
 
@@ -30,8 +32,9 @@ function addon:OnInitialized()
     SLASH_WOWSYNC1 = "/wowsync"
     SLASH_WOWSYNC2 = "/ws"
     SlashCmdList["WOWSYNC"] = function(input)
-        local command, arg = strsplit(" ", input, 2)
+        local command, arg = strsplit(" ", strtrim(input or ""), 2)
         command = (command or ""):lower()
+        arg = arg and strtrim(arg)
 
         if command == "" then
             ToggleUI()

@@ -4,6 +4,7 @@ addon.L = L
 
 -- Slash command feedback
 L["WowSync_UI addon not found."] = "WowSync_UI addon not found."
+L["Could not open the WowSync window."] = "Could not open the WowSync window."
 L["Profile 'X' saved."] = "Profile '%s' saved."
 L["Profile 'X' deleted."] = "Profile '%s' deleted."
 L["Profile 'X' not found."] = "Profile '%s' not found."
@@ -43,6 +44,11 @@ L["Talent tree has changed since this profile was saved"] = "Talent tree has cha
 
 -- Chat module
 L["Could not create chat tab 'X' — maximum tabs reached."] = "Could not create chat tab '%s' — maximum tabs reached."
+
+-- Addons module
+L["Addon list has been updated.\nReload UI to apply changes?"] = "Addon list has been updated.\nReload UI to apply changes?"
+L["Reload"] = "Reload"
+L["Later"] = "Later"
 
 -- Usage
 L["Usage:"] = "Usage:"

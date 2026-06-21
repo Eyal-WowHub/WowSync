@@ -2,6 +2,7 @@ local _, addon = ...
 local Addons = addon:NewObject("Addons")
 
 local ProfileManager = addon:GetObject("ProfileManager")
+local L = addon.L
 
 --[[
     Addon enabled/disabled state sync.
@@ -106,9 +107,9 @@ function Addons:Apply(data, meta)
 end
 
 StaticPopupDialogs["WOWSYNC_RELOAD_UI"] = {
-    text = "Addon list has been updated.\nReload UI to apply changes?",
-    button1 = "Reload",
-    button2 = "Later",
+    text = L["Addon list has been updated.\nReload UI to apply changes?"],
+    button1 = L["Reload"],
+    button2 = L["Later"],
     OnAccept = function()
         ReloadUI()
     end,
