@@ -4,7 +4,7 @@ local ProfileManager = addon:NewObject("ProfileManager")
 local CharacterInfo = LibStub("CharacterInfo-1.0")
 local C = LibStub("Contracts-1.0")
 
-local VERSION = 1
+local DB
 local modules = {}
 
 --[[ Module Registration ]]
@@ -33,12 +33,7 @@ end
 --[[ DB ]]
 
 function ProfileManager:OnInitialized()
-    WowSyncDB = WowSyncDB or {
-        Version = VERSION,
-        Profiles = {},
-    }
-
-    WowSyncDB.RevertPoints = WowSyncDB.RevertPoints or {}
+    DB = addon.DB.global
 end
 
 --[[ Profile CRUD ]]
@@ -63,14 +58,14 @@ function ProfileManager:Save(profileName)
         end
     end
 
-    WowSyncDB.Profiles[profileName] = profile
+    DB.Profiles[profileName] = profile
     return true
 end
 
 function ProfileManager:Apply(profileName, selectedModules)
     C:IsString(profileName, 2)
 
-    local profile = WowSyncDB.Profiles[profileName]
+    local profile = DB.Profiles[profileName]
     C:Ensures(profile, "Apply: profile '%s' does not exist", profileName)
 
     local modulesToApply = selectedModules or modules
@@ -93,7 +88,7 @@ function ProfileManager:Apply(profileName, selectedModules)
 
     if next(snapshot) then
         local character = CharacterInfo:GetFullName()
-        WowSyncDB.RevertPoints[character] = {
+        DB.RevertPoints[character] = {
             ProfileName = profileName,
             Timestamp = time(),
             Modules = snapshot,
@@ -128,8 +123,8 @@ end
 function ProfileManager:Delete(profileName)
     C:IsString(profileName, 2)
 
-    if WowSyncDB.Profiles[profileName] then
-        WowSyncDB.Profiles[profileName] = nil
+    if DB.Profiles[profileName] then
+        DB.Profiles[profileName] = nil
         return true
     end
 
@@ -137,21 +132,21 @@ function ProfileManager:Delete(profileName)
 end
 
 function ProfileManager:GetProfile(profileName)
-    return WowSyncDB.Profiles[profileName]
+    return DB.Profiles[profileName]
 end
 
 function ProfileManager:GetProfiles()
-    return WowSyncDB.Profiles
+    return DB.Profiles
 end
 
 function ProfileManager:HasRevertPoint()
     local character = CharacterInfo:GetFullName()
-    return WowSyncDB.RevertPoints[character] ~= nil
+    return DB.RevertPoints[character] ~= nil
 end
 
 function ProfileManager:GetRevertInfo()
     local character = CharacterInfo:GetFullName()
-    local revert = WowSyncDB.RevertPoints[character]
+    local revert = DB.RevertPoints[character]
     if not revert then return nil end
 
     local moduleNames = {}
@@ -169,7 +164,7 @@ end
 
 function ProfileManager:Revert()
     local character = CharacterInfo:GetFullName()
-    local revert = WowSyncDB.RevertPoints[character]
+    local revert = DB.RevertPoints[character]
     if not revert then
         return nil
     end
@@ -195,7 +190,7 @@ function ProfileManager:Revert()
     end
 
     -- Clear the revert point after reverting
-    WowSyncDB.RevertPoints[character] = nil
+    DB.RevertPoints[character] = nil
 
     return results
 end
@@ -205,16 +200,16 @@ function ProfileManager:Rename(oldName, newName)
     C:IsString(newName, 3)
     C:Ensures(newName ~= "", "Rename: 'newName' must be a non-empty string")
 
-    local profile = WowSyncDB.Profiles[oldName]
+    local profile = DB.Profiles[oldName]
     if not profile then
         return false
     end
 
-    if WowSyncDB.Profiles[newName] then
+    if DB.Profiles[newName] then
         return false
     end
 
-    WowSyncDB.Profiles[newName] = profile
-    WowSyncDB.Profiles[oldName] = nil
+    DB.Profiles[newName] = profile
+    DB.Profiles[oldName] = nil
     return true
 end

@@ -11,6 +11,9 @@
 
 Libs\LibStub\LibStub.lua
 
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\AceDB-3.0\AceDB-3.0.xml
+
 Libs\Contracts\Contracts.lua
 Libs\Addon\Addon.lua
 Libs\CharacterInfo\CharacterInfo.lua

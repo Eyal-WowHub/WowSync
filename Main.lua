@@ -3,6 +3,13 @@ local addon = LibStub("Addon-1.0"):New(...)
 local Colorizer = addon.Colorizer
 local L = addon.L
 
+local DB_DEFAULTS = {
+    global = {
+        Profiles = {},
+        RevertPoints = {},
+    },
+}
+
 local function ToggleUI()
     if C_AddOns.IsAddOnLoaded("WowSync_UI") then
         WowSyncUI_Toggle()
@@ -18,6 +25,8 @@ function WowSync_OnAddonCompartmentClick()
 end
 
 function addon:OnInitialized()
+    self.DB = LibStub("AceDB-3.0"):New("WowSyncDB", DB_DEFAULTS, true)
+
     SLASH_WOWSYNC1 = "/wowsync"
     SLASH_WOWSYNC2 = "/ws"
     SlashCmdList["WOWSYNC"] = function(input)
