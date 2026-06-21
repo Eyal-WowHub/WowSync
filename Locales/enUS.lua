@@ -24,6 +24,23 @@ L["  X: reverted"] = "  %s: reverted"
 -- Module warnings
 L["Only common actions will be applied"] = "Only common actions will be applied"
 
+-- Talents module
+L["Talents are class-specific"] = "Talents are class-specific"
+L["Note: This profile was saved with the Starter Build active."] = "Note: This profile was saved with the Starter Build active."
+L["Could not retrieve active talent configuration."] = "Could not retrieve active talent configuration."
+L["Could not retrieve talent tree for current spec."] = "Could not retrieve talent tree for current spec."
+L["Failed to import 'X': Y"] = "Failed to import '%s': %s"
+L["  Export string: X"] = "  Export string: %s"
+L["Imported talent loadout 'X'Y"] = "Imported talent loadout '%s'%s"
+L[" (was active)"] = " (was active)"
+L["Unknown error"] = "Unknown error"
+L["Loadouts created. Open the Talent UI to activate your desired loadout."] = "Loadouts created. Open the Talent UI to activate your desired loadout."
+L["PvP Talents to restore: X"] = "PvP Talents to restore: %s"
+L["Invalid import string"] = "Invalid import string"
+L["Serialization version mismatch (talent tree format has changed)"] = "Serialization version mismatch (talent tree format has changed)"
+L["Wrong specialization"] = "Wrong specialization"
+L["Talent tree has changed since this profile was saved"] = "Talent tree has changed since this profile was saved"
+
 -- Usage
 L["Usage:"] = "Usage:"
 L["  /ws save <name> - Save current setup as a profile"] = "  /ws save <name> - Save current setup as a profile"

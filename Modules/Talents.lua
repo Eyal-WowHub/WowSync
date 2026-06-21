@@ -2,6 +2,7 @@ local _, addon = ...
 local Talents = addon:NewObject("Talents")
 
 local ProfileManager = addon:GetObject("ProfileManager")
+local L = addon.L
 
 local BIT_WIDTH_VERSION = 8
 local BIT_WIDTH_SPEC_ID = 16
@@ -239,23 +240,23 @@ local function ImportLoadoutFromString(configID, treeID, importString, loadoutNa
 
     local headerValid, serializationVersion, specID, treeHash = ReadLoadoutHeader(importStream)
     if not headerValid then
-        return false, "Invalid import string"
+        return false, L["Invalid import string"]
     end
 
     local currentVersion = C_Traits.GetLoadoutSerializationVersion()
     if serializationVersion ~= currentVersion then
-        return false, "Serialization version mismatch (talent tree format has changed)"
+        return false, L["Serialization version mismatch (talent tree format has changed)"]
     end
 
     if specID ~= PlayerUtil.GetCurrentSpecID() then
-        return false, "Wrong specialization"
+        return false, L["Wrong specialization"]
     end
 
     -- Validate tree hash (empty hashes bypass validation, matching Blizzard behavior)
     if not IsTreeHashEmpty(treeHash) then
         local currentHash = C_Traits.GetTreeHash(treeID)
         if currentHash and not TreeHashesMatch(treeHash, currentHash) then
-            return false, "Talent tree has changed since this profile was saved"
+            return false, L["Talent tree has changed since this profile was saved"]
         end
     end
 
@@ -311,18 +312,18 @@ function Talents:Apply(data, meta)
     end
 
     if data.StarterBuildActive then
-        addon:Print("Note: This profile was saved with the Starter Build active.")
+        addon:Print(L["Note: This profile was saved with the Starter Build active."])
     end
 
     local configID = C_ClassTalents.GetActiveConfigID()
     if not configID then
-        addon:Print("Could not retrieve active talent configuration.")
+        addon:Print(L["Could not retrieve active talent configuration."])
         return
     end
 
     local treeID = C_ClassTalents.GetTraitTreeForSpec(currentSpecID)
     if not treeID then
-        addon:Print("Could not retrieve talent tree for current spec.")
+        addon:Print(L["Could not retrieve talent tree for current spec."])
         return
     end
 
@@ -331,21 +332,21 @@ function Talents:Apply(data, meta)
         if loadout.ExportString then
             local ok, result1, result2 = pcall(ImportLoadoutFromString, configID, treeID, loadout.ExportString, loadout.Name)
             if not ok then
-                addon:Print(("Failed to import '%s': %s"):format(loadout.Name, tostring(result1)))
-                addon:Print(("  Export string: %s"):format(loadout.ExportString))
+                addon:Print(L["Failed to import 'X': Y"]:format(loadout.Name, tostring(result1)))
+                addon:Print(L["  Export string: X"]:format(loadout.ExportString))
             elseif result1 then
-                local activeTag = loadout.WasActive and " (was active)" or ""
-                addon:Print(("Imported talent loadout '%s'%s"):format(loadout.Name, activeTag))
+                local activeTag = loadout.WasActive and L[" (was active)"] or ""
+                addon:Print(L["Imported talent loadout 'X'Y"]:format(loadout.Name, activeTag))
                 importedCount = importedCount + 1
             else
-                addon:Print(("Failed to import '%s': %s"):format(loadout.Name, result2 or "Unknown error"))
-                addon:Print(("  Export string: %s"):format(loadout.ExportString))
+                addon:Print(L["Failed to import 'X': Y"]:format(loadout.Name, result2 or L["Unknown error"]))
+                addon:Print(L["  Export string: X"]:format(loadout.ExportString))
             end
         end
     end
 
     if importedCount > 0 then
-        addon:Print("Loadouts created. Open the Talent UI to activate your desired loadout.")
+        addon:Print(L["Loadouts created. Open the Talent UI to activate your desired loadout."])
     end
 
     -- PvP talents (informational — must be selected manually in the Talent UI)
@@ -354,13 +355,13 @@ function Talents:Apply(data, meta)
         for _, pvp in ipairs(specEntry.PvpTalents) do
             tinsert(names, pvp.Name)
         end
-        addon:Print("PvP Talents to restore: " .. table.concat(names, ", "))
+        addon:Print(L["PvP Talents to restore: X"]:format(table.concat(names, ", ")))
     end
 end
 
 function Talents:CanApply(meta)
     if meta.ClassID ~= PlayerUtil.GetClassID() then
-        return false, "Talents are class-specific"
+        return false, L["Talents are class-specific"]
     end
     return true
 end
