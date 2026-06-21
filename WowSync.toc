@@ -21,6 +21,9 @@ Libs\CharacterInfo\CharacterInfo.lua
 Core\Constants.lua
 Core\Colorizer.lua
 
+Storage\ModuleRegistry.lua
+Storage\ProfileStore.lua
+Storage\RevertManager.lua
 Storage\ProfileManager.lua
 
 Modules\ActionBars.lua

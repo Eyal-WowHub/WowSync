@@ -4,36 +4,28 @@ local ProfileManager = addon:NewObject("ProfileManager")
 local CharacterInfo = LibStub("CharacterInfo-1.0")
 local C = LibStub("Contracts-1.0")
 
-local DB
-local modules = {}
+local registry
+local store
+local revert
+
+function ProfileManager:OnInitialized()
+    registry = addon:GetObject("ModuleRegistry")
+    store = addon:GetObject("ProfileStore")
+    revert = addon:GetObject("RevertManager")
+end
 
 --[[ Module Registration ]]
 
 function ProfileManager:RegisterModule(module)
-    C:IsTable(module, 2)
-    C:Ensures(type(module.GetName) == "function", "RegisterModule: 'module' must have GetName()")
-    C:Ensures(type(module.Capture) == "function", "RegisterModule: 'module' must have Capture()")
-    C:Ensures(type(module.Apply) == "function", "RegisterModule: 'module' must have Apply()")
-    C:Ensures(type(module.CanApply) == "function", "RegisterModule: 'module' must have CanApply()")
-
-    local name = module:GetName()
-    C:Ensures(not modules[name], "RegisterModule: module '%s' is already registered", name)
-
-    modules[name] = module
+    registry:Register(module)
 end
 
 function ProfileManager:GetModule(name)
-    return modules[name]
+    return registry:Get(name)
 end
 
 function ProfileManager:IterableModules()
-    return pairs(modules)
-end
-
---[[ DB ]]
-
-function ProfileManager:OnInitialized()
-    DB = addon.DB.global
+    return registry:Iterate()
 end
 
 --[[ Profile CRUD ]]
@@ -51,29 +43,38 @@ function ProfileManager:Save(profileName)
         Modules = {},
     }
 
-    for name, module in pairs(modules) do
+    for name, module in registry:Iterate() do
         local ok, data = pcall(module.Capture, module)
         if ok then
             profile.Modules[name] = data
         end
     end
 
-    DB.Profiles[profileName] = profile
+    store:Set(profileName, profile)
     return true
 end
 
 function ProfileManager:Apply(profileName, selectedModules)
     C:IsString(profileName, 2)
 
-    local profile = DB.Profiles[profileName]
+    local profile = store:Get(profileName)
     C:Ensures(profile, "Apply: profile '%s' does not exist", profileName)
 
-    local modulesToApply = selectedModules or modules
+    local names = {}
+    if selectedModules then
+        for name in pairs(selectedModules) do
+            names[name] = true
+        end
+    else
+        for name in registry:Iterate() do
+            names[name] = true
+        end
+    end
 
     -- Snapshot current state before applying so the user can revert
     local snapshot = {}
-    for name in pairs(modulesToApply) do
-        local module = modules[name]
+    for name in pairs(names) do
+        local module = registry:Get(name)
         local data = profile.Modules[name]
         if module and data then
             local canApply = module:CanApply(profile.Meta)
@@ -87,19 +88,18 @@ function ProfileManager:Apply(profileName, selectedModules)
     end
 
     if next(snapshot) then
-        local character = CharacterInfo:GetFullName()
-        DB.RevertPoints[character] = {
+        revert:Set(CharacterInfo:GetFullName(), {
             ProfileName = profileName,
             Timestamp = time(),
             Modules = snapshot,
-        }
+        })
     end
 
     -- Apply the profile
     local results = {}
 
-    for name in pairs(modulesToApply) do
-        local module = modules[name]
+    for name in pairs(names) do
+        local module = registry:Get(name)
         local data = profile.Modules[name]
 
         if module and data then
@@ -122,50 +122,31 @@ end
 
 function ProfileManager:Delete(profileName)
     C:IsString(profileName, 2)
-
-    if DB.Profiles[profileName] then
-        DB.Profiles[profileName] = nil
-        return true
-    end
-
-    return false
+    return store:Delete(profileName)
 end
 
 function ProfileManager:GetProfile(profileName)
-    return DB.Profiles[profileName]
+    return store:Get(profileName)
 end
 
 function ProfileManager:GetProfiles()
-    return DB.Profiles
+    return store:GetAll()
 end
 
+--[[ Revert ]]
+
 function ProfileManager:HasRevertPoint()
-    local character = CharacterInfo:GetFullName()
-    return DB.RevertPoints[character] ~= nil
+    return revert:Has(CharacterInfo:GetFullName())
 end
 
 function ProfileManager:GetRevertInfo()
-    local character = CharacterInfo:GetFullName()
-    local revert = DB.RevertPoints[character]
-    if not revert then return nil end
-
-    local moduleNames = {}
-    for name in pairs(revert.Modules) do
-        tinsert(moduleNames, name)
-    end
-    table.sort(moduleNames)
-
-    return {
-        ProfileName = revert.ProfileName,
-        Timestamp = revert.Timestamp,
-        ModuleNames = moduleNames,
-    }
+    return revert:GetInfo(CharacterInfo:GetFullName())
 end
 
 function ProfileManager:Revert()
     local character = CharacterInfo:GetFullName()
-    local revert = DB.RevertPoints[character]
-    if not revert then
+    local revertPoint = revert:Get(character)
+    if not revertPoint then
         return nil
     end
 
@@ -174,11 +155,11 @@ function ProfileManager:Revert()
     local meta = {
         ClassID = PlayerUtil.GetClassID(),
         LastCharacter = character,
-        LastUpdated = revert.Timestamp,
+        LastUpdated = revertPoint.Timestamp,
     }
 
-    for name, data in pairs(revert.Modules) do
-        local module = modules[name]
+    for name, data in pairs(revertPoint.Modules) do
+        local module = registry:Get(name)
         if module then
             local ok, err = pcall(module.Apply, module, data, meta)
             if ok then
@@ -190,7 +171,7 @@ function ProfileManager:Revert()
     end
 
     -- Clear the revert point after reverting
-    DB.RevertPoints[character] = nil
+    revert:Clear(character)
 
     return results
 end
@@ -199,17 +180,5 @@ function ProfileManager:Rename(oldName, newName)
     C:IsString(oldName, 2)
     C:IsString(newName, 3)
     C:Ensures(newName ~= "", "Rename: 'newName' must be a non-empty string")
-
-    local profile = DB.Profiles[oldName]
-    if not profile then
-        return false
-    end
-
-    if DB.Profiles[newName] then
-        return false
-    end
-
-    DB.Profiles[newName] = profile
-    DB.Profiles[oldName] = nil
-    return true
+    return store:Rename(oldName, newName)
 end
