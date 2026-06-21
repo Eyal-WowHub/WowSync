@@ -2,6 +2,7 @@ local _, addon = ...
 local Chat = addon:NewObject("Chat")
 
 local ProfileManager = addon:GetObject("ProfileManager")
+local L = addon.L
 
 local NUM_CHAT_WINDOWS = NUM_CHAT_WINDOWS or 10
 
@@ -183,7 +184,7 @@ function Chat:Apply(data, meta)
                 -- Create a new tab for each custom window
                 chatFrame = FCF_OpenNewWindow(tab.Name)
                 if not chatFrame then
-                    addon:Print(("Could not create chat tab '%s' — maximum tabs reached."):format(tab.Name))
+                    addon:Print(L["Could not create chat tab 'X' — maximum tabs reached."]:format(tab.Name))
                     break
                 end
                 frameIndex = chatFrame:GetID()
