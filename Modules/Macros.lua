@@ -4,7 +4,7 @@ local Macros = addon:NewObject("Macros")
 local ProfileManager = addon:GetObject("ProfileManager")
 
 local MAX_ACCOUNT_MACROS = MAX_ACCOUNT_MACROS or 120
-local MAX_CHARACTER_MACROS = MAX_CHARACTER_MACROS or 18
+local MAX_CHARACTER_MACROS = MAX_CHARACTER_MACROS or 30
 
 --[[ Helpers ]]
 

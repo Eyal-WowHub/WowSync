@@ -104,15 +104,19 @@ function ProfileManager:Apply(profileName, selectedModules)
 
         if module and data then
             local canApply, warning = module:CanApply(profile.Meta)
-            if canApply then
+            if not canApply then
+                results[name] = { applied = false, reason = warning }
+            elseif not snapshot[name] then
+                -- Refuse to apply a module we could not back up, so the
+                -- revert point always restores everything that changed.
+                results[name] = { applied = false, reason = addon.L["Could not back up current state"] }
+            else
                 local ok, err = pcall(module.Apply, module, data, profile.Meta)
                 if ok then
                     results[name] = { applied = true, warning = warning }
                 else
                     results[name] = { applied = false, reason = tostring(err) }
                 end
-            else
-                results[name] = { applied = false, reason = warning }
             end
         end
     end

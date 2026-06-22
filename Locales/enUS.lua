@@ -19,6 +19,7 @@ L["unknown"] = "unknown"
 L["X: applied"] = "%s: applied"
 L["X (Y)"] = "%s (%s)"
 L["X: skipped - Y"] = "%s: skipped - %s"
+L["Could not back up current state"] = "Could not back up current state"
 L["  X (Y) - Z"] = "  %s (%s) - %s"
 L["  X: reverted"] = "  %s: reverted"
 
