@@ -12,6 +12,14 @@ function ModuleRegistry:Register(module)
     C:Ensures(type(module.Apply) == "function", "Register: 'module' must have Apply()")
     C:Ensures(type(module.CanApply) == "function", "Register: 'module' must have CanApply()")
 
+    -- Optional capabilities: validated only when the module provides them.
+    if module.Diff ~= nil then
+        C:Ensures(type(module.Diff) == "function", "Register: module Diff must be a function")
+    end
+    if module.CanCapture ~= nil then
+        C:Ensures(type(module.CanCapture) == "function", "Register: module CanCapture must be a function")
+    end
+
     local name = module:GetName()
     C:Ensures(not modules[name], "Register: module '%s' is already registered", name)
 

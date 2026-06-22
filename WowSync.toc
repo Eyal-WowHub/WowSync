@@ -20,8 +20,14 @@ Libs\CharacterInfo\CharacterInfo.lua
 
 Core\Constants.lua
 Core\Colorizer.lua
+Core\Hash.lua
+Core\Time.lua
 
 Storage\ModuleRegistry.lua
+Storage\Models\Snapshot.lua
+Storage\CurrentStore.lua
+Storage\UndoStore.lua
+Storage\Models\Differ.lua
 Storage\ProfileStore.lua
 Storage\RevertManager.lua
 Storage\ProfileManager.lua

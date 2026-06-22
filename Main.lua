@@ -7,6 +7,11 @@ local DB_DEFAULTS = {
     global = {
         Profiles = {},
         RevertPoints = {},
+        Characters = {},
+        Settings = {
+            MaxSnapshots = 20,
+            MaxUndo = 20,
+        },
     },
 }
 
