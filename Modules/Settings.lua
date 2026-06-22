@@ -2,6 +2,12 @@ local _, addon = ...
 local Settings = addon:NewObject("Settings")
 
 local ProfileManager = addon:GetObject("ProfileManager")
+local HashSet = addon.HashSet
+local ApplyMode = addon.ApplyMode
+
+Settings.Config = {
+    ApplyMode = ApplyMode.Merge,
+}
 
 local TRACKED_CVARS = addon.TRACKED_CVARS
 
@@ -58,6 +64,39 @@ function Settings:Apply(data, meta)
             SetTrackedCVar(cvar, value)
         end
     end
+end
+
+-- Each tracked CVar as a keyed list entry, hashed by name + value.
+local function CVarEntries(data)
+    local list = {}
+    if not data then
+        return list
+    end
+    for _, scope in ipairs({ "Account", "Character" }) do
+        local map = data[scope]
+        if map then
+            for cvar, value in pairs(map) do
+                tinsert(list, { Name = cvar, Value = value })
+            end
+        end
+    end
+    return list
+end
+
+local function CVarKey(entry)
+    return entry.Name
+end
+
+-- Preview of which CVars applying this profile would change.
+function Settings:Diff(current, snapshot)
+    local currentSet = HashSet:From(CVarEntries(current), CVarKey, CVarKey)
+    local snapshotSet = HashSet:From(CVarEntries(snapshot), CVarKey, CVarKey)
+
+    return {
+        added = currentSet:Added(snapshotSet),
+        changed = currentSet:Changed(snapshotSet),
+        removed = currentSet:Removed(snapshotSet),
+    }
 end
 
 function Settings:CanApply(meta)

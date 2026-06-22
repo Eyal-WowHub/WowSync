@@ -2,7 +2,13 @@ local _, addon = ...
 local Talents = addon:NewObject("Talents")
 
 local ProfileManager = addon:GetObject("ProfileManager")
+local HashSet = addon.HashSet
+local ApplyMode = addon.ApplyMode
 local L = addon.L
+
+Talents.Config = {
+    ApplyMode = ApplyMode.Merge,
+}
 
 local BIT_WIDTH_VERSION = 8
 local BIT_WIDTH_SPEC_ID = 16
@@ -357,6 +363,37 @@ function Talents:Apply(data, meta)
         end
         addon:Print(L["PvP Talents to restore: X"]:format(table.concat(names, ", ")))
     end
+end
+
+-- Flatten the current spec's loadouts into a keyed list, hashing only the
+-- stable identity (name + export string) so a changed active flag isn't a
+-- "change". Mirror Apply, which only imports the current spec's loadouts.
+local function FlattenLoadouts(data)
+    local list = {}
+    local specID = GetSpecializationInfo(GetSpecialization())
+    local specEntry = specID and data and data.Specs and data.Specs[specID]
+    if specEntry then
+        for _, loadout in ipairs(specEntry.Loadouts or {}) do
+            tinsert(list, { Name = loadout.Name, ExportString = loadout.ExportString })
+        end
+    end
+    return list
+end
+
+local function LoadoutKey(loadout)
+    return loadout.Name
+end
+
+-- Preview of which talent loadouts applying this profile would change.
+function Talents:Diff(current, snapshot)
+    local currentSet = HashSet:From(FlattenLoadouts(current), LoadoutKey, LoadoutKey)
+    local snapshotSet = HashSet:From(FlattenLoadouts(snapshot), LoadoutKey, LoadoutKey)
+
+    return {
+        added = currentSet:Added(snapshotSet),
+        changed = currentSet:Changed(snapshotSet),
+        removed = currentSet:Removed(snapshotSet),
+    }
 end
 
 function Talents:CanApply(meta)

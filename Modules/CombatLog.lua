@@ -2,6 +2,12 @@ local _, addon = ...
 local CombatLog = addon:NewObject("CombatLog")
 
 local ProfileManager = addon:GetObject("ProfileManager")
+local HashSet = addon.HashSet
+local ApplyMode = addon.ApplyMode
+
+CombatLog.Config = {
+    ApplyMode = ApplyMode.Merge,
+}
 
 --[[
     CombatLog Module
@@ -93,6 +99,38 @@ function CombatLog:Apply(data, meta)
     if Blizzard_CombatLog_Refilter then
         Blizzard_CombatLog_Refilter()
     end
+end
+
+-- Each combat-log filter preset as a keyed list entry, hashed by its content.
+local function FilterEntries(data)
+    local list = {}
+    if data and data.Filters then
+        for i, filter in ipairs(data.Filters) do
+            local label = filter.name or ("Filter " .. i)
+            tinsert(list, { key = filter.name or i, label = label, filter = filter })
+        end
+    end
+    return list
+end
+
+local function FilterKey(entry)
+    return entry.key
+end
+
+local function FilterLabel(entry)
+    return entry.label
+end
+
+-- Preview of which combat-log filters applying this profile would change.
+function CombatLog:Diff(current, snapshot)
+    local currentSet = HashSet:From(FilterEntries(current), FilterKey, FilterLabel)
+    local snapshotSet = HashSet:From(FilterEntries(snapshot), FilterKey, FilterLabel)
+
+    return {
+        added = currentSet:Added(snapshotSet),
+        changed = currentSet:Changed(snapshotSet),
+        removed = currentSet:Removed(snapshotSet),
+    }
 end
 
 function CombatLog:CanApply(meta)

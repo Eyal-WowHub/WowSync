@@ -2,6 +2,12 @@ local _, addon = ...
 local EditMode = addon:NewObject("EditMode")
 
 local ProfileManager = addon:GetObject("ProfileManager")
+local HashSet = addon.HashSet
+local ApplyMode = addon.ApplyMode
+
+EditMode.Config = {
+    ApplyMode = ApplyMode.Merge,
+}
 
 --[[
     Edit Mode layout sync.
@@ -137,6 +143,34 @@ function EditMode:Apply(data, meta)
     if EditModeManagerFrame and EditModeManagerFrame.UpdateLayoutInfo then
         EditModeManagerFrame:UpdateLayoutInfo(C_EditMode.GetLayouts())
     end
+end
+
+-- The single layout as a keyed list entry, hashed by its export string.
+local function LayoutEntries(data)
+    if data and data.LayoutString then
+        return { { key = "layout", name = data.LayoutName or "Layout", String = data.LayoutString } }
+    end
+    return {}
+end
+
+local function LayoutKey(entry)
+    return entry.key
+end
+
+local function LayoutLabel(entry)
+    return entry.name
+end
+
+-- Preview of whether applying this profile would change the Edit Mode layout.
+function EditMode:Diff(current, snapshot)
+    local currentSet = HashSet:From(LayoutEntries(current), LayoutKey, LayoutLabel)
+    local snapshotSet = HashSet:From(LayoutEntries(snapshot), LayoutKey, LayoutLabel)
+
+    return {
+        added = currentSet:Added(snapshotSet),
+        changed = currentSet:Changed(snapshotSet),
+        removed = currentSet:Removed(snapshotSet),
+    }
 end
 
 function EditMode:CanApply(meta)

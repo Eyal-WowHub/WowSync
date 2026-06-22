@@ -2,7 +2,13 @@ local _, addon = ...
 local ActionBars = addon:NewObject("ActionBars")
 
 local ProfileManager = addon:GetObject("ProfileManager")
+local HashSet = addon.HashSet
+local ApplyMode = addon.ApplyMode
 local L = addon.L
+
+ActionBars.Config = {
+    ApplyMode = ApplyMode.Merge,
+}
 
 --[[ Slot Layout (see https://warcraft.wiki.gg/wiki/ActionSlot)
     Spec-specific (change when switching spec):
@@ -214,6 +220,69 @@ function ActionBars:PlaceAction(slotID, info, isSameClass)
 
     PlaceAction(slotID)
     ClearCursor()
+end
+
+-- A friendly name for the action in a slot, for diff previews.
+local function ActionLabel(entry)
+    local info = entry.info
+    if info.type == "spell" or info.type == "companion" then
+        return C_Spell.GetSpellName(info.id) or ("Spell " .. tostring(info.id))
+    elseif info.type == "item" then
+        return (C_Item.GetItemNameByID and C_Item.GetItemNameByID(info.id)) or ("Item " .. tostring(info.id))
+    elseif info.type == "macro" then
+        return info.macroName or ("Macro " .. tostring(info.id))
+    elseif info.type == "equipmentset" then
+        return info.setName or "Equipment set"
+    elseif info.type == "summonpet" then
+        return "Battle pet"
+    elseif info.type == "flyout" then
+        return "Flyout " .. tostring(info.id)
+    end
+    return tostring(info.type)
+end
+
+-- Flatten the nested Shared/Specs maps into a keyed list for comparison.
+-- Mirror Apply: shared slots plus only the current spec's slots, so the
+-- preview never reports changes to inactive specs that Apply won't make.
+local function FlattenSlots(data)
+    local list = {}
+    if not data then
+        return list
+    end
+
+    if data.Shared then
+        for slot, info in pairs(data.Shared) do
+            tinsert(list, { key = "shared:" .. slot, info = info })
+        end
+    end
+
+    if data.Specs then
+        local specID = GetSpecializationInfo(GetSpecialization())
+        local slots = specID and data.Specs[specID]
+        if slots then
+            for slot, info in pairs(slots) do
+                tinsert(list, { key = specID .. ":" .. slot, info = info })
+            end
+        end
+    end
+
+    return list
+end
+
+local function SlotKey(entry)
+    return entry.key
+end
+
+-- Preview of which action slots applying this profile would change.
+function ActionBars:Diff(current, snapshot)
+    local currentSet = HashSet:From(FlattenSlots(current), SlotKey, ActionLabel)
+    local snapshotSet = HashSet:From(FlattenSlots(snapshot), SlotKey, ActionLabel)
+
+    return {
+        added = currentSet:Added(snapshotSet),
+        changed = currentSet:Changed(snapshotSet),
+        removed = currentSet:Removed(snapshotSet),
+    }
 end
 
 function ActionBars:CanApply(meta)
