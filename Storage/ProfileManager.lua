@@ -266,3 +266,30 @@ function ProfileManager:RenameProfile(oldName, newName)
     C:Ensures(newName ~= "", "RenameProfile: 'newName' must be a non-empty string")
     return profileStore:RenameProfile(oldName, newName)
 end
+
+--[[ Snapshot read/management ]]
+
+function ProfileManager:DeleteSnapshot(profileName, hash)
+    C:IsString(profileName, 2)
+    C:IsString(hash, 3)
+    return profileStore:DeleteSnapshot(profileName, hash)
+end
+
+function ProfileManager:SetSnapshotBody(profileName, hash, text)
+    C:IsString(profileName, 2)
+    C:IsString(hash, 3)
+    C:IsString(text, 4)
+    return profileStore:SetSnapshotBody(profileName, hash, text)
+end
+
+function ProfileManager:PinSnapshot(profileName, hash)
+    C:IsString(profileName, 2)
+    C:IsString(hash, 3)
+    return profileStore:PinSnapshot(profileName, hash)
+end
+
+function ProfileManager:UnpinSnapshot(profileName, hash)
+    C:IsString(profileName, 2)
+    C:IsString(hash, 3)
+    return profileStore:UnpinSnapshot(profileName, hash)
+end
