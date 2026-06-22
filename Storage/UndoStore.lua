@@ -10,9 +10,6 @@ local CharacterInfo = LibStub("CharacterInfo-1.0")
     change can be undone. Entries share the Snapshot shape and live under
     DB.global.Characters[charKey].Undo. The stack is capped at Settings.MaxUndo;
     the oldest entry is dropped when the cap is exceeded.
-
-    (This replaces the single-slot RevertManager; the two coexist until the
-    orchestrator is switched over.)
 ]]
 
 local characters

@@ -29,7 +29,6 @@ Storage\CurrentStore.lua
 Storage\UndoStore.lua
 Storage\Models\Differ.lua
 Storage\ProfileStore.lua
-Storage\RevertManager.lua
 Storage\ProfileManager.lua
 
 Locales\enUS.lua

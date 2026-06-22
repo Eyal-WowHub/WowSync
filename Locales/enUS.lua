@@ -10,18 +10,20 @@ L["Profile 'X' deleted."] = "Profile '%s' deleted."
 L["Profile 'X' not found."] = "Profile '%s' not found."
 L["Saved profiles:"] = "Saved profiles:"
 L["No saved profiles."] = "No saved profiles."
-L["No revert point available for this character."] = "No revert point available for this character."
-L["Reverted changes from profile 'X':"] = "Reverted changes from profile '%s':"
+L["Nothing changed since the last save."] = "Nothing changed since the last save."
+L["'current' and 'latest' are reserved; name a profile to apply."] = "'current' and 'latest' are reserved; name a profile to apply."
+L["Nothing to undo."] = "Nothing to undo."
+L["Undid the last apply:"] = "Undid the last apply:"
+L["empty"] = "empty"
 L["Unknown"] = "Unknown"
 L["unknown"] = "unknown"
 
--- Apply / revert result lines
+-- Apply / undo result lines
 L["X: applied"] = "%s: applied"
 L["X (Y)"] = "%s (%s)"
 L["X: skipped - Y"] = "%s: skipped - %s"
-L["Could not back up current state"] = "Could not back up current state"
 L["  X (Y) - Z"] = "  %s (%s) - %s"
-L["  X: reverted"] = "  %s: reverted"
+L["  X: restored"] = "  %s: restored"
 
 -- Module warnings
 L["Only common actions will be applied"] = "Only common actions will be applied"
@@ -53,8 +55,8 @@ L["Later"] = "Later"
 
 -- Usage
 L["Usage:"] = "Usage:"
-L["  /ws save <name> - Save current setup as a profile"] = "  /ws save <name> - Save current setup as a profile"
-L["  /ws apply <name> - Apply a profile to this character"] = "  /ws apply <name> - Apply a profile to this character"
+L["  /ws save <name> - Save current setup to a profile"] = "  /ws save <name> - Save current setup to a profile"
+L["  /ws apply <name> [merge|replace] - Apply a profile's latest snapshot"] = "  /ws apply <name> [merge|replace] - Apply a profile's latest snapshot"
+L["  /ws undo - Undo the last apply"] = "  /ws undo - Undo the last apply"
 L["  /ws delete <name> - Delete a profile"] = "  /ws delete <name> - Delete a profile"
 L["  /ws list - List all saved profiles"] = "  /ws list - List all saved profiles"
-L["  /ws revert - Undo the last applied profile"] = "  /ws revert - Undo the last applied profile"

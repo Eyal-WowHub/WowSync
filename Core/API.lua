@@ -8,14 +8,14 @@ function WowSync:GetProfileManager()
     return ProfileManager
 end
 
-function WowSync:HasRevertPoint()
-    return ProfileManager:HasRevertPoint()
+function WowSync:HasUndo()
+    return ProfileManager:HasUndo()
 end
 
-function WowSync:GetRevertInfo()
-    return ProfileManager:GetRevertInfo()
+function WowSync:GetUndoInfo()
+    return ProfileManager:GetUndoInfo()
 end
 
-function WowSync:Revert()
-    return ProfileManager:Revert()
+function WowSync:Undo(moduleSet)
+    return ProfileManager:Undo(moduleSet)
 end

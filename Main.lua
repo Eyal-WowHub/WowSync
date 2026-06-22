@@ -6,7 +6,6 @@ local L = addon.L
 local DB_DEFAULTS = {
     global = {
         Profiles = {},
-        RevertPoints = {},
         Characters = {},
         Settings = {
             MaxSnapshots = 20,
@@ -49,11 +48,35 @@ function addon:OnInitialized()
         local ProfileManager = self:GetObject("ProfileManager")
 
         if command == "save" and arg and arg ~= "" then
-            if ProfileManager:Save(arg) then
+            local snapshot, reason = ProfileManager:Save(arg)
+            if snapshot then
                 self:Print(L["Profile 'X' saved."]:format(arg))
+            elseif reason == "unchanged" then
+                self:Print(L["Nothing changed since the last save."])
             end
         elseif command == "apply" and arg and arg ~= "" then
-            local results = ProfileManager:Apply(arg)
+            local profileName, mode = arg, nil
+            local trailing = arg:match("%s(%S+)$")
+            if trailing then
+                local lower = trailing:lower()
+                if lower == "merge" or lower == "replace" then
+                    mode = lower
+                    profileName = strtrim(arg:sub(1, #arg - #trailing))
+                end
+            end
+
+            local lowerName = profileName:lower()
+            if lowerName == "current" or lowerName == "latest" then
+                self:Print(L["'current' and 'latest' are reserved; name a profile to apply."])
+                return
+            end
+
+            if not ProfileManager:GetProfile(profileName) then
+                self:Print(L["Profile 'X' not found."]:format(profileName))
+                return
+            end
+
+            local results = ProfileManager:Apply(profileName, nil, { default = mode })
             if results then
                 for name, result in pairs(results) do
                     if result.applied then
@@ -67,8 +90,22 @@ function addon:OnInitialized()
                     end
                 end
             end
+        elseif command == "undo" then
+            if not ProfileManager:HasUndo() then
+                self:Print(L["Nothing to undo."])
+            else
+                local results = ProfileManager:Undo()
+                if results then
+                    self:Print(L["Undid the last apply:"])
+                    for name, result in pairs(results) do
+                        if result.applied then
+                            self:Print(L["  X: restored"]:format(name))
+                        end
+                    end
+                end
+            end
         elseif command == "delete" and arg and arg ~= "" then
-            if ProfileManager:Delete(arg) then
+            if ProfileManager:DeleteProfile(arg) then
                 self:Print(L["Profile 'X' deleted."]:format(arg))
             else
                 self:Print(L["Profile 'X' not found."]:format(arg))
@@ -76,37 +113,24 @@ function addon:OnInitialized()
         elseif command == "list" then
             local profiles = ProfileManager:GetProfiles()
             if next(profiles) then
+                local Snapshot = self:GetObject("Snapshot")
                 self:Print(L["Saved profiles:"])
                 for name, profile in pairs(profiles) do
-                    local className = C_CreatureInfo.GetClassInfo(profile.Meta.ClassID)
-                    local label = className and className.className or L["Unknown"]
-                    self:Print(L["  X (Y) - Z"]:format(name, label, profile.Meta.LastCharacter))
+                    local snapshots = profile.Snapshots
+                    local latest = snapshots[#snapshots]
+                    local subject = latest and Snapshot:GetSubject(latest) or L["empty"]
+                    self:Print(L["  X (Y) - Z"]:format(name, #snapshots, subject))
                 end
             else
                 self:Print(L["No saved profiles."])
             end
-        elseif command == "revert" then
-            if not ProfileManager:HasRevertPoint() then
-                self:Print(L["No revert point available for this character."])
-            else
-                local info = ProfileManager:GetRevertInfo()
-                local results = ProfileManager:Revert()
-                if results then
-                    self:Print(L["Reverted changes from profile 'X':"]:format(info.ProfileName or L["Unknown"]))
-                    for name, result in pairs(results) do
-                        if result.applied then
-                            self:Print(L["  X: reverted"]:format(name))
-                        end
-                    end
-                end
-            end
         else
             self:Print(L["Usage:"])
-            self:Print(L["  /ws save <name> - Save current setup as a profile"])
-            self:Print(L["  /ws apply <name> - Apply a profile to this character"])
+            self:Print(L["  /ws save <name> - Save current setup to a profile"])
+            self:Print(L["  /ws apply <name> [merge|replace] - Apply a profile's latest snapshot"])
+            self:Print(L["  /ws undo - Undo the last apply"])
             self:Print(L["  /ws delete <name> - Delete a profile"])
             self:Print(L["  /ws list - List all saved profiles"])
-            self:Print(L["  /ws revert - Undo the last applied profile"])
         end
     end
 end
