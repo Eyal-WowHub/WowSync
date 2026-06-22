@@ -13,8 +13,8 @@ local CharacterInfo = LibStub("CharacterInfo-1.0")
 
     Current is the most recently captured live state for that character. Only the
     logged-in character can be captured (the game only exposes live state for
-    whoever is online); other characters' Current is read-only here (persisted in
-    a later phase). UndoStore owns the Undo list under the same entry.
+    whoever is online); other characters' Current is read-only here, kept fresh by
+    a capture on logout. UndoStore owns the Undo list under the same entry.
 ]]
 
 local characters
@@ -32,6 +32,12 @@ function CurrentStore:OnInitialized()
     characters = addon.DB.global.Characters
     -- A character's Current exists from its first login.
     EnsureEntry(CharacterInfo:GetFullName())
+
+    -- Persist the logged-in character's live setup on logout/reload so other
+    -- characters can browse it without logging in.
+    self:RegisterEvent("PLAYER_LOGOUT", function()
+        self:Refresh()
+    end)
 end
 
 -- Re-capture the logged-in character's live setup into its Current.

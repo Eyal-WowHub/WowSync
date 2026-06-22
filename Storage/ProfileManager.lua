@@ -341,3 +341,69 @@ function ProfileManager:UnpinSnapshot(profileName, hash)
     C:IsString(hash, 3)
     return profileStore:UnpinSnapshot(profileName, hash)
 end
+
+--[[ Cross-character ]]
+
+-- Other characters (not the logged-in one) that have a captured Current,
+-- newest-seen first: { { Key, ClassID, LastSeen }, ... }. Drives the
+-- cross-character browser; capture happens on each character's logout.
+function ProfileManager:GetOtherCharacters()
+    local me = CharacterInfo:GetFullName()
+    local out = {}
+
+    for key, entry in pairs(currentStore:GetCharacters()) do
+        if key ~= me and entry.Current and next(entry.Current) then
+            tinsert(out, {
+                Key = key,
+                ClassID = entry.Meta and entry.Meta.ClassID,
+                LastSeen = entry.Meta and entry.Meta.LastSeen,
+            })
+        end
+    end
+
+    table.sort(out, function(a, b)
+        return (a.LastSeen or 0) > (b.LastSeen or 0)
+    end)
+
+    return out
+end
+
+-- The captured Current modules for a character (read-only), or nil when unknown.
+function ProfileManager:GetCharacterCurrent(charKey)
+    C:IsString(charKey, 2)
+    return currentStore:Get(charKey)
+end
+
+-- Build a snapshot from another character's captured Current and append it to a
+-- profile. Like Save, but sources a stored character instead of a live capture,
+-- so the snapshot's identity reflects that character. Returns the stored
+-- snapshot, or nil + a reason ("unknown-character" / "unchanged").
+function ProfileManager:SaveFromCharacter(profileName, charKey, moduleSet, body)
+    C:IsString(profileName, 2)
+    C:Ensures(profileName ~= "", "SaveFromCharacter: 'profileName' must be a non-empty string")
+    C:IsString(charKey, 3)
+
+    local source = currentStore:Get(charKey)
+    if not source then
+        return nil, "unknown-character"
+    end
+
+    local modules = source
+    if moduleSet then
+        modules = {}
+        for name in pairs(moduleSet) do
+            if source[name] ~= nil then
+                modules[name] = source[name]
+            end
+        end
+    end
+
+    local meta = currentStore:GetMeta(charKey)
+    local snapshot = snapshots:New(modules, {
+        Character = charKey,
+        ClassID = meta and meta.ClassID,
+    })
+    snapshot.Body = body
+
+    return profileStore:AddSnapshot(profileName, snapshot)
+end
