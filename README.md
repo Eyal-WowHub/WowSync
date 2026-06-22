@@ -22,26 +22,26 @@ Each profile stores the following, and you choose which parts to apply per chara
 
 ## Using the Window
 
-* **Save** — type a name in the left panel and save the current character's setup as a new profile (or overwrite an existing one).
-* **Select** a profile from the list to see its details on the right.
-* **Choose modules** — tick only the parts you want to apply, or use *Select All* / *Deselect All*.
-* **Apply** — apply the selected modules to the current character.
+* **Profiles** — the left panel lists your saved profiles. Select one to see its history on the right.
+* **Save** — saving captures the current character's setup as a new **snapshot**. Use the save dialog to add a short note and to choose which parts of your setup to include.
+* **Snapshot timeline** — each profile keeps a history of snapshots, newest at the top. Select a snapshot to see its note and what changed compared to your current setup.
+* **Apply** — apply a snapshot to the current character. You can choose which modules to apply and, per module, whether to **Merge** (add to what you already have) or use **Exact** (replace it to match the snapshot).
 * **Rename** / **Delete** — manage your saved profiles.
 
-## Revert
+## Undo
 
-Applying a profile is reversible. After an apply, use **Revert** (in the window or `/ws revert`) to undo the last applied profile on the current character and restore your previous setup.
+Applying a profile is reversible. After an apply, use **Undo** (in the window or `/ws undo`) to restore your previous setup. The window keeps a history of recent changes, so you can step back through several applies in one go — pick an entry in the **Recent changes** list to undo everything back to that point.
 
 ## Slash Commands
 
 | Command | Description |
 | --- | --- |
 | `/ws` | Open or close the WowSync window. |
-| `/ws save <name>` | Save the current setup as a profile. |
-| `/ws apply <name>` | Apply a profile to this character. |
+| `/ws save <name>` | Save the current setup as a new snapshot of a profile. |
+| `/ws apply <name> [merge\|exact]` | Apply a profile's latest snapshot (Merge by default). |
+| `/ws undo` | Undo the last apply. |
 | `/ws delete <name>` | Delete a profile. |
 | `/ws list` | List all saved profiles. |
-| `/ws revert` | Undo the last applied profile. |
 
 ## Side Notes
 
