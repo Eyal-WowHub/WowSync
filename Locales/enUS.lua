@@ -45,6 +45,9 @@ L["Serialization version mismatch (talent tree format has changed)"] = "Serializ
 L["Wrong specialization"] = "Wrong specialization"
 L["Talent tree has changed since this profile was saved"] = "Talent tree has changed since this profile was saved"
 
+-- Macros module
+L["X (character)"] = "%s (character)"
+
 -- Chat module
 L["Could not create chat tab 'X' — maximum tabs reached."] = "Could not create chat tab '%s' — maximum tabs reached."
 

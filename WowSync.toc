@@ -22,6 +22,8 @@ Core\Constants.lua
 Core\Colorizer.lua
 Core\Hash.lua
 Core\Time.lua
+Core\HashSet.lua
+Core\ApplyMode.lua
 
 Storage\ModuleRegistry.lua
 Storage\Models\Snapshot.lua
@@ -32,6 +34,8 @@ Storage\ProfileStore.lua
 Storage\ProfileManager.lua
 
 Locales\enUS.lua
+
+Core\StaticPopupDialogs.lua
 
 Modules\ActionBars.lua
 Modules\Talents.lua

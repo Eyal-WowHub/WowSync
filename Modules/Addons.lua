@@ -2,7 +2,12 @@ local _, addon = ...
 local Addons = addon:NewObject("Addons")
 
 local ProfileManager = addon:GetObject("ProfileManager")
-local L = addon.L
+local HashSet = addon.HashSet
+local ApplyMode = addon.ApplyMode
+
+Addons.Config = {
+    ApplyMode = ApplyMode.All,
+}
 
 --[[
     Addon enabled/disabled state sync.
@@ -39,6 +44,10 @@ local function IsProtected(name)
     return PROTECTED_ADDONS[name]
 end
 
+local function Identity(value)
+    return value
+end
+
 --[[ Module API ]]
 
 function Addons:Capture()
@@ -63,11 +72,12 @@ function Addons:Capture()
     }
 end
 
-function Addons:Apply(data, meta)
+function Addons:Apply(data, meta, opts)
     if not data or not data.Enabled then
         return
     end
 
+    local replace = opts and opts.mode == "replace"
     local character = UnitName("player")
 
     -- Build a lookup set from the profile's enabled list
@@ -91,7 +101,8 @@ function Addons:Apply(data, meta)
                     C_AddOns.EnableAddOn(name, character)
                     changed = true
                 end
-            else
+            elseif replace then
+                -- Only Replace mode disables addons missing from the snapshot.
                 local state = C_AddOns.GetAddOnEnableState(name, character)
                 if state > 0 then
                     C_AddOns.DisableAddOn(name, character)
@@ -106,18 +117,17 @@ function Addons:Apply(data, meta)
     end
 end
 
-StaticPopupDialogs["WOWSYNC_RELOAD_UI"] = {
-    text = L["Addon list has been updated.\nReload UI to apply changes?"],
-    button1 = L["Reload"],
-    button2 = L["Later"],
-    OnAccept = function()
-        ReloadUI()
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,
-}
+-- Preview of which addons applying this profile would enable or disable.
+function Addons:Diff(current, snapshot)
+    local currentSet = HashSet:From(current and current.Enabled, Identity, Identity)
+    local snapshotSet = HashSet:From(snapshot and snapshot.Enabled, Identity, Identity)
+
+    return {
+        added = currentSet:Added(snapshotSet),
+        changed = {},
+        removed = currentSet:Removed(snapshotSet),
+    }
+end
 
 function Addons:CanApply(meta)
     return true

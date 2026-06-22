@@ -2,7 +2,13 @@ local _, addon = ...
 local Chat = addon:NewObject("Chat")
 
 local ProfileManager = addon:GetObject("ProfileManager")
+local HashSet = addon.HashSet
+local ApplyMode = addon.ApplyMode
 local L = addon.L
+
+Chat.Config = {
+    ApplyMode = ApplyMode.All,
+}
 
 local NUM_CHAT_WINDOWS = NUM_CHAT_WINDOWS or 10
 
@@ -157,21 +163,48 @@ function Chat:Capture()
     }
 end
 
-function Chat:Apply(data, meta)
+local function TabKey(tab)
+    return tab.Name
+end
+
+function Chat:Apply(data, meta, opts)
+    local replace = opts and opts.mode == "replace"
+
     if data.Tabs then
-        -- Phase 1: Close all existing custom tabs (index 3+) so we start clean.
-        -- Iterate in reverse to avoid issues with dock reordering during close.
-        for i = NUM_CHAT_WINDOWS, 3, -1 do
+        -- Index the existing custom tabs (3+) by name so we can reconfigure a
+        -- tab in place instead of opening a duplicate window.
+        local existing = {}
+        for i = 3, NUM_CHAT_WINDOWS do
             local chatFrame = _G["ChatFrame" .. i]
             if chatFrame then
                 local name = GetChatWindowInfo(i)
                 if name and name ~= "" then
-                    FCF_Close(chatFrame, ChatFrame1)
+                    existing[name] = chatFrame
                 end
             end
         end
 
-        -- Phase 2: Create and configure each saved tab.
+        -- Replace mode: close custom tabs that the snapshot does not contain.
+        -- Iterate in reverse to avoid issues with dock reordering during close.
+        if replace then
+            local wanted = {}
+            for _, tab in ipairs(data.Tabs) do
+                wanted[tab.Name] = true
+            end
+
+            for i = NUM_CHAT_WINDOWS, 3, -1 do
+                local chatFrame = _G["ChatFrame" .. i]
+                if chatFrame then
+                    local name = GetChatWindowInfo(i)
+                    if name and name ~= "" and not wanted[name] then
+                        FCF_Close(chatFrame, ChatFrame1)
+                        existing[name] = nil
+                    end
+                end
+            end
+        end
+
+        -- Create or reconfigure each saved tab.
         for tabIndex, tab in ipairs(data.Tabs) do
             local chatFrame
             local frameIndex
@@ -181,8 +214,8 @@ function Chat:Apply(data, meta)
                 chatFrame = _G["ChatFrame" .. tabIndex]
                 frameIndex = tabIndex
             else
-                -- Create a new tab for each custom window
-                chatFrame = FCF_OpenNewWindow(tab.Name)
+                -- Reuse an existing tab with the same name, else open a new one.
+                chatFrame = existing[tab.Name] or FCF_OpenNewWindow(tab.Name)
                 if not chatFrame then
                     addon:Print(L["Could not create chat tab 'X' — maximum tabs reached."]:format(tab.Name))
                     break
@@ -215,6 +248,18 @@ function Chat:Apply(data, meta)
             ChangeChatColor(chatType, color.r, color.g, color.b)
         end
     end
+end
+
+-- Preview of what applying these chat tabs would change.
+function Chat:Diff(current, snapshot)
+    local currentSet = HashSet:From(current and current.Tabs, TabKey, TabKey)
+    local snapshotSet = HashSet:From(snapshot and snapshot.Tabs, TabKey, TabKey)
+
+    return {
+        added = currentSet:Added(snapshotSet),
+        changed = currentSet:Changed(snapshotSet),
+        removed = currentSet:Removed(snapshotSet),
+    }
 end
 
 function Chat:CanApply(meta)
