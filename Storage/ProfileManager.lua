@@ -203,13 +203,8 @@ function ProfileManager:HasUndo()
     return undoStore:Has()
 end
 
--- Subject + module names of the change that Undo would roll back.
-function ProfileManager:GetUndoInfo()
-    local safety = undoStore:Peek()
-    if not safety then
-        return nil
-    end
-
+-- Subject + sorted module names describing a single safety snapshot.
+local function DescribeSafety(safety)
     local moduleNames = {}
     for name in pairs(safety.Modules) do
         tinsert(moduleNames, name)
@@ -221,6 +216,28 @@ function ProfileManager:GetUndoInfo()
         Timestamp = safety.Timestamp,
         ModuleNames = moduleNames,
     }
+end
+
+-- Subject + module names of the change that Undo would roll back.
+function ProfileManager:GetUndoInfo()
+    local safety = undoStore:Peek()
+    if not safety then
+        return nil
+    end
+
+    return DescribeSafety(safety)
+end
+
+-- The undo points newest-first, each describing one apply that can be rolled
+-- back. Index 1 is the most recent (what a single Undo reverts); undoing to a
+-- deeper index rolls back every apply above it as well.
+function ProfileManager:GetUndoStack()
+    local stack = undoStore:List()
+    local out = {}
+    for i = #stack, 1, -1 do
+        tinsert(out, DescribeSafety(stack[i]))
+    end
+    return out
 end
 
 -- Roll back the most recent apply by re-applying the top safety snapshot in
@@ -251,6 +268,28 @@ function ProfileManager:Undo(moduleSet)
 
     undoStore:Pop()
     currentStore:Refresh()
+    return results
+end
+
+-- Roll back the most recent `count` applies, newest first, by undoing one step
+-- at a time. Returns the aggregated per-module results across every step that
+-- ran (later steps win when a module appears in more than one).
+function ProfileManager:UndoSteps(count)
+    count = count or 1
+    local results = {}
+    for _ = 1, count do
+        if not undoStore:Has() then
+            break
+        end
+
+        local step = self:Undo()
+        if step then
+            for name, result in pairs(step) do
+                results[name] = result
+            end
+        end
+    end
+
     return results
 end
 
