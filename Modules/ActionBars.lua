@@ -3,11 +3,11 @@ local ActionBars = addon:NewObject("ActionBars")
 
 local ProfileManager = addon:GetObject("ProfileManager")
 local HashSet = addon.HashSet
-local ApplyMode = addon.ApplyMode
+local SnapshotApplyMode = addon.SnapshotApplyMode
 local L = addon.L
 
 ActionBars.Config = {
-    ApplyMode = ApplyMode.Merge,
+    SnapshotApplyMode = SnapshotApplyMode.Merge,
 }
 
 --[[ Slot Layout (see https://warcraft.wiki.gg/wiki/ActionSlot)

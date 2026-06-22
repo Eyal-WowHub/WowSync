@@ -3,10 +3,10 @@ local Keybindings = addon:NewObject("Keybindings")
 
 local ProfileManager = addon:GetObject("ProfileManager")
 local HashSet = addon.HashSet
-local ApplyMode = addon.ApplyMode
+local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Keybindings.Config = {
-    ApplyMode = ApplyMode.All,
+    SnapshotApplyMode = SnapshotApplyMode.All,
 }
 
 --[[ Helpers ]]
@@ -49,7 +49,7 @@ end
 
 function Keybindings:Apply(data, meta, opts)
     -- Apply saved bindings. SetBinding overrides existing key assignments.
-    -- In Replace mode, every currently bound key is cleared first so the
+    -- In Exact mode, every currently bound key is cleared first so the
     -- result matches the snapshot exactly (including keys that merely moved
     -- from one command to another).
     local currentSet = GetCurrentBindingSet()
@@ -58,7 +58,7 @@ function Keybindings:Apply(data, meta, opts)
         return
     end
 
-    if opts and opts.mode == "replace" then
+    if opts and opts.mode == "exact" then
         for _, keys in pairs(self:Capture()) do
             if keys.Key1 then
                 SetBinding(keys.Key1, nil)

@@ -3,11 +3,11 @@ local Talents = addon:NewObject("Talents")
 
 local ProfileManager = addon:GetObject("ProfileManager")
 local HashSet = addon.HashSet
-local ApplyMode = addon.ApplyMode
+local SnapshotApplyMode = addon.SnapshotApplyMode
 local L = addon.L
 
 Talents.Config = {
-    ApplyMode = ApplyMode.Merge,
+    SnapshotApplyMode = SnapshotApplyMode.Merge,
 }
 
 local BIT_WIDTH_VERSION = 8

@@ -59,7 +59,7 @@ L["Later"] = "Later"
 -- Usage
 L["Usage:"] = "Usage:"
 L["  /ws save <name> - Save current setup to a profile"] = "  /ws save <name> - Save current setup to a profile"
-L["  /ws apply <name> [merge|replace] - Apply a profile's latest snapshot"] = "  /ws apply <name> [merge|replace] - Apply a profile's latest snapshot"
+L["  /ws apply <name> [merge|exact] - Apply a profile's latest snapshot"] = "  /ws apply <name> [merge|exact] - Apply a profile's latest snapshot"
 L["  /ws undo - Undo the last apply"] = "  /ws undo - Undo the last apply"
 L["  /ws delete <name> - Delete a profile"] = "  /ws delete <name> - Delete a profile"
 L["  /ws list - List all saved profiles"] = "  /ws list - List all saved profiles"

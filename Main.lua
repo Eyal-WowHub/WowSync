@@ -59,7 +59,7 @@ function addon:OnInitialized()
             local trailing = arg:match("%s(%S+)$")
             if trailing then
                 local lower = trailing:lower()
-                if lower == "merge" or lower == "replace" then
+                if lower == "merge" or lower == "exact" then
                     mode = lower
                     profileName = strtrim(arg:sub(1, #arg - #trailing))
                 end
@@ -127,7 +127,7 @@ function addon:OnInitialized()
         else
             self:Print(L["Usage:"])
             self:Print(L["  /ws save <name> - Save current setup to a profile"])
-            self:Print(L["  /ws apply <name> [merge|replace] - Apply a profile's latest snapshot"])
+            self:Print(L["  /ws apply <name> [merge|exact] - Apply a profile's latest snapshot"])
             self:Print(L["  /ws undo - Undo the last apply"])
             self:Print(L["  /ws delete <name> - Delete a profile"])
             self:Print(L["  /ws list - List all saved profiles"])

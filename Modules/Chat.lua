@@ -3,11 +3,11 @@ local Chat = addon:NewObject("Chat")
 
 local ProfileManager = addon:GetObject("ProfileManager")
 local HashSet = addon.HashSet
-local ApplyMode = addon.ApplyMode
+local SnapshotApplyMode = addon.SnapshotApplyMode
 local L = addon.L
 
 Chat.Config = {
-    ApplyMode = ApplyMode.All,
+    SnapshotApplyMode = SnapshotApplyMode.All,
 }
 
 local NUM_CHAT_WINDOWS = NUM_CHAT_WINDOWS or 10
@@ -168,7 +168,7 @@ local function TabKey(tab)
 end
 
 function Chat:Apply(data, meta, opts)
-    local replace = opts and opts.mode == "replace"
+    local exact = opts and opts.mode == "exact"
 
     if data.Tabs then
         -- Index the existing custom tabs (3+) by name so we can reconfigure a
@@ -184,9 +184,9 @@ function Chat:Apply(data, meta, opts)
             end
         end
 
-        -- Replace mode: close custom tabs that the snapshot does not contain.
+        -- Exact mode: close custom tabs that the snapshot does not contain.
         -- Iterate in reverse to avoid issues with dock reordering during close.
-        if replace then
+        if exact then
             local wanted = {}
             for _, tab in ipairs(data.Tabs) do
                 wanted[tab.Name] = true

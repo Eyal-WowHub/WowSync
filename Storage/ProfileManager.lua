@@ -3,6 +3,7 @@ local ProfileManager = addon:NewObject("ProfileManager")
 
 local CharacterInfo = LibStub("CharacterInfo-1.0")
 local C = LibStub("Contracts-1.0")
+local SnapshotApplyMode = addon.SnapshotApplyMode
 
 --[[
     ProfileManager — the storage subsystem's orchestrator/facade.
@@ -16,8 +17,8 @@ local C = LibStub("Contracts-1.0")
       Save    -> capture Current, build a Snapshot, append to the profile
                  (skipped when nothing changed since the latest snapshot).
       Apply   -> push a FULL safety snapshot of Current to the undo stack, then
-                 apply the chosen snapshot's modules (per-module Merge/Replace).
-      Undo    -> re-apply the top safety snapshot in Replace mode, then pop it.
+                 apply the chosen snapshot's modules (per-module Merge/Exact).
+      Undo    -> re-apply the top safety snapshot in Exact mode, then pop it.
 ]]
 
 local registry
@@ -83,6 +84,14 @@ function ProfileManager:IterableModules()
     return registry:Iterate()
 end
 
+-- The apply modes a module supports (None when unknown), so the apply UI can
+-- offer Merge/Exact only where each is meaningful.
+function ProfileManager:GetModuleSnapshotApplyMode(name)
+    C:IsString(name, 2)
+    local module = registry:Get(name)
+    return module and module.Config and module.Config.SnapshotApplyMode or SnapshotApplyMode.None
+end
+
 --[[ Current ]]
 
 -- Re-capture the logged-in character's live setup; returns the captured modules.
@@ -136,7 +145,7 @@ end
 --[[ Apply ]]
 
 -- Apply a profile snapshot (latest when hash is nil) to the current character.
--- strategy = { default = "merge"|"replace", overrides = { [name] = mode } }.
+-- strategy = { default = "merge"|"exact", overrides = { [name] = mode } }.
 -- A full safety snapshot of Current is pushed to the undo stack first.
 function ProfileManager:Apply(profileName, hash, strategy, moduleSet)
     C:IsString(profileName, 2)
@@ -150,7 +159,7 @@ function ProfileManager:Apply(profileName, hash, strategy, moduleSet)
     local overrides = strategy.overrides or {}
 
     -- Capture a FULL safety snapshot of Current before touching anything so any
-    -- change (including Replace deletions and per-module undo) can be rolled
+    -- change (including Exact deletions and per-module undo) can be rolled
     -- back. It is only pushed to the undo stack if an apply actually happens.
     local safety = snapshots:New(currentStore:Refresh(), CurrentSource())
 
@@ -215,7 +224,7 @@ function ProfileManager:GetUndoInfo()
 end
 
 -- Roll back the most recent apply by re-applying the top safety snapshot in
--- Replace mode (optionally limited to a subset), then pop it off the stack.
+-- Exact mode (optionally limited to a subset), then pop it off the stack.
 function ProfileManager:Undo(moduleSet)
     local safety = undoStore:Peek()
     if not safety then
@@ -231,7 +240,7 @@ function ProfileManager:Undo(moduleSet)
         local data = safety.Modules[name]
 
         if module and data ~= nil then
-            local ok, err = pcall(module.Apply, module, data, meta, { mode = "replace" })
+            local ok, err = pcall(module.Apply, module, data, meta, { mode = "exact" })
             if ok then
                 results[name] = { applied = true }
             else

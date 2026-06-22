@@ -3,10 +3,10 @@ local Addons = addon:NewObject("Addons")
 
 local ProfileManager = addon:GetObject("ProfileManager")
 local HashSet = addon.HashSet
-local ApplyMode = addon.ApplyMode
+local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Addons.Config = {
-    ApplyMode = ApplyMode.All,
+    SnapshotApplyMode = SnapshotApplyMode.All,
 }
 
 --[[
@@ -77,7 +77,7 @@ function Addons:Apply(data, meta, opts)
         return
     end
 
-    local replace = opts and opts.mode == "replace"
+    local exact = opts and opts.mode == "exact"
     local character = UnitName("player")
 
     -- Build a lookup set from the profile's enabled list
@@ -101,8 +101,8 @@ function Addons:Apply(data, meta, opts)
                     C_AddOns.EnableAddOn(name, character)
                     changed = true
                 end
-            elseif replace then
-                -- Only Replace mode disables addons missing from the snapshot.
+            elseif exact then
+                -- Only Exact mode disables addons missing from the snapshot.
                 local state = C_AddOns.GetAddOnEnableState(name, character)
                 if state > 0 then
                     C_AddOns.DisableAddOn(name, character)

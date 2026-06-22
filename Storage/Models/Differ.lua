@@ -8,7 +8,7 @@ local ModuleRegistry = addon:GetObject("ModuleRegistry")
 
     Each module that supports diffing implements Diff(currentData, snapshotData)
     and returns { added = {...}, changed = {...}, removed = {...} } describing the
-    entries that would be created, overwritten, or (in Replace mode) deleted.
+    entries that would be created, overwritten, or (in Exact mode) deleted.
     Differ aggregates those into a per-module map plus overall totals for the
     apply preview dialog.
 ]]

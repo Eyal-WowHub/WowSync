@@ -3,11 +3,11 @@ local Macros = addon:NewObject("Macros")
 
 local ProfileManager = addon:GetObject("ProfileManager")
 local HashSet = addon.HashSet
-local ApplyMode = addon.ApplyMode
+local SnapshotApplyMode = addon.SnapshotApplyMode
 local L = addon.L
 
 Macros.Config = {
-    ApplyMode = ApplyMode.All,
+    SnapshotApplyMode = SnapshotApplyMode.All,
 }
 
 local MAX_ACCOUNT_MACROS = MAX_ACCOUNT_MACROS or 120
@@ -54,7 +54,7 @@ local function FindMacroInScope(name, isCharacterSpecific)
     return nil
 end
 
--- Replace mode: delete in-scope macros whose name is not in keepNames.
+-- Exact mode: delete in-scope macros whose name is not in keepNames.
 -- Iterate descending so deleting an index never shifts one we have yet to see.
 local function DeleteExtraMacros(keepNames, isCharacterSpecific)
     local startIndex, endIndex = ScopeRange(isCharacterSpecific)
@@ -80,19 +80,19 @@ function Macros:Capture()
 end
 
 function Macros:Apply(data, meta, opts)
-    local replace = opts and opts.mode == "replace"
+    local exact = opts and opts.mode == "exact"
 
     if data.Account then
-        self:ApplyMacros(data.Account, false, replace)
+        self:ApplyMacros(data.Account, false, exact)
     end
 
     if data.Character then
-        self:ApplyMacros(data.Character, true, replace)
+        self:ApplyMacros(data.Character, true, exact)
     end
 end
 
-function Macros:ApplyMacros(macros, isCharacterSpecific, replace)
-    if replace then
+function Macros:ApplyMacros(macros, isCharacterSpecific, exact)
+    if exact then
         local keep = {}
         for _, macro in ipairs(macros) do
             keep[macro.Name] = true

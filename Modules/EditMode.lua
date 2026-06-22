@@ -3,10 +3,10 @@ local EditMode = addon:NewObject("EditMode")
 
 local ProfileManager = addon:GetObject("ProfileManager")
 local HashSet = addon.HashSet
-local ApplyMode = addon.ApplyMode
+local SnapshotApplyMode = addon.SnapshotApplyMode
 
 EditMode.Config = {
-    ApplyMode = ApplyMode.Merge,
+    SnapshotApplyMode = SnapshotApplyMode.Merge,
 }
 
 --[[

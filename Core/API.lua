@@ -4,6 +4,12 @@ WowSync = addon:NewObject(addon:GetName())
 
 local ProfileManager = addon:GetObject("ProfileManager")
 
+-- Public value objects, exposed so other addons (e.g. the companion UI) can
+-- interpret data this addon returns.
+WowSync.Models = {
+    SnapshotApplyMode = addon.SnapshotApplyMode,
+}
+
 function WowSync:GetProfileManager()
     return ProfileManager
 end

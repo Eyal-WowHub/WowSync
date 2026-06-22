@@ -23,7 +23,7 @@ Core\Colorizer.lua
 Core\Hash.lua
 Core\Time.lua
 Core\HashSet.lua
-Core\ApplyMode.lua
+Core\Models\SnapshotApplyMode.lua
 
 Storage\ModuleRegistry.lua
 Storage\Models\Snapshot.lua

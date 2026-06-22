@@ -3,10 +3,10 @@ local Settings = addon:NewObject("Settings")
 
 local ProfileManager = addon:GetObject("ProfileManager")
 local HashSet = addon.HashSet
-local ApplyMode = addon.ApplyMode
+local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Settings.Config = {
-    ApplyMode = ApplyMode.Merge,
+    SnapshotApplyMode = SnapshotApplyMode.Merge,
 }
 
 local TRACKED_CVARS = addon.TRACKED_CVARS
