@@ -85,31 +85,27 @@ function Commands:OnInitialized()
                 hash = snapshot.Hash
             end
 
-            local results = ProfileManager:Apply(profileName, hash, { default = mode })
-            if results then
-                for name, result in pairs(results) do
-                    if result.applied then
-                        local msg = L["X: applied"]:format(name)
-                        if result.warning then
-                            msg = L["X (Y)"]:format(msg, result.warning)
-                        end
-                        WowSync:Print(msg)
-                    else
-                        WowSync:Print(L["X: skipped - Y"]:format(name, result.reason or L["unknown"]))
-                    end
+            local result = ProfileManager:Apply(profileName, hash, { default = mode })
+            for _, name in ipairs(result:Applied()) do
+                local outcome = result:Get(name)
+                local msg = L["X: applied"]:format(name)
+                if outcome.warning then
+                    msg = L["X (Y)"]:format(msg, outcome.warning)
                 end
+                WowSync:Print(msg)
+            end
+            for _, name in ipairs(result:Skipped()) do
+                WowSync:Print(L["X: skipped - Y"]:format(name, result:Get(name).reason or L["unknown"]))
             end
         elseif command == "undo" then
             if not ProfileManager:HasUndo() then
                 WowSync:Print(L["Nothing to undo."])
             else
-                local results = ProfileManager:Undo()
-                if results then
+                local result = ProfileManager:Undo()
+                if result then
                     WowSync:Print(L["Undid the last apply:"])
-                    for name, result in pairs(results) do
-                        if result.applied then
-                            WowSync:Print(L["  X: restored"]:format(name))
-                        end
+                    for _, name in ipairs(result:Applied()) do
+                        WowSync:Print(L["  X: restored"]:format(name))
                     end
                 end
             end

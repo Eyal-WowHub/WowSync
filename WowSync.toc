@@ -24,6 +24,8 @@ Core\Hash.lua
 Core\Time.lua
 Core\HashSet.lua
 Core\Models\SnapshotApplyMode.lua
+Core\Models\CappedHistory.lua
+Core\Models\ApplyResult.lua
 
 Storage\ModuleRegistry.lua
 Storage\Models\Snapshot.lua

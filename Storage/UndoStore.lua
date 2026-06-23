@@ -2,6 +2,7 @@ local _, addon = ...
 local UndoStore = addon:NewObject("UndoStore")
 
 local CharacterInfo = LibStub("CharacterInfo-1.0")
+local CappedHistory = addon.CappedHistory
 
 --[[
     UndoStore — a per-character stack of safety snapshots.
@@ -31,12 +32,9 @@ end
 function UndoStore:Push(key, snapshot)
     key = key or CharacterInfo:GetFullName()
     local stack = EnsureStack(key)
-    tinsert(stack, snapshot)
-
-    local max = addon.DB.global.Settings.MaxUndo or 20
-    while #stack > max do
-        tremove(stack, 1)
-    end
+    CappedHistory:Wrap(stack, {
+        max = function() return addon.DB.global.Settings.MaxUndo or 20 end,
+    }):Push(snapshot)
 end
 
 function UndoStore:Peek(key)

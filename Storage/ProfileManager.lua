@@ -4,6 +4,7 @@ local ProfileManager = addon:NewObject("ProfileManager")
 local CharacterInfo = LibStub("CharacterInfo-1.0")
 local C = LibStub("Contracts-1.0")
 local SnapshotApplyMode = addon.SnapshotApplyMode
+local ApplyResult = addon.ApplyResult
 
 --[[
     ProfileManager — the storage subsystem's orchestrator/facade.
@@ -194,7 +195,7 @@ function ProfileManager:Apply(profileName, hash, strategy, moduleSet)
         currentStore:Refresh()
     end
 
-    return results
+    return ApplyResult:New(results)
 end
 
 --[[ Undo ]]
@@ -268,7 +269,7 @@ function ProfileManager:Undo(moduleSet)
 
     undoStore:Pop()
     currentStore:Refresh()
-    return results
+    return ApplyResult:New(results)
 end
 
 -- Roll back the most recent `count` applies, newest first, by undoing one step
@@ -276,7 +277,7 @@ end
 -- ran (later steps win when a module appears in more than one).
 function ProfileManager:UndoSteps(count)
     count = count or 1
-    local results = {}
+    local aggregate = ApplyResult:New()
     for _ = 1, count do
         if not undoStore:Has() then
             break
@@ -284,13 +285,11 @@ function ProfileManager:UndoSteps(count)
 
         local step = self:Undo()
         if step then
-            for name, result in pairs(step) do
-                results[name] = result
-            end
+            aggregate:Merge(step)
         end
     end
 
-    return results
+    return aggregate
 end
 
 --[[ Profile read/management ]]

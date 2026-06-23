@@ -1,6 +1,8 @@
 local _, addon = ...
 local ProfileStore = addon:NewObject("ProfileStore")
 
+local CappedHistory = addon.CappedHistory
+
 --[[
     ProfileStore — account-wide named profiles, each a history of snapshots.
 
@@ -47,19 +49,6 @@ local function FindSnapshot(profile, hash)
         return match, matchIndex
     end
     return nil, nil, "not-found"
-end
-
--- Drop oldest UN-pinned snapshots until the history fits within max. Pinned
--- snapshots are never removed, so the count can stay above max (a soft cap).
-local function Prune(snapshots, max)
-    local index = 1
-    while #snapshots > max and index <= #snapshots do
-        if snapshots[index].Pinned then
-            index = index + 1
-        else
-            tremove(snapshots, index)
-        end
-    end
 end
 
 function ProfileStore:OnInitialized()
@@ -121,8 +110,10 @@ function ProfileStore:AddSnapshot(name, snapshot)
         return nil, "unchanged"
     end
 
-    tinsert(snapshots, snapshot)
-    Prune(snapshots, addon.DB.global.Settings.MaxSnapshots or 20)
+    CappedHistory:Wrap(snapshots, {
+        max = function() return addon.DB.global.Settings.MaxSnapshots or 20 end,
+        isProtected = function(entry) return entry.Pinned end,
+    }):Push(snapshot)
     return snapshot
 end
 
