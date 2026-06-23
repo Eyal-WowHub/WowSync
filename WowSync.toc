@@ -28,6 +28,7 @@ Core\BoundedList.lua
 Snapshots\SnapshotApplyMode.lua
 Snapshots\Snapshot.lua
 
+Modules\ModuleInterface.lua
 Modules\ModuleRegistry.lua
 
 Snapshots\CurrentStore.lua
