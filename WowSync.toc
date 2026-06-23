@@ -52,6 +52,7 @@ Modules\EditMode.lua
 Modules\Addons.lua
 Modules\Settings.lua
 
+Runtime\GameWatcher.lua
 Runtime\API.lua
 Runtime\Commands.lua
 

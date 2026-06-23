@@ -7,6 +7,7 @@ local DB_DEFAULTS = {
         Settings = {
             MaxSnapshots = 20,
             MaxUndo = 20,
+            Watcher = true,
         },
     },
 }

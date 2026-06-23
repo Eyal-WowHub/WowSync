@@ -177,6 +177,12 @@ function EditMode:CanApply(meta)
     return true
 end
 
+-- Events that mean this module's live state may have changed, so the GameWatcher
+-- can re-mirror it into Current (debounced).
+function EditMode:GetWatchEvents()
+    return { "EDIT_MODE_LAYOUTS_UPDATED" }
+end
+
 --[[ Registration ]]
 
 function EditMode:OnInitialized()

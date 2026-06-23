@@ -19,6 +19,9 @@ function ModuleRegistry:Register(module)
     if module.CanCapture ~= nil then
         C:Ensures(type(module.CanCapture) == "function", "Register: module CanCapture must be a function")
     end
+    if module.GetWatchEvents ~= nil then
+        C:Ensures(type(module.GetWatchEvents) == "function", "Register: module GetWatchEvents must be a function")
+    end
 
     local name = module:GetName()
     C:Ensures(not modules[name], "Register: module '%s' is already registered", name)

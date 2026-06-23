@@ -154,6 +154,12 @@ function Macros:CanApply(meta)
     return true
 end
 
+-- Events that mean this module's live state may have changed, so the GameWatcher
+-- can re-mirror it into Current (debounced).
+function Macros:GetWatchEvents()
+    return { "UPDATE_MACROS" }
+end
+
 --[[ Registration ]]
 
 function Macros:OnInitialized()

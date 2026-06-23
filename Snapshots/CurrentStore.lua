@@ -28,6 +28,25 @@ local function EnsureEntry(key)
     return entry
 end
 
+-- Capture one module's live state, honoring its optional CanCapture() gate.
+-- Returns the captured data and true on success; nil and false when the module
+-- declined capture (e.g. combat lockdown) or its Capture() errored.
+local function CaptureModule(name, module)
+    if module.CanCapture and not module:CanCapture() then
+        return nil, false
+    end
+
+    local ok, data = pcall(module.Capture, module)
+    if not ok then
+        -- A module's Capture() is not expected to error; surface it so a broken
+        -- module is diagnosable instead of silently vanishing.
+        addon:Print(addon.L["Could not capture module 'X': Y"]:format(name, tostring(data)))
+        return nil, false
+    end
+
+    return data, true
+end
+
 function CurrentStore:OnInitialized()
     characters = addon.DB.global.Characters
     -- A character's Current exists from its first login.
@@ -50,20 +69,37 @@ function CurrentStore:Refresh()
 
     local current = {}
     for name, module in ModuleRegistry:Iterate() do
-        if not module.CanCapture or module:CanCapture() then
-            local ok, data = pcall(module.Capture, module)
-            if ok then
-                current[name] = data
-            else
-                -- A module's Capture() is not expected to error; surface it so a
-                -- broken module is diagnosable instead of silently vanishing.
-                addon:Print(addon.L["Could not capture module 'X': Y"]:format(name, tostring(data)))
-            end
+        local data, ok = CaptureModule(name, module)
+        if ok then
+            current[name] = data
         end
     end
 
     entry.Current = current
     return current
+end
+
+-- Re-capture a single module into the logged-in character's Current, leaving the
+-- other modules untouched. Used by the live GameWatcher to mirror just what
+-- changed. Returns true when captured, or false when skipped (unknown module, or
+-- CanCapture deferred it, e.g. during combat).
+function CurrentStore:RefreshModule(name)
+    local module = ModuleRegistry:Get(name)
+    if not module then
+        return false
+    end
+
+    local entry = EnsureEntry(CharacterInfo:GetFullName())
+    entry.Meta.ClassID = PlayerUtil.GetClassID()
+    entry.Meta.LastSeen = time()
+
+    local data, ok = CaptureModule(name, module)
+    if not ok then
+        return false
+    end
+
+    entry.Current[name] = data
+    return true
 end
 
 -- Current setup for a character (defaults to the logged-in one).

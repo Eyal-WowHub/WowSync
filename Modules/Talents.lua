@@ -403,6 +403,12 @@ function Talents:CanApply(meta)
     return true
 end
 
+-- Events that mean this module's live state may have changed, so the GameWatcher
+-- can re-mirror it into Current (debounced).
+function Talents:GetWatchEvents()
+    return { "TRAIT_CONFIG_UPDATED", "PLAYER_SPECIALIZATION_CHANGED" }
+end
+
 --[[ Registration ]]
 
 function Talents:OnInitialized()

@@ -292,6 +292,12 @@ function ActionBars:CanApply(meta)
     return true
 end
 
+-- Events that mean this module's live state may have changed, so the GameWatcher
+-- can re-mirror it into Current (debounced).
+function ActionBars:GetWatchEvents()
+    return { "ACTIONBAR_SLOT_CHANGED", "PLAYER_SPECIALIZATION_CHANGED" }
+end
+
 --[[ Registration ]]
 
 function ActionBars:OnInitialized()

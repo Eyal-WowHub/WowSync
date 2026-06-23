@@ -266,6 +266,12 @@ function Chat:CanApply(meta)
     return true
 end
 
+-- Events that mean this module's live state may have changed, so the GameWatcher
+-- can re-mirror it into Current (debounced).
+function Chat:GetWatchEvents()
+    return { "UPDATE_CHAT_WINDOWS", "UPDATE_FLOATING_CHAT_WINDOWS", "UPDATE_CHAT_COLOR" }
+end
+
 --[[ Registration ]]
 
 function Chat:OnInitialized()

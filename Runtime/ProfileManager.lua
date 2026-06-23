@@ -28,6 +28,7 @@ local currentStore
 local undoStore
 local snapshots
 local differ
+local gameWatcher
 
 function ProfileManager:OnInitialized()
     registry = addon:GetObject("ModuleRegistry")
@@ -36,6 +37,7 @@ function ProfileManager:OnInitialized()
     undoStore = addon:GetObject("UndoStore")
     snapshots = addon:GetObject("Snapshot")
     differ = addon:GetObject("Differ")
+    gameWatcher = addon:GetObject("GameWatcher")
 end
 
 --[[ Internal helpers ]]
@@ -169,6 +171,9 @@ function ProfileManager:Apply(profileName, hash, strategy, moduleSet)
     local results = {}
     local applied = false
 
+    -- Don't let our own writes echo back in as if the player made them.
+    gameWatcher:PauseForApply()
+
     for name in pairs(names) do
         local module = registry:Get(name)
         local data = snapshot.Modules[name]
@@ -194,6 +199,8 @@ function ProfileManager:Apply(profileName, hash, strategy, moduleSet)
         undoStore:Push(nil, safety)
         currentStore:Refresh()
     end
+
+    gameWatcher:ResumeAfterApply()
 
     return ApplyResult:New(results)
 end
@@ -253,6 +260,8 @@ function ProfileManager:Undo(moduleSet)
     local names = ResolveNames(safety.Modules, moduleSet)
     local results = {}
 
+    gameWatcher:PauseForApply()
+
     for name in pairs(names) do
         local module = registry:Get(name)
         local data = safety.Modules[name]
@@ -269,6 +278,7 @@ function ProfileManager:Undo(moduleSet)
 
     undoStore:Pop()
     currentStore:Refresh()
+    gameWatcher:ResumeAfterApply()
     return ApplyResult:New(results)
 end
 

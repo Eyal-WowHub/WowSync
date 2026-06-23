@@ -2,6 +2,7 @@ local _, addon = ...
 local Commands = addon:NewObject("Commands")
 
 local ProfileManager = addon:GetObject("ProfileManager")
+local GameWatcher = addon:GetObject("GameWatcher")
 local L = addon.L
 
 --[[
@@ -173,6 +174,17 @@ function Commands:OnInitialized()
                     WowSync:Print(L["No saved profiles."])
                 end
             end
+        elseif command == "watcher" then
+            local state = (arg or ""):lower()
+            if state == "on" then
+                GameWatcher:SetEnabled(true)
+                WowSync:Print(L["Live tracking is on."])
+            elseif state == "off" then
+                GameWatcher:SetEnabled(false)
+                WowSync:Print(L["Live tracking is off."])
+            else
+                WowSync:Print(L["Usage: /ws watcher on|off."])
+            end
         elseif command == "help" then
             WowSync:Print(L["Usage: (/ws and /wowsync are interchangeable)"])
             WowSync:Print(L["  /ws - Toggle the UI"])
@@ -181,6 +193,7 @@ function Commands:OnInitialized()
             WowSync:Print(L["  /ws undo - Undo the last apply"])
             WowSync:Print(L["  /ws delete <name>[@hash] - Delete a profile or one of its snapshots"])
             WowSync:Print(L["  /ws list [name] - List profiles, or a profile's snapshots"])
+            WowSync:Print(L["  /ws watcher on|off - Mirror your changes live"])
         else
             WowSync:Print(L["Unknown command. Type /ws help."])
         end
