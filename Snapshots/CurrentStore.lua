@@ -104,6 +104,13 @@ function CurrentStore:RefreshModule(name)
     end
 
     entry.Current[name] = data
+
+    -- Signal listeners (e.g. the companion UI's "unsaved changes" badge) that the
+    -- live setup changed. Only this single-module live path fires the event;
+    -- Refresh() deliberately does not, since PreviewApply() calls Refresh() and
+    -- a UI that recomputes on this event would otherwise loop.
+    WowSync:TriggerEvent("WOWSYNC_CURRENT_CHANGED")
+
     return true
 end
 
