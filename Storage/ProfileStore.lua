@@ -20,14 +20,33 @@ local Time = addon.Time
 
 local profiles
 
+-- Resolve a snapshot by exact hash or an unambiguous hash prefix (git-style).
+-- Returns snapshot, index — or nil, nil, reason ("not-found" | "ambiguous").
 local function FindSnapshot(profile, hash)
     local snapshots = profile.Snapshots
+
+    -- An exact match always wins, even if it is also a prefix of others.
     for index = 1, #snapshots do
         if snapshots[index].Hash == hash then
             return snapshots[index], index
         end
     end
-    return nil
+
+    -- Otherwise accept a single prefix match; more than one is ambiguous.
+    local match, matchIndex
+    for index = 1, #snapshots do
+        if snapshots[index].Hash:sub(1, #hash) == hash then
+            if match then
+                return nil, nil, "ambiguous"
+            end
+            match, matchIndex = snapshots[index], index
+        end
+    end
+
+    if match then
+        return match, matchIndex
+    end
+    return nil, nil, "not-found"
 end
 
 -- Drop oldest UN-pinned snapshots until the history fits within max. Pinned
@@ -118,9 +137,10 @@ end
 function ProfileStore:GetSnapshot(name, hash)
     local profile = profiles[name]
     if not profile then
-        return nil
+        return nil, "not-found"
     end
-    return (FindSnapshot(profile, hash))
+    local snapshot, _, reason = FindSnapshot(profile, hash)
+    return snapshot, reason
 end
 
 function ProfileStore:DeleteSnapshot(name, hash)

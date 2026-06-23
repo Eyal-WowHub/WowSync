@@ -317,6 +317,14 @@ end
 
 --[[ Snapshot read/management ]]
 
+-- Resolve a snapshot within a profile by exact hash or unambiguous prefix.
+-- Returns snapshot, or nil + reason ("not-found" | "ambiguous").
+function ProfileManager:GetSnapshot(profileName, hash)
+    C:IsString(profileName, 2)
+    C:IsString(hash, 3)
+    return profileStore:GetSnapshot(profileName, hash)
+end
+
 function ProfileManager:DeleteSnapshot(profileName, hash)
     C:IsString(profileName, 2)
     C:IsString(hash, 3)
