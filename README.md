@@ -40,8 +40,17 @@ Once it is open:
 * **Profiles** — the left panel lists your saved profiles. Select one to see its history on the right.
 * **Save** — saving captures the current character's setup as a new **snapshot**. Use the save dialog to add a short note and to choose which parts of your setup to include.
 * **Snapshot timeline** — each profile keeps a history of snapshots, newest at the top. Select a snapshot to see its note and what changed compared to your current setup.
+* **Unsaved changes** — with a profile selected, a badge beside its name shows whether your current setup matches the profile's most recent snapshot or has changes you have not saved yet.
 * **Apply** — apply a snapshot to the current character. You can choose which modules to apply and, per module, whether to **Merge** (add to what you already have) or use **Exact** (replace it to match the snapshot).
 * **Rename** / **Delete** — manage your saved profiles.
+
+## Live Tracking
+
+WowSync keeps an eye on your setup as you play. When you move an action button, edit a macro, change a key binding, or tweak any other tracked part of your setup, WowSync notices and keeps its picture of your current setup up to date on its own — so a preview or a save always reflects exactly what you have right now.
+
+This is what powers the **unsaved changes** badge in the window: with a profile selected, WowSync compares your live setup to that profile's most recent snapshot and shows at a glance whether you are up to date or have changes you have not saved yet, including how many entries were added, changed, or removed.
+
+Anything that could interfere during combat (such as action bars) waits until you leave combat and then catches up automatically. Live tracking is on by default; you can turn it off or back on at any time with `/ws watcher on|off`.
 
 ## Slash Commands
 
@@ -55,6 +64,7 @@ Once it is open:
 | `/ws undo` | Undo the last apply. |
 | `/ws delete <name>[@hash]` | Delete a profile, or a single snapshot by hash. |
 | `/ws list [name]` | List all saved profiles, or one profile's snapshots. |
+| `/ws watcher on\|off` | Turn live tracking of your setup on or off (on by default). |
 | `/ws help` | Show the list of commands. |
 
 When targeting a specific snapshot, `@hash` accepts the short hash shown by `/ws list <name>`. As with Git, any unambiguous prefix works.
