@@ -4,7 +4,7 @@ local GameWatcher = addon:NewObject("GameWatcher")
 --[[
     GameWatcher — keeps each character's Current a *live* mirror of the game.
 
-    Modules declare GetWatchEvents() (e.g. UPDATE_MACROS). When one of those
+    Modules declare GetWatchedEvents() (e.g. UPDATE_MACROS). When one of those
     events fires, the matching module is marked dirty and a single short debounce
     timer is (re)started; on fire, only the dirty modules are re-captured into
     Current via CurrentStore:RefreshModule. A burst of events therefore collapses
@@ -17,7 +17,7 @@ local GameWatcher = addon:NewObject("GameWatcher")
     writes. WoW delivers events between frames, never mid-function, so the
     synchronous apply loop itself cannot be interrupted by a recapture.
 
-    Combat: a module may decline capture in combat (CanCapture); such modules
+    Combat: a module may decline capture in combat (ShouldCapture); such modules
     stay dirty and are flushed again on PLAYER_REGEN_ENABLED.
 
     On by default; toggled with `/ws watcher on|off` (DB.global.Settings.Watcher).
@@ -100,8 +100,8 @@ function GameWatcher:Start()
 
     wipe(watchedModules)
     for name, module in registry:Iterate() do
-        if module.GetWatchEvents then
-            for _, event in ipairs(module:GetWatchEvents()) do
+        if module.GetWatchedEvents then
+            for _, event in ipairs(module:GetWatchedEvents()) do
                 local names = watchedModules[event]
                 if not names then
                     names = {}

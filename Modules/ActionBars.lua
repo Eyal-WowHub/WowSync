@@ -295,13 +295,13 @@ end
 -- Defer capture during combat: bonus/stance bar paging swaps the visible slots,
 -- so the live state then reflects a transient bar, not the player's real setup.
 -- (Action bars can't be edited in combat, so nothing real is missed by waiting.)
-function ActionBars:CanCapture()
+function ActionBars:ShouldCapture()
     return not InCombatLockdown()
 end
 
 -- Events that mean this module's live state may have changed, so the GameWatcher
 -- can re-mirror it into Current (debounced).
-function ActionBars:GetWatchEvents()
+function ActionBars:GetWatchedEvents()
     return { "ACTIONBAR_SLOT_CHANGED", "PLAYER_SPECIALIZATION_CHANGED" }
 end
 

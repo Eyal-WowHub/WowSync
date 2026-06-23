@@ -268,7 +268,7 @@ end
 
 -- Events that mean this module's live state may have changed, so the GameWatcher
 -- can re-mirror it into Current (debounced).
-function Chat:GetWatchEvents()
+function Chat:GetWatchedEvents()
     return { "UPDATE_CHAT_WINDOWS", "UPDATE_FLOATING_CHAT_WINDOWS", "UPDATE_CHAT_COLOR" }
 end
 

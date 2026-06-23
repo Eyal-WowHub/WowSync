@@ -156,7 +156,7 @@ end
 
 -- Events that mean this module's live state may have changed, so the GameWatcher
 -- can re-mirror it into Current (debounced).
-function Macros:GetWatchEvents()
+function Macros:GetWatchedEvents()
     return { "UPDATE_MACROS" }
 end
 

@@ -106,7 +106,7 @@ end
 -- Events that mean this module's live state may have changed, so the GameWatcher
 -- can re-mirror it into Current (debounced). CVAR_UPDATE is chatty, but the
 -- watcher debounces and only this module re-captures.
-function Settings:GetWatchEvents()
+function Settings:GetWatchedEvents()
     return { "CVAR_UPDATE" }
 end
 

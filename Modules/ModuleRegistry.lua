@@ -16,11 +16,11 @@ function ModuleRegistry:Register(module)
     if module.Diff ~= nil then
         C:Ensures(type(module.Diff) == "function", "Register: module Diff must be a function")
     end
-    if module.CanCapture ~= nil then
-        C:Ensures(type(module.CanCapture) == "function", "Register: module CanCapture must be a function")
+    if module.ShouldCapture ~= nil then
+        C:Ensures(type(module.ShouldCapture) == "function", "Register: module ShouldCapture must be a function")
     end
-    if module.GetWatchEvents ~= nil then
-        C:Ensures(type(module.GetWatchEvents) == "function", "Register: module GetWatchEvents must be a function")
+    if module.GetWatchedEvents ~= nil then
+        C:Ensures(type(module.GetWatchedEvents) == "function", "Register: module GetWatchedEvents must be a function")
     end
 
     local name = module:GetName()

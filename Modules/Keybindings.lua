@@ -99,7 +99,7 @@ end
 
 -- Events that mean this module's live state may have changed, so the GameWatcher
 -- can re-mirror it into Current (debounced).
-function Keybindings:GetWatchEvents()
+function Keybindings:GetWatchedEvents()
     return { "UPDATE_BINDINGS" }
 end
 

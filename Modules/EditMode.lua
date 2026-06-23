@@ -179,7 +179,7 @@ end
 
 -- Events that mean this module's live state may have changed, so the GameWatcher
 -- can re-mirror it into Current (debounced).
-function EditMode:GetWatchEvents()
+function EditMode:GetWatchedEvents()
     return { "EDIT_MODE_LAYOUTS_UPDATED" }
 end
 
