@@ -18,6 +18,8 @@ Libs\Contracts\Contracts.lua
 Libs\Addon\Addon.lua
 Libs\CharacterInfo\CharacterInfo.lua
 
+Main.lua
+
 Core\Constants.lua
 Core\Colorizer.lua
 Core\Hash.lua
@@ -56,5 +58,3 @@ Modules\Settings.lua
 Runtime\GameWatcher.lua
 Runtime\API.lua
 Runtime\Commands.lua
-
-Main.lua

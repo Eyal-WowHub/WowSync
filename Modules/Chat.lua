@@ -148,8 +148,8 @@ function Chat:Capture()
                     Position = point and { Point = point, XOffset = xOffset, YOffset = yOffset } or nil,
                     Width = width,
                     Height = height,
-                    Fading = chatFrame:GetFading and chatFrame:GetFading() or nil,
-                    FadeTime = chatFrame:GetTimeVisible and chatFrame:GetTimeVisible() or nil,
+                    Fading = chatFrame.GetFading and chatFrame:GetFading() or nil,
+                    FadeTime = chatFrame.GetTimeVisible and chatFrame:GetTimeVisible() or nil,
                     Channels = CaptureChannels(chatFrame),
                     MessageGroups = CaptureMessageGroups(chatFrame),
                 })
