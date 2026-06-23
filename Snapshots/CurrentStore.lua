@@ -67,11 +67,16 @@ function CurrentStore:Refresh()
     entry.Meta.ClassID = PlayerUtil.GetClassID()
     entry.Meta.LastSeen = time()
 
+    local previous = entry.Current
     local current = {}
     for name, module in ModuleRegistry:Iterate() do
         local data, ok = CaptureModule(name, module)
         if ok then
             current[name] = data
+        else
+            -- The module declined capture (e.g. combat lockdown) or errored;
+            -- keep its last-known data rather than dropping it from Current.
+            current[name] = previous[name]
         end
     end
 
