@@ -34,14 +34,19 @@ Applying a profile is reversible. After an apply, use **Undo** (in the window or
 
 ## Slash Commands
 
+`/ws` and `/wowsync` are interchangeable — every command below works with either prefix.
+
 | Command | Description |
 | --- | --- |
 | `/ws` | Open or close the WowSync window. |
 | `/ws save <name>` | Save the current setup as a new snapshot of a profile. |
-| `/ws apply <name> [merge\|exact]` | Apply a profile's latest snapshot (Merge by default). |
+| `/ws apply <name>[@hash] [--merge\|--exact]` | Apply a profile's latest snapshot, or a specific one by hash (Merge by default). |
 | `/ws undo` | Undo the last apply. |
-| `/ws delete <name>` | Delete a profile. |
-| `/ws list` | List all saved profiles. |
+| `/ws delete <name>[@hash]` | Delete a profile, or a single snapshot by hash. |
+| `/ws list [name]` | List all saved profiles, or one profile's snapshots. |
+| `/ws help` | Show the list of commands. |
+
+When targeting a specific snapshot, `@hash` accepts the short hash shown by `/ws list <name>`. As with Git, any unambiguous prefix works.
 
 ## Side Notes
 
