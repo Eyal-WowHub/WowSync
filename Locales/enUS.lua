@@ -4,7 +4,6 @@ addon.L = L
 
 -- Slash command feedback
 L["WowSync_UI addon not found."] = "WowSync_UI addon not found."
-L["Could not open the WowSync window."] = "Could not open the WowSync window."
 L["Profile 'X' saved."] = "Profile '%s' saved."
 L["Profile 'X' deleted."] = "Profile '%s' deleted."
 L["Profile 'X' not found."] = "Profile '%s' not found."

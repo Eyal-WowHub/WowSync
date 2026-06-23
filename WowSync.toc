@@ -48,5 +48,6 @@ Modules\Addons.lua
 Modules\Settings.lua
 
 Core\API.lua
+Core\Commands.lua
 
 Main.lua
