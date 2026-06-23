@@ -54,6 +54,10 @@ function CurrentStore:Refresh()
             local ok, data = pcall(module.Capture, module)
             if ok then
                 current[name] = data
+            else
+                -- A module's Capture() is not expected to error; surface it so a
+                -- broken module is diagnosable instead of silently vanishing.
+                addon:Print(addon.L["Could not capture module 'X': Y"]:format(name, tostring(data)))
             end
         end
     end

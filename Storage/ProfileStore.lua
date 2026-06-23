@@ -11,8 +11,9 @@ local ProfileStore = addon:NewObject("ProfileStore")
     Snapshots are ordered oldest-first (newest appended at the end); each entry
     has the Snapshot shape (Hash + Timestamp + Modules + ...). Saving is
     idempotent: a snapshot whose Hash matches the latest one is rejected as
-    "unchanged". The history is capped at Settings.MaxSnapshots, pruning the
-    oldest UN-pinned snapshots first; pinned snapshots are never pruned.
+    "unchanged". The history is kept near Settings.MaxSnapshots by pruning the
+    oldest UN-pinned snapshots first; pinned snapshots are never pruned, so a
+    profile with many pins can hold more than MaxSnapshots (a soft cap).
 ]]
 
 local Time = addon.Time
@@ -29,7 +30,8 @@ local function FindSnapshot(profile, hash)
     return nil
 end
 
--- Drop oldest UN-pinned snapshots until the history fits within max.
+-- Drop oldest UN-pinned snapshots until the history fits within max. Pinned
+-- snapshots are never removed, so the count can stay above max (a soft cap).
 local function Prune(snapshots, max)
     local index = 1
     while #snapshots > max and index <= #snapshots do

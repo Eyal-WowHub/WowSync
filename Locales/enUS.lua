@@ -28,6 +28,9 @@ L["  X: restored"] = "  %s: restored"
 -- Module warnings
 L["Only common actions will be applied"] = "Only common actions will be applied"
 
+-- Capture diagnostics
+L["Could not capture module 'X': Y"] = "Could not capture module '%s': %s"
+
 -- Talents module
 L["Talents are class-specific"] = "Talents are class-specific"
 L["Note: This profile was saved with the Starter Build active."] = "Note: This profile was saved with the Starter Build active."
