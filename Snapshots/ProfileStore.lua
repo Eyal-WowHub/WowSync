@@ -1,7 +1,7 @@
 local _, addon = ...
 local ProfileStore = addon:NewObject("ProfileStore")
 
-local CappedHistory = addon.CappedHistory
+local BoundedList = addon.BoundedList
 
 --[[
     ProfileStore — account-wide named profiles, each a history of snapshots.
@@ -110,7 +110,7 @@ function ProfileStore:AddSnapshot(name, snapshot)
         return nil, "unchanged"
     end
 
-    CappedHistory:Wrap(snapshots, {
+    BoundedList:Wrap(snapshots, {
         max = function() return addon.DB.global.Settings.MaxSnapshots or 20 end,
         isProtected = function(entry) return entry.Pinned end,
     }):Push(snapshot)

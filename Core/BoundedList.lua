@@ -1,13 +1,13 @@
 local _, addon = ...
-local CappedHistory = {}
-addon.CappedHistory = CappedHistory
+local BoundedList = {}
+addon.BoundedList = BoundedList
 
 --[[
-    CappedHistory — a bounded, append-only view over a plain array.
+    BoundedList — a bounded, append-only view over a plain array.
 
     Both the per-character undo stack and a profile's snapshot list are plain
     arrays kept near a soft cap: append to the end, then evict the oldest
-    entries once the count exceeds the limit. CappedHistory centralizes that
+    entries once the count exceeds the limit. BoundedList centralizes that
     "push and trim" rule.
 
     It deliberately never stores itself: it wraps the live (persisted) array by
@@ -15,7 +15,7 @@ addon.CappedHistory = CappedHistory
     variables as plain tables — WoW strips metatables on reload, so a persisted
     wrapper would lose its methods.
 
-        CappedHistory:Wrap(stack, {
+        BoundedList:Wrap(stack, {
             max = function() return Settings.MaxUndo end,
         }):Push(snapshot)
 
@@ -25,9 +25,9 @@ addon.CappedHistory = CappedHistory
                    the count can exceed max (a soft cap).
 ]]
 
-CappedHistory.__index = CappedHistory
+BoundedList.__index = BoundedList
 
-function CappedHistory:Wrap(list, options)
+function BoundedList:Wrap(list, options)
     options = options or {}
     return setmetatable({
         list = list,
@@ -45,7 +45,7 @@ local function CapOf(self)
 end
 
 -- Append an entry, then evict the oldest non-protected entries past the cap.
-function CappedHistory:Push(entry)
+function BoundedList:Push(entry)
     local list = self.list
     tinsert(list, entry)
 
@@ -64,18 +64,18 @@ function CappedHistory:Push(entry)
     return entry
 end
 
-function CappedHistory:Peek()
+function BoundedList:Peek()
     return self.list[#self.list]
 end
 
-function CappedHistory:Pop()
+function BoundedList:Pop()
     return tremove(self.list)
 end
 
-function CappedHistory:Count()
+function BoundedList:Count()
     return #self.list
 end
 
-function CappedHistory:Items()
+function BoundedList:Items()
     return self.list
 end

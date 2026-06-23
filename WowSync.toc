@@ -23,21 +23,24 @@ Core\Colorizer.lua
 Core\Hash.lua
 Core\Time.lua
 Core\HashSet.lua
-Core\Models\SnapshotApplyMode.lua
-Core\Models\CappedHistory.lua
-Core\Models\ApplyResult.lua
+Core\BoundedList.lua
 
-Storage\ModuleRegistry.lua
-Storage\Models\Snapshot.lua
-Storage\CurrentStore.lua
-Storage\UndoStore.lua
-Storage\Models\Differ.lua
-Storage\ProfileStore.lua
-Storage\ProfileManager.lua
+Snapshots\SnapshotApplyMode.lua
+Snapshots\Snapshot.lua
+
+Modules\ModuleRegistry.lua
+
+Snapshots\CurrentStore.lua
+Snapshots\UndoStore.lua
+Snapshots\Differ.lua
+Snapshots\ProfileStore.lua
+
+Runtime\ApplyResult.lua
+Runtime\ProfileManager.lua
 
 Locales\enUS.lua
 
-Core\StaticPopupDialogs.lua
+UI\StaticPopupDialogs.lua
 
 Modules\ActionBars.lua
 Modules\Talents.lua
@@ -49,7 +52,7 @@ Modules\EditMode.lua
 Modules\Addons.lua
 Modules\Settings.lua
 
-Core\API.lua
-Core\Commands.lua
+Runtime\API.lua
+Runtime\Commands.lua
 
 Main.lua
