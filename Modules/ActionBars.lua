@@ -1,10 +1,10 @@
 local _, addon = ...
 local ActionBars = addon:NewObject("ActionBars")
-
 local ProfileManager = addon:GetObject("ProfileManager")
+
+local L = addon.L
 local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
-local L = addon.L
 
 ActionBars.Config = {
     SnapshotApplyMode = SnapshotApplyMode.Merge,

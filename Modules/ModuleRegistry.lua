@@ -1,8 +1,8 @@
 local _, addon = ...
 local ModuleRegistry = addon:NewObject("ModuleRegistry")
+local Interface = addon:GetObject("ModuleInterface")
 
 local C = LibStub("Contracts-1.0")
-local Interface = addon:GetObject("ModuleInterface")
 
 local modules = {}
 

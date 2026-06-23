@@ -1,10 +1,10 @@
 local _, addon = ...
 local Talents = addon:NewObject("Talents")
-
 local ProfileManager = addon:GetObject("ProfileManager")
+
+local L = addon.L
 local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
-local L = addon.L
 
 Talents.Config = {
     SnapshotApplyMode = SnapshotApplyMode.Merge,

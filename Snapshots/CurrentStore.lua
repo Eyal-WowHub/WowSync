@@ -1,7 +1,7 @@
 local _, addon = ...
 local CurrentStore = addon:NewObject("CurrentStore")
-
 local ModuleRegistry = addon:GetObject("ModuleRegistry")
+
 local CharacterInfo = LibStub("CharacterInfo-1.0")
 
 --[[

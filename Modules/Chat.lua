@@ -1,10 +1,10 @@
 local _, addon = ...
 local Chat = addon:NewObject("Chat")
-
 local ProfileManager = addon:GetObject("ProfileManager")
+
+local L = addon.L
 local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
-local L = addon.L
 
 Chat.Config = {
     SnapshotApplyMode = SnapshotApplyMode.All,

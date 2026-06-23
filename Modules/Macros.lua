@@ -1,10 +1,10 @@
 local _, addon = ...
 local Macros = addon:NewObject("Macros")
-
 local ProfileManager = addon:GetObject("ProfileManager")
+
+local L = addon.L
 local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
-local L = addon.L
 
 Macros.Config = {
     SnapshotApplyMode = SnapshotApplyMode.All,

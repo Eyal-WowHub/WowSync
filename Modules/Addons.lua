@@ -1,7 +1,7 @@
 local _, addon = ...
 local Addons = addon:NewObject("Addons")
-
 local ProfileManager = addon:GetObject("ProfileManager")
+
 local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
 

@@ -1,8 +1,7 @@
 local _, addon = ...
-
 WowSync = addon:NewObject(addon:GetName())
-
 local ProfileManager = addon:GetObject("ProfileManager")
+
 local L = addon.L
 
 -- Public value objects, exposed so other addons (e.g. the companion UI) can

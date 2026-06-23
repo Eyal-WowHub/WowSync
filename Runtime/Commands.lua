@@ -1,8 +1,8 @@
 local _, addon = ...
 local Commands = addon:NewObject("Commands")
-
 local ProfileManager = addon:GetObject("ProfileManager")
 local GameWatcher = addon:GetObject("GameWatcher")
+
 local L = addon.L
 
 --[[

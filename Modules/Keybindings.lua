@@ -1,7 +1,7 @@
 local _, addon = ...
 local Keybindings = addon:NewObject("Keybindings")
-
 local ProfileManager = addon:GetObject("ProfileManager")
+
 local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
