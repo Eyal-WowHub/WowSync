@@ -416,6 +416,16 @@ function ProfileManager:DeleteProfile(profileName)
     return profileStore:DeleteProfile(profileName)
 end
 
+-- Wipes every saved profile and all per-character data (snapshots, current
+-- captures and undo history) while leaving user settings intact. The tables
+-- are emptied in place so the stores' cached references stay valid; callers
+-- are expected to reload the UI afterwards so every view reinitialises from
+-- the now-empty database.
+function ProfileManager:ResetDatabase()
+    wipe(addon.DB.global.Profiles)
+    wipe(addon.DB.global.Characters)
+end
+
 --[[ Snapshot read/management ]]
 
 -- Resolve a snapshot within a profile by exact hash, unambiguous prefix, or

@@ -37,6 +37,21 @@ local function PrintSnapshotError(selector, reason, candidates)
 end
 
 function Commands:OnInitialized()
+    StaticPopupDialogs["WOWSYNC_RESET_DB"] = {
+        text = L["Reset WowSync? This permanently deletes every saved profile and snapshot. Your settings are kept."],
+        button1 = YES,
+        button2 = NO,
+        OnAccept = function()
+            ProfileManager:ResetDatabase()
+            C_UI.Reload()
+        end,
+        timeout = 0,
+        whileDead = true,
+        hideOnEscape = true,
+        showAlert = true,
+        preferredIndex = 3,
+    }
+
     SLASH_WOWSYNC1 = "/wowsync"
     SLASH_WOWSYNC2 = "/ws"
     SlashCmdList["WOWSYNC"] = function(input)
@@ -192,6 +207,13 @@ function Commands:OnInitialized()
             else
                 WowSync:Print(L["Usage: /ws watcher on|off."])
             end
+        elseif command == "reset" then
+            local target = (arg or ""):lower()
+            if target == "database" or target == "db" then
+                StaticPopup_Show("WOWSYNC_RESET_DB")
+            else
+                WowSync:Print(L["Usage: /ws reset database|db."])
+            end
         elseif command == "help" then
             WowSync:Print(L["Usage: (/ws and /wowsync are interchangeable)"])
             WowSync:Print(L["  /ws - Toggle the UI"])
@@ -201,6 +223,7 @@ function Commands:OnInitialized()
             WowSync:Print(L["  /ws delete <character>[@hash[#index]] - Delete a character's profile or one of its snapshots"])
             WowSync:Print(L["  /ws list [character] - List profiles, or a character's snapshots"])
             WowSync:Print(L["  /ws watcher on|off - Mirror your changes live"])
+            WowSync:Print(L["  /ws reset database|db - Delete all saved profiles and snapshots"])
         else
             WowSync:Print(L["Unknown command. Type /ws help."])
         end
