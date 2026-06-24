@@ -205,27 +205,27 @@ function Commands:OnInitialized()
                 GameWatcher:SetEnabled(false)
                 WowSync:Print(L["Live tracking is off."])
             else
-                WowSync:Print(L["Usage: /ws watcher on|off."])
+                WowSync:Print(L["Usage: X"]:format("/ws watcher on|off"))
             end
         elseif command == "reset" then
             local target = (arg or ""):lower()
             if target == "database" or target == "db" then
                 StaticPopup_Show("WOWSYNC_RESET_DB")
             else
-                WowSync:Print(L["Usage: /ws reset database|db."])
+                WowSync:Print(L["Usage: X"]:format("/ws reset database|db"))
             end
         elseif command == "help" then
-            WowSync:Print(L["Usage: (/ws and /wowsync are interchangeable)"])
-            WowSync:Print(L["  /ws - Toggle the UI"])
-            WowSync:Print(L["  /ws save [note] - Snapshot your current setup"])
-            WowSync:Print(L["  /ws apply <character>[@hash[#index]] [--merge|--exact] - Apply latest or a specific snapshot"])
-            WowSync:Print(L["  /ws undo - Undo the last apply"])
-            WowSync:Print(L["  /ws delete <character>[@hash[#index]] - Delete a character's profile or one of its snapshots"])
-            WowSync:Print(L["  /ws list [character] - List profiles, or a character's snapshots"])
-            WowSync:Print(L["  /ws watcher on|off - Mirror your changes live"])
-            WowSync:Print(L["  /ws reset database|db - Delete all saved profiles and snapshots"])
+            WowSync:Print(L["Usage: (X and Y are interchangeable)"]:format("/ws", "/wowsync"))
+            WowSync:Print(L["  X - Y"]:format("/ws", L["Toggle the UI"]))
+            WowSync:Print(L["  X - Y"]:format("/ws save [note]", L["Snapshot your current setup"]))
+            WowSync:Print(L["  X - Y"]:format("/ws apply <character>[@hash[#index]] [--merge|--exact]", L["Apply latest or a specific snapshot"]))
+            WowSync:Print(L["  X - Y"]:format("/ws undo", L["Undo the last apply"]))
+            WowSync:Print(L["  X - Y"]:format("/ws delete <character>[@hash[#index]]", L["Delete a character's profile or one of its snapshots"]))
+            WowSync:Print(L["  X - Y"]:format("/ws list [character]", L["List profiles, or a character's snapshots"]))
+            WowSync:Print(L["  X - Y"]:format("/ws watcher on|off", L["Mirror your changes live"]))
+            WowSync:Print(L["  X - Y"]:format("/ws reset database|db", L["Delete all saved profiles and snapshots"]))
         else
-            WowSync:Print(L["Unknown command. Type /ws help."])
+            WowSync:Print(L["Unknown command. Type X."]:format("/ws help"))
         end
     end
 end
