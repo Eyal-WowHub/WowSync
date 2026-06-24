@@ -37,11 +37,24 @@ local MESSAGE_GROUP_TYPES = {
     "MONSTER_PARTY",
 }
 
+-- Some message types can be absent in ChatTypeInfo on certain clients/profiles,
+-- which makes the Blizzard helper error on a nil lookup. Guard it so one missing
+-- type does not abort the whole capture.
+local function GetMessageTypeColorSafe(chatType)
+    local ok, r, g, b = pcall(GetMessageTypeColor, chatType)
+
+    if not ok then
+        return nil
+    end
+
+    return true, r, g, b
+end
+
 local function CaptureChatColors()
     local colors = {}
     for _, chatType in ipairs(CHAT_COLOR_TYPES) do
-        local r, g, b = GetMessageTypeColor(chatType)
-        if r then
+        local isSafe, r, g, b = GetMessageTypeColorSafe(chatType)
+        if isSafe then
             colors[chatType] = { r = r, g = g, b = b }
         end
     end
