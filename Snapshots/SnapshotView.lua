@@ -1,0 +1,257 @@
+local _, addon = ...
+local SnapshotView = addon:NewObject("SnapshotView")
+
+local C = LibStub("Contracts-1.0")
+local Snapshot = addon:GetObject("Snapshot")
+
+--[[
+    SnapshotView — the public, opaque handle onto a single snapshot.
+
+    Callers (notably the companion UI) never read a snapshot's stored fields;
+    they hold an opaque handle and ask SnapshotView for what a feature needs.
+    Every read models an intent (a note, a pinned flag, the modules it carries)
+    rather than the storage shape, and every write is validated. This keeps the
+    on-disk format free to change without touching anything outside storage.
+
+    A handle stands for either a stored snapshot or a character's live "head"
+    (its current, unsaved setup). Handles are cached per underlying snapshot so
+    repeated lookups return the same instance, letting callers track selection
+    by identity across refreshes.
+]]
+
+-- Cache of handles by their underlying snapshot, weak so deleted snapshots'
+-- handles are collected. Head handles are cached per character and refreshed in
+-- place, so a character's head keeps the same identity across captures.
+local storedHandles = setmetatable({}, { __mode = "k" })
+local headHandles = {}
+
+local profileStore
+local profileManager
+
+function SnapshotView:OnInitialized()
+    profileStore = addon:GetObject("ProfileStore")
+    profileManager = addon:GetObject("ProfileManager")
+end
+
+local function SortedNames(set)
+    local names = {}
+    if set then
+        for name in pairs(set) do
+            tinsert(names, name)
+        end
+    end
+    table.sort(names)
+    return names
+end
+
+-- The content fingerprint a handle stands for, used to tell whether applying it
+-- would change anything.
+local function HashOf(handle)
+    if handle.isHead then
+        return handle.head.Hash
+    end
+    return handle.raw.Hash
+end
+
+-- Newest-first ordering: later timestamp wins, index breaks ties.
+local function NewerFirst(a, b)
+    if a.Timestamp ~= b.Timestamp then
+        return a.Timestamp > b.Timestamp
+    end
+    return (a.Index or 0) > (b.Index or 0)
+end
+
+--[[ Handle factories ]]
+
+-- A stable handle for a stored snapshot owned by the given character.
+function SnapshotView:GetSnapshotOf(snapshot, charKey)
+    if not snapshot then
+        return nil
+    end
+    local handle = storedHandles[snapshot]
+    if not handle then
+        handle = { isHead = false, raw = snapshot, charKey = charKey }
+        storedHandles[snapshot] = handle
+    else
+        handle.charKey = charKey
+    end
+    return handle
+end
+
+-- A stable handle for a character's live head, or nil when nothing is captured.
+function SnapshotView:GetHeadOf(charKey)
+    local head = profileManager:GetCurrentHead(charKey)
+    if not head then
+        headHandles[charKey] = nil
+        return nil
+    end
+    local handle = headHandles[charKey]
+    if not handle then
+        handle = { isHead = true, charKey = charKey }
+        headHandles[charKey] = handle
+    end
+    handle.head = head
+    return handle
+end
+
+-- A character's most recent saved snapshot as a handle, or nil when none exist.
+function SnapshotView:GetLatestOf(charKey)
+    return self:GetSnapshotOf(profileStore:GetLatestSnapshot(charKey), charKey)
+end
+
+-- The snapshot a save would prune as a handle, or nil when a save evicts nothing.
+function SnapshotView:GetPendingEvictionOf(charKey)
+    return self:GetSnapshotOf(profileStore:PendingEviction(charKey), charKey)
+end
+
+-- The character's full timeline as ordered handles: head first, then pinned
+-- snapshots newest-first, then un-pinned snapshots newest-first.
+function SnapshotView:GetTimelineOf(charKey)
+    local handles = {}
+
+    local head = self:GetHeadOf(charKey)
+    if head then
+        tinsert(handles, head)
+    end
+
+    local pinned, history = {}, {}
+    for _, snapshot in ipairs(profileStore:GetSnapshots(charKey)) do
+        if snapshot.Pinned then
+            tinsert(pinned, snapshot)
+        else
+            tinsert(history, snapshot)
+        end
+    end
+    table.sort(pinned, NewerFirst)
+    table.sort(history, NewerFirst)
+
+    for _, snapshot in ipairs(pinned) do
+        tinsert(handles, self:GetSnapshotOf(snapshot, charKey))
+    end
+    for _, snapshot in ipairs(history) do
+        tinsert(handles, self:GetSnapshotOf(snapshot, charKey))
+    end
+
+    return handles
+end
+
+--[[ Reads ]]
+
+-- True for a character's live head (its current, unsaved setup) versus a saved snapshot.
+function SnapshotView:IsHead(handle)
+    return handle.isHead
+end
+
+-- True when the handle is the logged-in character's own head.
+function SnapshotView:IsOwnCharacter(handle)
+    return handle.isHead and handle.head.IsCurrent or false
+end
+
+-- The character a snapshot belongs to: its owning profile key, the character it
+-- was captured from, and the class it was captured on.
+function SnapshotView:GetCharacterInfo(handle)
+    if handle.isHead then
+        return {
+            Key = handle.charKey,
+            Character = handle.charKey,
+            ClassID = handle.head.ClassID,
+        }
+    end
+    local source = handle.raw.Source
+    return {
+        Key = handle.charKey,
+        Character = source and source.Character,
+        ClassID = source and source.ClassID,
+    }
+end
+
+-- The moment the snapshot was captured (the head reports when it was last seen).
+function SnapshotView:GetTimestamp(handle)
+    if handle.isHead then
+        return handle.head.LastSeen
+    end
+    return handle.raw.Timestamp
+end
+
+-- The editable note attached to a saved snapshot ("" for the head or when unset).
+function SnapshotView:GetNotes(handle)
+    if handle.isHead then
+        return ""
+    end
+    return handle.raw.Notes or ""
+end
+
+-- True when the snapshot is pinned (exempt from pruning). The head is never pinned.
+function SnapshotView:IsPinned(handle)
+    return (not handle.isHead) and handle.raw.Pinned or false
+end
+
+-- The sorted module names the snapshot carries.
+function SnapshotView:GetModuleNames(handle)
+    if handle.isHead then
+        return SortedNames(handle.head.Modules)
+    end
+    return Snapshot:GetModuleNames(handle.raw)
+end
+
+-- True when the snapshot is identical to the logged-in character's current setup
+-- (so applying it would change nothing).
+function SnapshotView:IsCurrent(handle)
+    local myHead = profileManager:GetCurrentHead()
+    return myHead ~= nil and HashOf(handle) == myHead.Hash
+end
+
+--[[ Writes (validated) ]]
+
+-- Set the editable note on a saved snapshot. No-op for the head.
+function SnapshotView:SetNotes(handle, text)
+    C:IsString(text, 3)
+    if handle.isHead then
+        return
+    end
+    profileStore:SetSnapshotNotes(handle.charKey, Snapshot:GetSelector(handle.raw), text)
+end
+
+-- Pin a saved snapshot so pruning skips it. No-op for the head.
+function SnapshotView:Pin(handle)
+    if handle.isHead then
+        return
+    end
+    profileStore:PinSnapshot(handle.charKey, Snapshot:GetSelector(handle.raw))
+end
+
+-- Unpin a previously pinned snapshot. No-op for the head.
+function SnapshotView:Unpin(handle)
+    if handle.isHead then
+        return
+    end
+    profileStore:UnpinSnapshot(handle.charKey, Snapshot:GetSelector(handle.raw))
+end
+
+--[[ Operations ]]
+
+-- Preview applying the snapshot (optionally a module subset) over the logged-in
+-- character's current setup.
+function SnapshotView:Preview(handle, moduleSet)
+    if handle.isHead then
+        return profileManager:PreviewApplyCurrentOf(handle.charKey, moduleSet)
+    end
+    return profileManager:PreviewApply(handle.charKey, Snapshot:GetSelector(handle.raw), moduleSet)
+end
+
+-- Apply the snapshot (optionally a module subset) to the logged-in character,
+-- pushing a safety snapshot first. Returns an ApplyResult.
+function SnapshotView:Apply(handle, strategy, moduleSet)
+    if handle.isHead then
+        return profileManager:ApplyCurrentOf(handle.charKey, strategy, moduleSet)
+    end
+    return profileManager:Apply(handle.charKey, Snapshot:GetSelector(handle.raw), strategy, moduleSet)
+end
+
+-- Permanently remove a saved snapshot from its character's history. No-op for the head.
+function SnapshotView:Delete(handle)
+    if handle.isHead then
+        return
+    end
+    profileManager:DeleteSnapshot(handle.charKey, Snapshot:GetSelector(handle.raw))
+end

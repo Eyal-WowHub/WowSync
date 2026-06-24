@@ -20,6 +20,7 @@ Main.lua
 Core\Constants.lua
 Core\Colorizer.lua
 Core\Hash.lua
+Core\Codec.lua
 Core\Database.lua
 Core\Time.lua
 Core\HashSet.lua

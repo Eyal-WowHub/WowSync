@@ -1,19 +1,25 @@
 local addon = LibStub("Addon-1.0"):New(...)
 
+-- On-disk schema revision.
+local SCHEMA_VERSION = 1
+
+-- The complete saved-variables shape. Every field is written to disk on load so
+-- the file is fully self-describing for external tools that parse it directly.
+-- Each character owns a single record under Profiles, holding its live Current,
+-- its undo stack and its saved snapshot history.
 local DB_DEFAULTS = {
-    global = {
-        Profiles = {},
-        Characters = {},
-        Settings = {
-            MaxSnapshots = 20,
-            MaxUndo = 20,
-            Watcher = true,
-        },
+    SchemaVersion = SCHEMA_VERSION,
+    Settings = {
+        MaxSnapshots = 20,
+        MaxUndo = 10,
+        Watcher = true,
     },
+    Profiles = {},
 }
 
 function addon:OnInitialized()
-    self.DB = LibStub("AceDB-3.0"):New("WowSyncDB", DB_DEFAULTS, true)
+    WowSyncDB = addon.Database:ApplyDefaults(WowSyncDB or {}, DB_DEFAULTS)
+    self.DB = WowSyncDB
 end
 
 -- Prints a chat message prefixed with the accent-coloured addon name.

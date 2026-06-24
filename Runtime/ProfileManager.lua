@@ -181,7 +181,7 @@ function ProfileManager:Save(note, moduleSet)
     profileStore:CreateProfile(id)
 
     local snapshot = snapshots:New(modules, CurrentSource())
-    snapshot.Body = note
+    snapshot.Notes = note
 
     local stored, reason = profileStore:AddSnapshot(id, snapshot)
     return id, stored, reason
@@ -253,7 +253,7 @@ function ProfileManager:PreviewApply(profileName, selector, moduleSet)
     end
 
     local current = currentStore:Refresh()
-    return differ:Preview(current, snapshot.Modules, moduleSet)
+    return differ:Preview(current, snapshots:GetModules(snapshot), moduleSet)
 end
 
 -- Preview applying a character's current setup (its head) over the logged-in
@@ -287,7 +287,7 @@ function ProfileManager:Apply(profileName, selector, strategy, moduleSet)
     end
     C:Ensures(snapshot, "Apply: profile '%s' has no snapshot to apply", profileName)
 
-    return ApplyModules(snapshot.Modules, MetaOf(snapshot), strategy, moduleSet)
+    return ApplyModules(snapshots:GetModules(snapshot), MetaOf(snapshot), strategy, moduleSet)
 end
 
 -- Apply a character's current setup (its head) to the logged-in character. Like
@@ -356,14 +356,15 @@ function ProfileManager:Undo(moduleSet)
     end
 
     local meta = MetaOf(safety)
-    local names = ResolveNames(safety.Modules, moduleSet)
+    local safetyModules = snapshots:GetModules(safety)
+    local names = ResolveNames(safetyModules, moduleSet)
     local results = {}
 
     gameWatcher:PauseForApply()
 
     for name in pairs(names) do
         local module = registry:Get(name)
-        local data = safety.Modules[name]
+        local data = safetyModules[name]
 
         if module and data ~= nil then
             local ok, err = pcall(module.Apply, module, data, meta, { mode = "exact" })
@@ -416,14 +417,12 @@ function ProfileManager:DeleteProfile(profileName)
     return profileStore:DeleteProfile(profileName)
 end
 
--- Wipes every saved profile and all per-character data (snapshots, current
--- captures and undo history) while leaving user settings intact. The tables
--- are emptied in place so the stores' cached references stay valid; callers
--- are expected to reload the UI afterwards so every view reinitialises from
--- the now-empty database.
+-- Wipes every character record (saved snapshots, current captures and undo
+-- history) while leaving user settings intact. The table is emptied in place so
+-- the stores' cached references stay valid; callers are expected to reload the
+-- UI afterwards so every view reinitialises from the now-empty database.
 function ProfileManager:ResetDatabase()
-    wipe(addon.DB.global.Profiles)
-    wipe(addon.DB.global.Characters)
+    wipe(addon.DB.Profiles)
 end
 
 --[[ Snapshot read/management ]]
@@ -442,11 +441,11 @@ function ProfileManager:DeleteSnapshot(profileName, selector)
     return profileStore:DeleteSnapshot(profileName, selector)
 end
 
-function ProfileManager:SetSnapshotBody(profileName, selector, text)
+function ProfileManager:SetSnapshotNotes(profileName, selector, text)
     C:IsString(profileName, 2)
     C:IsString(selector, 3)
     C:IsString(text, 4)
-    return profileStore:SetSnapshotBody(profileName, selector, text)
+    return profileStore:SetSnapshotNotes(profileName, selector, text)
 end
 
 function ProfileManager:PinSnapshot(profileName, selector)
@@ -469,45 +468,38 @@ end
 -- Sorted with the logged-in character first, then most-recently-seen.
 function ProfileManager:ListCharacters()
     local me = CharacterInfo:GetFullName()
-    local byKey = {}
+    local out = {}
 
-    local function ensure(key)
-        local entry = byKey[key]
-        if not entry then
-            entry = { Key = key, IsCurrent = key == me }
-            byKey[key] = entry
-        end
-        return entry
-    end
+    -- One record per character now holds both its Current and its history, so a
+    -- single pass covers every character that has either.
+    for key, record in pairs(profileStore:GetProfiles()) do
+        local current = record.Current
+        local hasCurrent = type(current) == "string"
+            or (type(current) == "table" and next(current) ~= nil)
+        local history = record.Snapshots
+        local hasHistory = history ~= nil and #history > 0
 
-    -- Characters with a captured Current (includes the logged-in one).
-    for key, stored in pairs(currentStore:GetCharacters()) do
-        if stored.Current and next(stored.Current) then
-            local entry = ensure(key)
-            entry.HasCurrent = true
-            entry.ClassID = stored.Meta and stored.Meta.ClassID
-            entry.LastSeen = stored.Meta and stored.Meta.LastSeen
-        end
-    end
+        if hasCurrent or hasHistory then
+            local metadata = record.Metadata or {}
+            local entry = {
+                Key = key,
+                IsCurrent = key == me,
+                HasCurrent = hasCurrent or nil,
+                HasHistory = hasHistory or nil,
+                ClassID = metadata.ClassID,
+                LastSeen = metadata.LastSeen,
+            }
 
-    -- Characters with saved history; fill identity from the latest snapshot's
-    -- source when no Current is present (e.g. data pruned but a profile kept).
-    for key, profile in pairs(profileStore:GetProfiles()) do
-        local history = profile.Snapshots
-        if history and #history > 0 then
-            local entry = ensure(key)
-            entry.HasHistory = true
-            if not entry.ClassID then
+            -- Fall back to the latest snapshot's source for identity when the
+            -- record carries no Current metadata (e.g. history kept, data pruned).
+            if not entry.ClassID and hasHistory then
                 local latest = history[#history]
                 entry.ClassID = latest.Source and latest.Source.ClassID
                 entry.LastSeen = entry.LastSeen or latest.Timestamp
             end
-        end
-    end
 
-    local out = {}
-    for _, entry in pairs(byKey) do
-        tinsert(out, entry)
+            tinsert(out, entry)
+        end
     end
 
     table.sort(out, function(a, b)
@@ -541,7 +533,7 @@ function ProfileManager:SaveFromCharacter(charKey, moduleSet, note)
         Character = charKey,
         ClassID = meta and meta.ClassID,
     })
-    snapshot.Body = note
+    snapshot.Notes = note
 
     return profileStore:AddSnapshot(charKey, snapshot)
 end

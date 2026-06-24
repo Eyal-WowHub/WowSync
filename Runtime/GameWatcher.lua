@@ -20,7 +20,7 @@ local GameWatcher = addon:NewObject("GameWatcher")
     Combat: a module may decline capture in combat (ShouldCapture); such modules
     stay dirty and are flushed again on PLAYER_REGEN_ENABLED.
 
-    On by default; toggled with `/ws watcher on|off` (DB.global.Settings.Watcher).
+    On by default; toggled with `/ws watcher on|off` (DB.Settings.Watcher).
 ]]
 
 local DEBOUNCE_SECONDS = 0.5
@@ -136,12 +136,12 @@ end
 --[[ Toggle ]]
 
 function GameWatcher:IsEnabled()
-    return addon.DB.global.Settings.Watcher and true or false
+    return addon.DB.Settings.Watcher and true or false
 end
 
 function GameWatcher:SetEnabled(enabled)
     enabled = enabled and true or false
-    addon.DB.global.Settings.Watcher = enabled
+    addon.DB.Settings.Watcher = enabled
 
     if enabled then
         self:Start()

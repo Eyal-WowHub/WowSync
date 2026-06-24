@@ -1,7 +1,7 @@
 local _, addon = ...
 WowSync = addon:NewObject(addon:GetName())
 local ProfileManager = addon:GetObject("ProfileManager")
-local Snapshot = addon:GetObject("Snapshot")
+local SnapshotView = addon:GetObject("SnapshotView")
 
 local L = addon.L
 
@@ -15,10 +15,10 @@ function WowSync:GetProfileManager()
     return ProfileManager
 end
 
--- The stable <hash>#<index> selector for a snapshot, used by the companion UI
--- to address a specific snapshot unambiguously.
-function WowSync:GetSnapshotSelector(snapshot)
-    return Snapshot:GetSelector(snapshot)
+-- The accessor/mutator interface onto an individual snapshot handle, and the
+-- ordered view of a character's snapshots (head, pinned, history).
+function WowSync:GetSnapshotView()
+    return SnapshotView
 end
 
 --[[ Addon entry points ]]

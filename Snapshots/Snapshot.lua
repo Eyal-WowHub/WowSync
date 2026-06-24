@@ -3,6 +3,7 @@ local Snapshot = addon:NewObject("Snapshot")
 
 local Hash = addon.Hash
 local Time = addon.Time
+local Codec = addon.Codec
 
 --[[
     Snapshot helper (pure, stateless).
@@ -12,13 +13,19 @@ local Time = addon.Time
 
         {
             Index,                      -- profile-local identity, assigned by ProfileStore
-            Hash,                       -- content fingerprint of Modules (Core/Hash)
+            Hash,                       -- content fingerprint of the modules (Core/Hash)
             Timestamp,                  -- moment of creation (Core/Time); drives the subject
-            Body,                       -- optional, editable note (UI tooltip)
+            Notes,                      -- optional, editable note (UI tooltip)
             Pinned,                     -- exempt from pruning when true
             Source = { Character, ClassID },
-            Modules = { [moduleName] = capturedData },
+            Modules = { [moduleName] = true },   -- plaintext set of the modules present
+            Data,                       -- the captured module data, compressed (Core/Codec)
         }
+
+    The bulky captured data lives compressed in Data; Modules keeps only the
+    plaintext set of module names so the UI can list and test membership without
+    decompressing. GetModules restores the full { [name] = data } table. When
+    compression is unavailable the raw data is kept in Modules and Data is nil.
 
     Hash is a content fingerprint and the "nothing changed" detector (a save
     whose Hash equals the profile's latest snapshot is skipped). ProfileStore
@@ -47,16 +54,61 @@ function Snapshot:Fingerprint(modules)
     return Hash:Create(modules or {})
 end
 
--- Build an independent snapshot from a captured module set.
+-- The plaintext set of module names present in a captured module set.
+local function NameSet(modules)
+    local names = {}
+    for name in pairs(modules) do
+        names[name] = true
+    end
+    return names
+end
+
+-- Build an independent snapshot from a captured module set, compressing the
+-- captured data into Data and keeping only the module-name set in Modules.
 function Snapshot:New(modules, source)
     local copied = DeepCopy(modules) or {}
-    return {
+    local snapshot = {
         Hash = Hash:Create(copied),
         Timestamp = Time:Now(),
         Pinned = false,
         Source = source,
-        Modules = copied,
     }
+
+    local encoded = Codec:Encode(copied)
+    if encoded then
+        snapshot.Modules = NameSet(copied)
+        snapshot.Data = encoded
+    else
+        -- Compression unavailable; keep the raw data so the snapshot stays usable.
+        snapshot.Modules = copied
+    end
+    return snapshot
+end
+
+-- The full { [moduleName] = capturedData } table a snapshot stands for,
+-- decompressed from Data. Returns the raw Modules table for snapshots that were
+-- stored uncompressed (heads and the compression-unavailable fallback).
+function Snapshot:GetModules(snapshot)
+    if not snapshot then
+        return nil
+    end
+    if snapshot.Data == nil then
+        return snapshot.Modules or {}
+    end
+    return Codec:Decode(snapshot.Data) or {}
+end
+
+-- The sorted list of module names a snapshot contains, read from the plaintext
+-- name set without decompressing the captured data.
+function Snapshot:GetModuleNames(snapshot)
+    local names = {}
+    if snapshot and snapshot.Modules then
+        for name in pairs(snapshot.Modules) do
+            tinsert(names, name)
+        end
+    end
+    table.sort(names)
+    return names
 end
 
 -- Human-readable subject, e.g. "22 Jun 2026 16:47" (derived, not stored).

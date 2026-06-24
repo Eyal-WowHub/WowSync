@@ -1,32 +1,25 @@
 local _, addon = ...
 local CurrentStore = addon:NewObject("CurrentStore")
 local ModuleRegistry = addon:GetObject("ModuleRegistry")
+local ProfileStore = addon:GetObject("ProfileStore")
 
 local CharacterInfo = LibStub("CharacterInfo-1.0")
+local Codec = addon.Codec
 
 --[[
     CurrentStore — the live "Current" setup, one per character.
 
-    Each character owns an entry under DB.global.Characters[charKey]:
+    Current lives on the character's record under DB.Profiles[charKey].Current
+    (the record itself is owned by ProfileStore). It is the most recently
+    captured live state for that character. Only the logged-in character can be
+    captured (the game only exposes live state for whoever is online); other
+    characters' Current is read-only here, refreshed by a capture on logout.
 
-        { Meta = { ClassID, LastSeen }, Current = { ... }, Undo = { ... } }
-
-    Current is the most recently captured live state for that character. Only the
-    logged-in character can be captured (the game only exposes live state for
-    whoever is online); other characters' Current is read-only here, kept fresh by
-    a capture on logout. UndoStore owns the Undo list under the same entry.
+    To keep the file small, every character's Current is stored COMPRESSED except
+    the logged-in one: its Current is decompressed into a plain table at login for
+    fast in-session access and recompressed on logout. Reading another
+    character's Current decompresses a throwaway copy on demand.
 ]]
-
-local characters
-
-local function EnsureEntry(key)
-    local entry = characters[key]
-    if not entry then
-        entry = { Meta = {}, Current = {}, Undo = {} }
-        characters[key] = entry
-    end
-    return entry
-end
 
 -- Capture one module's live state, honoring its optional ShouldCapture() gate.
 -- Returns the captured data and true on success; nil and false when the module
@@ -48,26 +41,48 @@ local function CaptureModule(name, module)
 end
 
 function CurrentStore:OnInitialized()
-    characters = addon.DB.global.Characters
-    -- A character's Current exists from its first login.
-    EnsureEntry(CharacterInfo:GetFullName())
+    -- A character's record exists from its first login.
+    local entry = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
+
+    -- Decompress our own Current once so the live working set is a plain table
+    -- for the session; every other character's stays compressed on its record.
+    if type(entry.Current) == "string" then
+        entry.Current = Codec:Decode(entry.Current) or {}
+    end
 
     -- Persist the logged-in character's live setup on logout/reload so other
-    -- characters can browse it without logging in.
+    -- characters can browse it without logging in, then compress it for storage.
     self:RegisterEvent("PLAYER_LOGOUT", function()
         self:Refresh()
+        self:Compress()
     end)
+end
+
+-- Compress the logged-in character's Current for storage, so what lands on disk
+-- is the small blob rather than the raw table.
+function CurrentStore:Compress()
+    local entry = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
+    if type(entry.Current) ~= "table" then
+        return
+    end
+
+    local encoded = Codec:Encode(entry.Current)
+    if encoded then
+        entry.Current = encoded
+    end
 end
 
 -- Re-capture the logged-in character's live setup into its Current.
 function CurrentStore:Refresh()
-    local key = CharacterInfo:GetFullName()
-    local entry = EnsureEntry(key)
+    local entry = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
 
-    entry.Meta.ClassID = PlayerUtil.GetClassID()
-    entry.Meta.LastSeen = time()
+    entry.Metadata.ClassID = PlayerUtil.GetClassID()
+    entry.Metadata.LastSeen = time()
 
     local previous = entry.Current
+    if type(previous) ~= "table" then
+        previous = {}
+    end
     local current = {}
     for name, module in ModuleRegistry:Iterate() do
         local data, ok = CaptureModule(name, module)
@@ -94,9 +109,9 @@ function CurrentStore:RefreshModule(name)
         return false
     end
 
-    local entry = EnsureEntry(CharacterInfo:GetFullName())
-    entry.Meta.ClassID = PlayerUtil.GetClassID()
-    entry.Meta.LastSeen = time()
+    local entry = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
+    entry.Metadata.ClassID = PlayerUtil.GetClassID()
+    entry.Metadata.LastSeen = time()
 
     local data, ok = CaptureModule(name, module)
     if not ok then
@@ -114,20 +129,20 @@ function CurrentStore:RefreshModule(name)
     return true
 end
 
--- Current setup for a character (defaults to the logged-in one).
+-- Current setup for a character (defaults to the logged-in one). Another
+-- character's Current is stored compressed, so this decompresses a copy.
 function CurrentStore:Get(key)
     key = key or CharacterInfo:GetFullName()
-    local entry = characters[key]
-    return entry and entry.Current
+    local profile = ProfileStore:GetProfile(key)
+    local current = profile and profile.Current
+    if type(current) == "string" then
+        return Codec:Decode(current)
+    end
+    return current
 end
 
 function CurrentStore:GetMeta(key)
     key = key or CharacterInfo:GetFullName()
-    local entry = characters[key]
-    return entry and entry.Meta
-end
-
--- The full per-character table (for the cross-character browser, later phase).
-function CurrentStore:GetCharacters()
-    return characters
+    local profile = ProfileStore:GetProfile(key)
+    return profile and profile.Metadata
 end

@@ -4,21 +4,27 @@ local ProfileStore = addon:NewObject("ProfileStore")
 local BoundedList = addon.BoundedList
 
 --[[
-    ProfileStore — one profile per character, each a history of snapshots.
+    ProfileStore — one record per character, owning that character's history.
 
-    A profile lives under DB.global.Profiles[id], keyed by the owning character's
-    full name (one profile per character):
+    A character's record lives under DB.Profiles[id], keyed by its full name. It
+    bundles everything stored for that character:
 
-        { Metadata = { Created, NextIndex }, Snapshots = { <snapshot>, ... } }
+        {
+            Metadata  = { Created, NextIndex, ClassID, LastSeen },
+            Current   = <live setup; owned by CurrentStore>,
+            Undo      = { <safety snapshot>, ... },   -- owned by UndoStore
+            Snapshots = { <snapshot>, ... },          -- the saved history
+        }
 
-    Every save appends a snapshot; notes belong to the snapshot (its Body), not
-    the profile. Snapshots are ordered oldest-first (newest appended at the
-    end); each entry
-    has the Snapshot shape (Hash + Timestamp + Modules + ...). A save always
-    appends, even when nothing changed since the last one. The history is kept
-    near Settings.MaxSnapshots by pruning the
-    oldest UN-pinned snapshots first; pinned snapshots are never pruned, so a
-    profile with many pins can hold more than MaxSnapshots (a soft cap).
+    ProfileStore owns the record's shell (it creates the canonical shape) and the
+    Snapshots history; CurrentStore and UndoStore fill in Current and Undo on the
+    same record. Every save appends a snapshot; notes belong to the snapshot (its
+    Notes), not the record. Snapshots are ordered oldest-first (newest appended at
+    the end); each entry has the Snapshot shape (Hash + Timestamp + Modules + ...).
+    A save always appends, even when nothing changed since the last one. The
+    history is kept near Settings.MaxSnapshots by pruning the oldest UN-pinned
+    snapshots first; pinned snapshots are never pruned, so a record with many pins
+    can hold more than MaxSnapshots (a soft cap).
 ]]
 
 local Time = addon.Time
@@ -73,7 +79,7 @@ end
 
 -- The soft cap on snapshots per profile (pinned snapshots may exceed it).
 local function MaxSnapshots()
-    return addon.DB.global.Settings.MaxSnapshots or DEFAULT_MAX_SNAPSHOTS
+    return addon.DB.Settings.MaxSnapshots or DEFAULT_MAX_SNAPSHOTS
 end
 
 -- Resolve a snapshot by exact hash/prefix, optionally disambiguated by #Index.
@@ -138,7 +144,7 @@ local function FindSnapshot(profile, selector)
 end
 
 function ProfileStore:OnInitialized()
-    profiles = addon.DB.global.Profiles
+    profiles = addon.DB.Profiles
     for _, profile in pairs(profiles) do
         EnsureMetadata(profile)
     end
@@ -146,16 +152,21 @@ end
 
 --[[ Profile CRUD ]]
 
--- Create the profile if it does not exist; returns the profile either way.
+-- Create the character's record if it does not exist, ensuring the canonical
+-- shape (Metadata + Current + Undo + Snapshots); returns it either way.
 function ProfileStore:CreateProfile(id)
     local profile = profiles[id]
     if not profile then
         profile = {
             Metadata = { Created = Time:Now(), NextIndex = 1 },
+            Current = {},
+            Undo = {},
             Snapshots = {},
         }
         profiles[id] = profile
     else
+        profile.Current = profile.Current or {}
+        profile.Undo = profile.Undo or {}
         EnsureMetadata(profile)
     end
     return profile
@@ -239,6 +250,16 @@ function ProfileStore:GetLatestSnapshot(name)
     return profile.Snapshots[#profile.Snapshots]
 end
 
+-- The profile's saved snapshot history, oldest-first (empty when none).
+function ProfileStore:GetSnapshots(name)
+    local profile = profiles[name]
+    if not profile then
+        return {}
+    end
+    EnsureMetadata(profile)
+    return profile.Snapshots
+end
+
 function ProfileStore:GetSnapshot(name, selector)
     local profile = profiles[name]
     if not profile then
@@ -263,7 +284,7 @@ function ProfileStore:DeleteSnapshot(name, selector)
     return true
 end
 
-function ProfileStore:SetSnapshotBody(name, selector, text)
+function ProfileStore:SetSnapshotNotes(name, selector, text)
     local profile = profiles[name]
     if not profile then
         return false
@@ -274,7 +295,7 @@ function ProfileStore:SetSnapshotBody(name, selector, text)
         return false
     end
 
-    snapshot.Body = text
+    snapshot.Notes = text
     return true
 end
 
