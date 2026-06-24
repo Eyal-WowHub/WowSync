@@ -5,7 +5,7 @@ local C = LibStub("Contracts-1.0")
 local Snapshot = addon:GetObject("Snapshot")
 
 --[[
-    SnapshotView — the public, opaque handle onto a single snapshot.
+    SnapshotView — the accessor/mutator onto a single snapshot handle.
 
     Callers (notably the companion UI) never read a snapshot's stored fields;
     they hold an opaque handle and ask SnapshotView for what a feature needs.
@@ -14,19 +14,16 @@ local Snapshot = addon:GetObject("Snapshot")
     on-disk format free to change without touching anything outside storage.
 
     A handle stands for either a stored snapshot or a character's live "head"
-    (its current, unsaved setup). Handles are cached per underlying snapshot so
-    repeated lookups return the same instance, letting callers track selection
-    by identity across refreshes.
+    (its current, unsaved setup); SnapshotView interprets either shape.
 ]]
-
--- Cache of handles by their underlying snapshot, weak so deleted snapshots'
--- handles are collected. Head handles are cached per character and refreshed in
--- place, so a character's head keeps the same identity across captures.
-local storedHandles = setmetatable({}, { __mode = "k" })
-local headHandles = {}
 
 local profileStore
 local profileManager
+
+-- Per-handle cache of the character-info DTO, weak so an entry is collected with
+-- the handle it describes. The fields it holds (owning key, captured character,
+-- class) are fixed for the life of a handle, so the DTO can be reused.
+local characterInfo = setmetatable({}, { __mode = "k" })
 
 function SnapshotView:OnInitialized()
     profileStore = addon:GetObject("ProfileStore")
@@ -53,88 +50,6 @@ local function HashOf(handle)
     return handle.raw.Hash
 end
 
--- Newest-first ordering: later timestamp wins, index breaks ties.
-local function NewerFirst(a, b)
-    if a.Timestamp ~= b.Timestamp then
-        return a.Timestamp > b.Timestamp
-    end
-    return (a.Index or 0) > (b.Index or 0)
-end
-
---[[ Handle factories ]]
-
--- A stable handle for a stored snapshot owned by the given character.
-function SnapshotView:GetSnapshotOf(snapshot, charKey)
-    if not snapshot then
-        return nil
-    end
-    local handle = storedHandles[snapshot]
-    if not handle then
-        handle = { isHead = false, raw = snapshot, charKey = charKey }
-        storedHandles[snapshot] = handle
-    else
-        handle.charKey = charKey
-    end
-    return handle
-end
-
--- A stable handle for a character's live head, or nil when nothing is captured.
-function SnapshotView:GetHeadOf(charKey)
-    local head = profileManager:GetCurrentHead(charKey)
-    if not head then
-        headHandles[charKey] = nil
-        return nil
-    end
-    local handle = headHandles[charKey]
-    if not handle then
-        handle = { isHead = true, charKey = charKey }
-        headHandles[charKey] = handle
-    end
-    handle.head = head
-    return handle
-end
-
--- A character's most recent saved snapshot as a handle, or nil when none exist.
-function SnapshotView:GetLatestOf(charKey)
-    return self:GetSnapshotOf(profileStore:GetLatestSnapshot(charKey), charKey)
-end
-
--- The snapshot a save would prune as a handle, or nil when a save evicts nothing.
-function SnapshotView:GetPendingEvictionOf(charKey)
-    return self:GetSnapshotOf(profileStore:PendingEviction(charKey), charKey)
-end
-
--- The character's full timeline as ordered handles: head first, then pinned
--- snapshots newest-first, then un-pinned snapshots newest-first.
-function SnapshotView:GetTimelineOf(charKey)
-    local handles = {}
-
-    local head = self:GetHeadOf(charKey)
-    if head then
-        tinsert(handles, head)
-    end
-
-    local pinned, history = {}, {}
-    for _, snapshot in ipairs(profileStore:GetSnapshots(charKey)) do
-        if snapshot.Pinned then
-            tinsert(pinned, snapshot)
-        else
-            tinsert(history, snapshot)
-        end
-    end
-    table.sort(pinned, NewerFirst)
-    table.sort(history, NewerFirst)
-
-    for _, snapshot in ipairs(pinned) do
-        tinsert(handles, self:GetSnapshotOf(snapshot, charKey))
-    end
-    for _, snapshot in ipairs(history) do
-        tinsert(handles, self:GetSnapshotOf(snapshot, charKey))
-    end
-
-    return handles
-end
-
 --[[ Reads ]]
 
 -- True for a character's live head (its current, unsaved setup) versus a saved snapshot.
@@ -150,19 +65,28 @@ end
 -- The character a snapshot belongs to: its owning profile key, the character it
 -- was captured from, and the class it was captured on.
 function SnapshotView:GetCharacterInfo(handle)
+    local info = characterInfo[handle]
+    if info then
+        return info
+    end
+
     if handle.isHead then
-        return {
+        info = {
             Key = handle.charKey,
             Character = handle.charKey,
             ClassID = handle.head.ClassID,
         }
+    else
+        local source = handle.raw.Source
+        info = {
+            Key = handle.charKey,
+            Character = source and source.Character,
+            ClassID = source and source.ClassID,
+        }
     end
-    local source = handle.raw.Source
-    return {
-        Key = handle.charKey,
-        Character = source and source.Character,
-        ClassID = source and source.ClassID,
-    }
+
+    characterInfo[handle] = info
+    return info
 end
 
 -- The moment the snapshot was captured (the head reports when it was last seen).

@@ -41,6 +41,7 @@ Runtime\ApplyResult.lua
 Runtime\ProfileManager.lua
 
 Snapshots\SnapshotView.lua
+Snapshots\SnapshotHandleCache.lua
 
 Locales\enUS.lua
 

@@ -2,6 +2,7 @@ local _, addon = ...
 WowSync = addon:NewObject(addon:GetName())
 local ProfileManager = addon:GetObject("ProfileManager")
 local SnapshotView = addon:GetObject("SnapshotView")
+local SnapshotHandleCache = addon:GetObject("SnapshotHandleCache")
 
 local L = addon.L
 
@@ -19,6 +20,12 @@ end
 -- ordered view of a character's snapshots (head, pinned, history).
 function WowSync:GetSnapshotView()
     return SnapshotView
+end
+
+-- The source of stable snapshot handles, keyed by character (head, latest
+-- saved, pending eviction, full timeline).
+function WowSync:GetSnapshotHandleCache()
+    return SnapshotHandleCache
 end
 
 --[[ Addon entry points ]]
