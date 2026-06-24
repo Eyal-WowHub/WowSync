@@ -37,21 +37,6 @@ local function PrintSnapshotError(selector, reason, candidates)
 end
 
 function Commands:OnInitialized()
-    StaticPopupDialogs["WOWSYNC_RESET_DB"] = {
-        text = L["Reset WowSync? This permanently deletes every saved profile and snapshot. Your settings are kept."],
-        button1 = YES,
-        button2 = NO,
-        OnAccept = function()
-            ProfileManager:ResetDatabase()
-            C_UI.Reload()
-        end,
-        timeout = 0,
-        whileDead = true,
-        hideOnEscape = true,
-        showAlert = true,
-        preferredIndex = 3,
-    }
-
     SLASH_WOWSYNC1 = "/wowsync"
     SLASH_WOWSYNC2 = "/ws"
     SlashCmdList["WOWSYNC"] = function(input)

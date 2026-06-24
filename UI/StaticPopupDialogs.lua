@@ -1,5 +1,6 @@
 local _, addon = ...
 local L = addon.L
+local ProfileManager = addon:GetObject("ProfileManager")
 
 --[[
     Shared StaticPopup dialog definitions.
@@ -23,5 +24,22 @@ StaticPopupDialogs["WOWSYNC_RELOAD_UI"] = {
     timeout = 0,
     whileDead = true,
     hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+-- Confirms a full database reset, which wipes every saved profile and snapshot
+-- while keeping the player's settings, then reloads so views reinitialise.
+StaticPopupDialogs["WOWSYNC_RESET_DB"] = {
+    text = L["Reset WowSync? This permanently deletes every saved profile and snapshot. Your settings are kept."],
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function()
+        ProfileManager:ResetDatabase()
+        C_UI.Reload()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    showAlert = true,
     preferredIndex = 3,
 }
