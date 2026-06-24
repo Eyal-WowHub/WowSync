@@ -21,13 +21,8 @@ local SnapshotHandleCache = addon:NewObject("SnapshotHandleCache")
 local storedHandles = setmetatable({}, { __mode = "k" })
 local headHandles = {}
 
-local profileStore
-local profileManager
-
-function SnapshotHandleCache:OnInitialized()
-    profileStore = addon:GetObject("ProfileStore")
-    profileManager = addon:GetObject("ProfileManager")
-end
+local ProfileStore = addon:GetObject("ProfileStore")
+local ProfileManager = addon:GetObject("ProfileManager")
 
 -- Newest-first ordering: later timestamp wins, index breaks ties.
 local function NewerFirst(a, b)
@@ -54,7 +49,7 @@ end
 
 -- A stable handle for a character's live head, or nil when nothing is captured.
 function SnapshotHandleCache:GetHead(charKey)
-    local head = profileManager:GetCurrentHead(charKey)
+    local head = ProfileManager:GetCurrentHead(charKey)
     if not head then
         headHandles[charKey] = nil
         return nil
@@ -70,12 +65,12 @@ end
 
 -- A character's most recent saved snapshot as a handle, or nil when none exist.
 function SnapshotHandleCache:GetLatestSaved(charKey)
-    return EnsureStoredHandle(profileStore:GetLatestSnapshot(charKey), charKey)
+    return EnsureStoredHandle(ProfileStore:GetLatestSnapshot(charKey), charKey)
 end
 
 -- The snapshot a save would prune as a handle, or nil when a save evicts nothing.
 function SnapshotHandleCache:GetPendingEviction(charKey)
-    return EnsureStoredHandle(profileStore:PendingEviction(charKey), charKey)
+    return EnsureStoredHandle(ProfileStore:PendingEviction(charKey), charKey)
 end
 
 -- The character's full timeline as ordered handles: head first, then pinned
@@ -89,7 +84,7 @@ function SnapshotHandleCache:GetTimeline(charKey)
     end
 
     local pinned, history = {}, {}
-    for _, snapshot in ipairs(profileStore:GetSnapshots(charKey)) do
+    for _, snapshot in ipairs(ProfileStore:GetSnapshots(charKey)) do
         if snapshot.Pinned then
             tinsert(pinned, snapshot)
         else

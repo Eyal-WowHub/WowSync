@@ -26,24 +26,21 @@ Core\Time.lua
 Core\HashSet.lua
 Core\BoundedList.lua
 
+Locales\enUS.lua
+
+Runtime\ApplyResult.lua
+Runtime\ProfileManager.lua
+Runtime\ModuleInterface.lua
+Runtime\ModuleRegistry.lua
+
 Snapshots\SnapshotApplyMode.lua
 Snapshots\Snapshot.lua
-
-Modules\ModuleInterface.lua
-Modules\ModuleRegistry.lua
-
 Snapshots\ProfileStore.lua
 Snapshots\CurrentStore.lua
 Snapshots\UndoStore.lua
 Snapshots\Differ.lua
-
-Runtime\ApplyResult.lua
-Runtime\ProfileManager.lua
-
 Snapshots\SnapshotView.lua
 Snapshots\SnapshotHandleCache.lua
-
-Locales\enUS.lua
 
 UI\StaticPopupDialogs.lua
 
@@ -58,5 +55,6 @@ Modules\Addons.lua
 Modules\Settings.lua
 
 Runtime\GameWatcher.lua
-Runtime\API.lua
 Runtime\Commands.lua
+Runtime\API.lua
+

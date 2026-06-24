@@ -17,18 +17,13 @@ local Snapshot = addon:GetObject("Snapshot")
     (its current, unsaved setup); SnapshotView interprets either shape.
 ]]
 
-local profileStore
-local profileManager
+local ProfileStore = addon:GetObject("ProfileStore")
+local ProfileManager = addon:GetObject("ProfileManager")
 
 -- Per-handle cache of the character-info DTO, weak so an entry is collected with
 -- the handle it describes. The fields it holds (owning key, captured character,
 -- class) are fixed for the life of a handle, so the DTO can be reused.
 local characterInfo = setmetatable({}, { __mode = "k" })
-
-function SnapshotView:OnInitialized()
-    profileStore = addon:GetObject("ProfileStore")
-    profileManager = addon:GetObject("ProfileManager")
-end
 
 local function SortedNames(set)
     local names = {}
@@ -121,7 +116,7 @@ end
 -- True when the snapshot is identical to the logged-in character's current setup
 -- (so applying it would change nothing).
 function SnapshotView:IsCurrent(handle)
-    local myHead = profileManager:GetCurrentHead()
+    local myHead = ProfileManager:GetCurrentHead()
     return myHead ~= nil and HashOf(handle) == myHead.Hash
 end
 
@@ -133,7 +128,7 @@ function SnapshotView:SetNotes(handle, text)
     if handle.isHead then
         return
     end
-    profileStore:SetSnapshotNotes(handle.charKey, Snapshot:GetSelector(handle.raw), text)
+    ProfileStore:SetSnapshotNotes(handle.charKey, Snapshot:GetSelector(handle.raw), text)
 end
 
 -- Pin a saved snapshot so pruning skips it. No-op for the head.
@@ -141,7 +136,7 @@ function SnapshotView:Pin(handle)
     if handle.isHead then
         return
     end
-    profileStore:PinSnapshot(handle.charKey, Snapshot:GetSelector(handle.raw))
+    ProfileStore:PinSnapshot(handle.charKey, Snapshot:GetSelector(handle.raw))
 end
 
 -- Unpin a previously pinned snapshot. No-op for the head.
@@ -149,7 +144,7 @@ function SnapshotView:Unpin(handle)
     if handle.isHead then
         return
     end
-    profileStore:UnpinSnapshot(handle.charKey, Snapshot:GetSelector(handle.raw))
+    ProfileStore:UnpinSnapshot(handle.charKey, Snapshot:GetSelector(handle.raw))
 end
 
 --[[ Operations ]]
@@ -158,18 +153,18 @@ end
 -- character's current setup.
 function SnapshotView:Preview(handle, moduleSet)
     if handle.isHead then
-        return profileManager:PreviewApplyCurrentOf(handle.charKey, moduleSet)
+        return ProfileManager:PreviewApplyCurrentOf(handle.charKey, moduleSet)
     end
-    return profileManager:PreviewApply(handle.charKey, Snapshot:GetSelector(handle.raw), moduleSet)
+    return ProfileManager:PreviewApply(handle.charKey, Snapshot:GetSelector(handle.raw), moduleSet)
 end
 
 -- Apply the snapshot (optionally a module subset) to the logged-in character,
 -- pushing a safety snapshot first. Returns an ApplyResult.
 function SnapshotView:Apply(handle, strategy, moduleSet)
     if handle.isHead then
-        return profileManager:ApplyCurrentOf(handle.charKey, strategy, moduleSet)
+        return ProfileManager:ApplyCurrentOf(handle.charKey, strategy, moduleSet)
     end
-    return profileManager:Apply(handle.charKey, Snapshot:GetSelector(handle.raw), strategy, moduleSet)
+    return ProfileManager:Apply(handle.charKey, Snapshot:GetSelector(handle.raw), strategy, moduleSet)
 end
 
 -- Permanently remove a saved snapshot from its character's history. No-op for the head.
@@ -177,5 +172,5 @@ function SnapshotView:Delete(handle)
     if handle.isHead then
         return
     end
-    profileManager:DeleteSnapshot(handle.charKey, Snapshot:GetSelector(handle.raw))
+    ProfileManager:DeleteSnapshot(handle.charKey, Snapshot:GetSelector(handle.raw))
 end
