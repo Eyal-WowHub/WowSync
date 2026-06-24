@@ -54,6 +54,23 @@ local function MetaOf(snapshot)
     return { ClassID = snapshot.Source and snapshot.Source.ClassID }
 end
 
+-- The chosen module subset (intersected with what was actually captured), or
+-- the whole capture when no subset is given.
+local function SubsetOf(modules, moduleSet)
+    if not moduleSet then
+        return modules or {}
+    end
+    local subset = {}
+    if modules then
+        for name in pairs(moduleSet) do
+            if modules[name] ~= nil then
+                subset[name] = modules[name]
+            end
+        end
+    end
+    return subset
+end
+
 -- Resolve the effective set of module names: the chosen subset intersected with
 -- what the snapshot actually contains, or everything in the snapshot when no
 -- subset is given.
@@ -71,6 +88,56 @@ local function ResolveNames(moduleModules, moduleSet)
         end
     end
     return names
+end
+
+-- Shared apply core: capture a FULL safety snapshot of Current before touching
+-- anything (so any change, including Exact deletions and per-module undo, can be
+-- rolled back), then apply the given module set with the per-module strategy.
+-- The safety snapshot is only pushed to the undo stack when an apply actually
+-- happens. Returns an ApplyResult.
+local function ApplyModules(sourceModules, meta, strategy, moduleSet)
+    strategy = strategy or {}
+    local defaultMode = strategy.default or "merge"
+    local overrides = strategy.overrides or {}
+
+    local safety = snapshots:New(currentStore:Refresh(), CurrentSource())
+
+    local names = ResolveNames(sourceModules, moduleSet)
+    local results = {}
+    local applied = false
+
+    -- Don't let our own writes echo back in as if the player made them.
+    gameWatcher:PauseForApply()
+
+    for name in pairs(names) do
+        local module = registry:Get(name)
+        local data = sourceModules[name]
+
+        if module and data ~= nil then
+            local canApply, warning = module:CanApply(meta)
+            if not canApply then
+                results[name] = { applied = false, reason = warning }
+            else
+                local mode = overrides[name] or defaultMode
+                local ok, err = pcall(module.Apply, module, data, meta, { mode = mode })
+                if ok then
+                    results[name] = { applied = true, mode = mode, warning = warning }
+                    applied = true
+                else
+                    results[name] = { applied = false, reason = tostring(err) }
+                end
+            end
+        end
+    end
+
+    if applied then
+        undoStore:Push(nil, safety)
+        currentStore:Refresh()
+    end
+
+    gameWatcher:ResumeAfterApply()
+
+    return ApplyResult:New(results)
 end
 
 --[[ Module Registration ]]
@@ -104,39 +171,83 @@ end
 
 --[[ Save ]]
 
--- Capture Current (optionally a subset) and append it to a profile's history.
--- Returns the stored snapshot, or nil + "unchanged" when nothing changed since
--- the profile's latest snapshot.
-function ProfileManager:Save(profileName, moduleSet, body)
-    C:IsString(profileName, 2)
-    C:Ensures(profileName ~= "", "Save: 'profileName' must be a non-empty string")
+-- Capture Current (optionally a subset) and append it as a snapshot to the
+-- logged-in character's profile, tagging it with the given optional note.
+-- Always appends a snapshot. Returns the profile id and the stored snapshot.
+function ProfileManager:Save(note, moduleSet)
+    local modules = SubsetOf(currentStore:Refresh(), moduleSet)
 
-    local current = currentStore:Refresh()
-
-    local modules = current
-    if moduleSet then
-        modules = {}
-        for name in pairs(moduleSet) do
-            if current[name] ~= nil then
-                modules[name] = current[name]
-            end
-        end
-    end
+    local id = CharacterInfo:GetFullName()
+    profileStore:CreateProfile(id)
 
     local snapshot = snapshots:New(modules, CurrentSource())
-    snapshot.Body = body
+    snapshot.Body = note
 
-    return profileStore:AddSnapshot(profileName, snapshot)
+    local stored, reason = profileStore:AddSnapshot(id, snapshot)
+    return id, stored, reason
+end
+
+-- True when the logged-in character has anything captured to save.
+function ProfileManager:HasCurrent()
+    local current = currentStore:Get()
+    return current ~= nil and next(current) ~= nil
+end
+
+-- The logged-in character's profile key (its full name).
+function ProfileManager:GetCurrentCharacterKey()
+    return CharacterInfo:GetFullName()
+end
+
+-- A derived "head" describing a character's current setup (live for the
+-- logged-in character, last-captured for an alt), or nil when nothing is
+-- captured. Not a stored snapshot: it carries a content Hash but no Index. The
+-- companion UI floats it above the saved history as the always-current top of
+-- the timeline.
+function ProfileManager:GetCurrentHead(charKey)
+    charKey = charKey or CharacterInfo:GetFullName()
+
+    local current = currentStore:Get(charKey)
+    if not current or not next(current) then
+        return nil
+    end
+
+    local charMeta = currentStore:GetMeta(charKey)
+    return {
+        Hash = snapshots:Fingerprint(current),
+        Modules = current,
+        LastSeen = charMeta and charMeta.LastSeen,
+        ClassID = charMeta and charMeta.ClassID,
+        IsCurrent = charKey == CharacterInfo:GetFullName(),
+    }
+end
+
+-- The soft cap on snapshots kept per character profile.
+function ProfileManager:GetMaxSnapshots()
+    return profileStore:GetMaxSnapshots()
+end
+
+-- Preview what saving the given module subset would do for a character
+-- (default: the logged-in one). A save always creates a snapshot, so this only
+-- reports the eviction it would cause. Returns:
+--   evicted - the snapshot a save would prune to stay within MaxSnapshots, or
+--             nil when nothing would be removed (under the cap, or all pinned).
+function ProfileManager:PreviewSave(moduleSet, charKey)
+    charKey = charKey or CharacterInfo:GetFullName()
+    return profileStore:PendingEviction(charKey)
 end
 
 --[[ Preview ]]
 
--- Preview applying a profile snapshot (latest when hash is nil) over Current.
-function ProfileManager:PreviewApply(profileName, hash, moduleSet)
+-- Preview applying a profile snapshot (latest when selector is nil) over Current.
+function ProfileManager:PreviewApply(profileName, selector, moduleSet)
     C:IsString(profileName, 2)
 
-    local snapshot = hash and profileStore:GetSnapshot(profileName, hash)
-        or profileStore:GetLatestSnapshot(profileName)
+    local snapshot
+    if selector then
+        snapshot = profileStore:GetSnapshot(profileName, selector)
+    else
+        snapshot = profileStore:GetLatestSnapshot(profileName)
+    end
     if not snapshot then
         return nil
     end
@@ -145,64 +256,52 @@ function ProfileManager:PreviewApply(profileName, hash, moduleSet)
     return differ:Preview(current, snapshot.Modules, moduleSet)
 end
 
+-- Preview applying a character's current setup (its head) over the logged-in
+-- character's Current. Mirrors PreviewApply but sources a character's live or
+-- last-captured modules instead of a stored snapshot.
+function ProfileManager:PreviewApplyCurrentOf(charKey, moduleSet)
+    C:IsString(charKey, 2)
+
+    local source = currentStore:Get(charKey)
+    if not source then
+        return nil
+    end
+
+    local current = currentStore:Refresh()
+    return differ:Preview(current, source, moduleSet)
+end
+
 --[[ Apply ]]
 
--- Apply a profile snapshot (latest when hash is nil) to the current character.
+-- Apply a profile snapshot (latest when selector is nil) to the current character.
 -- strategy = { default = "merge"|"exact", overrides = { [name] = mode } }.
 -- A full safety snapshot of Current is pushed to the undo stack first.
-function ProfileManager:Apply(profileName, hash, strategy, moduleSet)
+function ProfileManager:Apply(profileName, selector, strategy, moduleSet)
     C:IsString(profileName, 2)
 
-    local snapshot = hash and profileStore:GetSnapshot(profileName, hash)
-        or profileStore:GetLatestSnapshot(profileName)
+    local snapshot
+    if selector then
+        snapshot = profileStore:GetSnapshot(profileName, selector)
+    else
+        snapshot = profileStore:GetLatestSnapshot(profileName)
+    end
     C:Ensures(snapshot, "Apply: profile '%s' has no snapshot to apply", profileName)
 
-    strategy = strategy or {}
-    local defaultMode = strategy.default or "merge"
-    local overrides = strategy.overrides or {}
+    return ApplyModules(snapshot.Modules, MetaOf(snapshot), strategy, moduleSet)
+end
 
-    -- Capture a FULL safety snapshot of Current before touching anything so any
-    -- change (including Exact deletions and per-module undo) can be rolled
-    -- back. It is only pushed to the undo stack if an apply actually happens.
-    local safety = snapshots:New(currentStore:Refresh(), CurrentSource())
+-- Apply a character's current setup (its head) to the logged-in character. Like
+-- Apply, but sources a character's live or last-captured modules instead of a
+-- stored snapshot. A full safety snapshot of Current is pushed first.
+function ProfileManager:ApplyCurrentOf(charKey, strategy, moduleSet)
+    C:IsString(charKey, 2)
 
-    local meta = MetaOf(snapshot)
-    local names = ResolveNames(snapshot.Modules, moduleSet)
-    local results = {}
-    local applied = false
+    local source = currentStore:Get(charKey)
+    C:Ensures(source, "ApplyCurrentOf: character '%s' has nothing captured", charKey)
 
-    -- Don't let our own writes echo back in as if the player made them.
-    gameWatcher:PauseForApply()
-
-    for name in pairs(names) do
-        local module = registry:Get(name)
-        local data = snapshot.Modules[name]
-
-        if module and data ~= nil then
-            local canApply, warning = module:CanApply(meta)
-            if not canApply then
-                results[name] = { applied = false, reason = warning }
-            else
-                local mode = overrides[name] or defaultMode
-                local ok, err = pcall(module.Apply, module, data, meta, { mode = mode })
-                if ok then
-                    results[name] = { applied = true, mode = mode, warning = warning }
-                    applied = true
-                else
-                    results[name] = { applied = false, reason = tostring(err) }
-                end
-            end
-        end
-    end
-
-    if applied then
-        undoStore:Push(nil, safety)
-        currentStore:Refresh()
-    end
-
-    gameWatcher:ResumeAfterApply()
-
-    return ApplyResult:New(results)
+    local charMeta = currentStore:GetMeta(charKey)
+    local meta = { ClassID = charMeta and charMeta.ClassID }
+    return ApplyModules(source, meta, strategy, moduleSet)
 end
 
 --[[ Undo ]]
@@ -317,110 +416,122 @@ function ProfileManager:DeleteProfile(profileName)
     return profileStore:DeleteProfile(profileName)
 end
 
-function ProfileManager:RenameProfile(oldName, newName)
-    C:IsString(oldName, 2)
-    C:IsString(newName, 3)
-    C:Ensures(newName ~= "", "RenameProfile: 'newName' must be a non-empty string")
-    return profileStore:RenameProfile(oldName, newName)
-end
-
 --[[ Snapshot read/management ]]
 
--- Resolve a snapshot within a profile by exact hash or unambiguous prefix.
--- Returns snapshot, or nil + reason ("not-found" | "ambiguous").
-function ProfileManager:GetSnapshot(profileName, hash)
+-- Resolve a snapshot within a profile by exact hash, unambiguous prefix, or
+-- <hash>#<index>. Returns snapshot, or nil + reason + candidates.
+function ProfileManager:GetSnapshot(profileName, selector)
     C:IsString(profileName, 2)
-    C:IsString(hash, 3)
-    return profileStore:GetSnapshot(profileName, hash)
+    C:IsString(selector, 3)
+    return profileStore:GetSnapshot(profileName, selector)
 end
 
-function ProfileManager:DeleteSnapshot(profileName, hash)
+function ProfileManager:DeleteSnapshot(profileName, selector)
     C:IsString(profileName, 2)
-    C:IsString(hash, 3)
-    return profileStore:DeleteSnapshot(profileName, hash)
+    C:IsString(selector, 3)
+    return profileStore:DeleteSnapshot(profileName, selector)
 end
 
-function ProfileManager:SetSnapshotBody(profileName, hash, text)
+function ProfileManager:SetSnapshotBody(profileName, selector, text)
     C:IsString(profileName, 2)
-    C:IsString(hash, 3)
+    C:IsString(selector, 3)
     C:IsString(text, 4)
-    return profileStore:SetSnapshotBody(profileName, hash, text)
+    return profileStore:SetSnapshotBody(profileName, selector, text)
 end
 
-function ProfileManager:PinSnapshot(profileName, hash)
+function ProfileManager:PinSnapshot(profileName, selector)
     C:IsString(profileName, 2)
-    C:IsString(hash, 3)
-    return profileStore:PinSnapshot(profileName, hash)
+    C:IsString(selector, 3)
+    return profileStore:PinSnapshot(profileName, selector)
 end
 
-function ProfileManager:UnpinSnapshot(profileName, hash)
+function ProfileManager:UnpinSnapshot(profileName, selector)
     C:IsString(profileName, 2)
-    C:IsString(hash, 3)
-    return profileStore:UnpinSnapshot(profileName, hash)
+    C:IsString(selector, 3)
+    return profileStore:UnpinSnapshot(profileName, selector)
 end
 
 --[[ Cross-character ]]
 
--- Other characters (not the logged-in one) that have a captured Current,
--- newest-seen first: { { Key, ClassID, LastSeen }, ... }. Drives the
--- cross-character browser; capture happens on each character's logout.
-function ProfileManager:GetOtherCharacters()
+-- Every character that has a profile (saved history) and/or a captured Current,
+-- including the logged-in one. Drives the merged character list. Each entry:
+--   { Key, ClassID, LastSeen, IsCurrent, HasCurrent, HasHistory }
+-- Sorted with the logged-in character first, then most-recently-seen.
+function ProfileManager:ListCharacters()
     local me = CharacterInfo:GetFullName()
-    local out = {}
+    local byKey = {}
 
-    for key, entry in pairs(currentStore:GetCharacters()) do
-        if key ~= me and entry.Current and next(entry.Current) then
-            tinsert(out, {
-                Key = key,
-                ClassID = entry.Meta and entry.Meta.ClassID,
-                LastSeen = entry.Meta and entry.Meta.LastSeen,
-            })
+    local function ensure(key)
+        local entry = byKey[key]
+        if not entry then
+            entry = { Key = key, IsCurrent = key == me }
+            byKey[key] = entry
+        end
+        return entry
+    end
+
+    -- Characters with a captured Current (includes the logged-in one).
+    for key, stored in pairs(currentStore:GetCharacters()) do
+        if stored.Current and next(stored.Current) then
+            local entry = ensure(key)
+            entry.HasCurrent = true
+            entry.ClassID = stored.Meta and stored.Meta.ClassID
+            entry.LastSeen = stored.Meta and stored.Meta.LastSeen
         end
     end
 
+    -- Characters with saved history; fill identity from the latest snapshot's
+    -- source when no Current is present (e.g. data pruned but a profile kept).
+    for key, profile in pairs(profileStore:GetProfiles()) do
+        local history = profile.Snapshots
+        if history and #history > 0 then
+            local entry = ensure(key)
+            entry.HasHistory = true
+            if not entry.ClassID then
+                local latest = history[#history]
+                entry.ClassID = latest.Source and latest.Source.ClassID
+                entry.LastSeen = entry.LastSeen or latest.Timestamp
+            end
+        end
+    end
+
+    local out = {}
+    for _, entry in pairs(byKey) do
+        tinsert(out, entry)
+    end
+
     table.sort(out, function(a, b)
+        if a.IsCurrent ~= b.IsCurrent then
+            return a.IsCurrent
+        end
         return (a.LastSeen or 0) > (b.LastSeen or 0)
     end)
 
     return out
 end
 
--- The captured Current modules for a character (read-only), or nil when unknown.
-function ProfileManager:GetCharacterCurrent(charKey)
+-- Append a snapshot built from another character's captured Current to that
+-- character's profile, tagging it with the given optional note. Like Save, but
+-- sources a stored character instead of a live capture. Returns the stored
+-- snapshot, or nil + a reason ("unknown-character").
+function ProfileManager:SaveFromCharacter(charKey, moduleSet, note)
     C:IsString(charKey, 2)
-    return currentStore:Get(charKey)
-end
-
--- Build a snapshot from another character's captured Current and append it to a
--- profile. Like Save, but sources a stored character instead of a live capture,
--- so the snapshot's identity reflects that character. Returns the stored
--- snapshot, or nil + a reason ("unknown-character" / "unchanged").
-function ProfileManager:SaveFromCharacter(profileName, charKey, moduleSet, body)
-    C:IsString(profileName, 2)
-    C:Ensures(profileName ~= "", "SaveFromCharacter: 'profileName' must be a non-empty string")
-    C:IsString(charKey, 3)
 
     local source = currentStore:Get(charKey)
     if not source then
         return nil, "unknown-character"
     end
 
-    local modules = source
-    if moduleSet then
-        modules = {}
-        for name in pairs(moduleSet) do
-            if source[name] ~= nil then
-                modules[name] = source[name]
-            end
-        end
-    end
+    local modules = SubsetOf(source, moduleSet)
 
     local meta = currentStore:GetMeta(charKey)
+    profileStore:CreateProfile(charKey)
+
     local snapshot = snapshots:New(modules, {
         Character = charKey,
         ClassID = meta and meta.ClassID,
     })
-    snapshot.Body = body
+    snapshot.Body = note
 
-    return profileStore:AddSnapshot(profileName, snapshot)
+    return profileStore:AddSnapshot(charKey, snapshot)
 end

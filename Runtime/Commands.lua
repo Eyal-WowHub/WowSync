@@ -2,6 +2,7 @@ local _, addon = ...
 local Commands = addon:NewObject("Commands")
 local ProfileManager = addon:GetObject("ProfileManager")
 local GameWatcher = addon:GetObject("GameWatcher")
+local Snapshot = addon:GetObject("Snapshot")
 
 local L = addon.L
 
@@ -13,22 +14,25 @@ local L = addon.L
     the companion UI (see WowSync:ToggleUI in Core/API.lua).
 ]]
 
--- Splits a "<name>@<hash>" selector. Returns the profile name plus the hash
--- (lowercased) when present, or just the name with nil when there is no "@".
+-- Splits a "<name>@<hash[#index]>" selector. Returns the profile name plus
+-- the selector (lowercased) when present, or just the name with nil.
 local function ParseSelector(text)
-    local hash = text:match("^.-@(%w+)$")
-    if hash then
-        return (text:gsub("@%w+$", "")), hash:lower()
+    local selector = text:match("^.-@([^%s]+)$")
+    if selector then
+        return (text:gsub("@[^%s]+$", "")), selector:lower()
     end
     return text, nil
 end
 
 -- Prints feedback for a snapshot selector that could not be resolved.
-local function PrintSnapshotError(hash, reason)
+local function PrintSnapshotError(selector, reason, candidates)
     if reason == "ambiguous" then
-        WowSync:Print(L["Snapshot 'X' is ambiguous."]:format(hash))
+        WowSync:Print(L["Multiple snapshots match 'X'. Use the full snapshot selector:"]:format(selector))
+        for _, snapshot in ipairs(candidates or {}) do
+            WowSync:Print(L["  X - Y"]:format(Snapshot:GetSelector(snapshot), Snapshot:GetSubject(snapshot)))
+        end
     else
-        WowSync:Print(L["No snapshot matches 'X'."]:format(hash))
+        WowSync:Print(L["No snapshot matches 'X'."]:format(selector))
     end
 end
 
@@ -45,12 +49,16 @@ function Commands:OnInitialized()
             return
         end
 
-        if command == "save" and arg and arg ~= "" then
-            local snapshot, reason = ProfileManager:Save(arg)
+        if command == "save" then
+            local note = (arg and arg ~= "") and arg or nil
+            local evicted = ProfileManager:PreviewSave(nil)
+            local _, snapshot = ProfileManager:Save(note)
             if snapshot then
-                WowSync:Print(L["Profile 'X' saved."]:format(arg))
-            elseif reason == "unchanged" then
-                WowSync:Print(L["Nothing changed since the last save."])
+                WowSync:Print(L["Snapshot saved."])
+                if evicted then
+                    WowSync:Print(L["Reached the snapshot limit — removed the oldest (X)."]:format(
+                        Snapshot:GetSubject(evicted)))
+                end
             end
         elseif command == "apply" and arg and arg ~= "" then
             local profileName, mode = arg, nil
@@ -63,8 +71,8 @@ function Commands:OnInitialized()
                 end
             end
 
-            local hash
-            profileName, hash = ParseSelector(profileName)
+            local selector
+            profileName, selector = ParseSelector(profileName)
 
             local lowerName = profileName:lower()
             if lowerName == "current" or lowerName == "latest" then
@@ -77,16 +85,16 @@ function Commands:OnInitialized()
                 return
             end
 
-            if hash then
-                local snapshot, reason = ProfileManager:GetSnapshot(profileName, hash)
+            if selector then
+                local snapshot, reason, candidates = ProfileManager:GetSnapshot(profileName, selector)
                 if not snapshot then
-                    PrintSnapshotError(hash, reason)
+                    PrintSnapshotError(selector, reason, candidates)
                     return
                 end
-                hash = snapshot.Hash
+                selector = Snapshot:GetSelector(snapshot)
             end
 
-            local result = ProfileManager:Apply(profileName, hash, { default = mode })
+            local result = ProfileManager:Apply(profileName, selector, { default = mode })
             for _, name in ipairs(result:Applied()) do
                 local outcome = result:Get(name)
                 local msg = L["X: applied"]:format(name)
@@ -111,22 +119,23 @@ function Commands:OnInitialized()
                 end
             end
         elseif command == "delete" and arg and arg ~= "" then
-            local profileName, hash = ParseSelector(arg)
+            local profileName, selector = ParseSelector(arg)
 
-            if hash then
+            if selector then
                 if not ProfileManager:GetProfile(profileName) then
                     WowSync:Print(L["Profile 'X' not found."]:format(profileName))
                     return
                 end
 
-                local snapshot, reason = ProfileManager:GetSnapshot(profileName, hash)
+                local snapshot, reason, candidates = ProfileManager:GetSnapshot(profileName, selector)
                 if not snapshot then
-                    PrintSnapshotError(hash, reason)
+                    PrintSnapshotError(selector, reason, candidates)
                     return
                 end
 
-                if ProfileManager:DeleteSnapshot(profileName, snapshot.Hash) then
-                    WowSync:Print(L["Snapshot 'X' deleted."]:format(snapshot.Hash:sub(1, 7)))
+                selector = Snapshot:GetSelector(snapshot)
+                if ProfileManager:DeleteSnapshot(profileName, selector) then
+                    WowSync:Print(L["Snapshot 'X' deleted."]:format(selector))
                 end
             elseif ProfileManager:DeleteProfile(profileName) then
                 WowSync:Print(L["Profile 'X' deleted."]:format(profileName))
@@ -147,22 +156,20 @@ function Commands:OnInitialized()
                     return
                 end
 
-                local Snapshot = addon:GetObject("Snapshot")
                 WowSync:Print(L["Snapshots for 'X':"]:format(arg))
                 for index = #snapshots, 1, -1 do
                     local snapshot = snapshots[index]
-                    local shortHash = snapshot.Hash:sub(1, 7)
+                    local selector = ("%s#%s"):format(snapshot.Hash:sub(1, 7), snapshot.Index)
                     local subject = Snapshot:GetSubject(snapshot)
                     if snapshot.Pinned then
-                        WowSync:Print(L["  X - Y (pinned)"]:format(shortHash, subject))
+                        WowSync:Print(L["  X - Y (pinned)"]:format(selector, subject))
                     else
-                        WowSync:Print(L["  X - Y"]:format(shortHash, subject))
+                        WowSync:Print(L["  X - Y"]:format(selector, subject))
                     end
                 end
             else
                 local profiles = ProfileManager:GetProfiles()
                 if next(profiles) then
-                    local Snapshot = addon:GetObject("Snapshot")
                     WowSync:Print(L["Saved profiles:"])
                     for name, profile in pairs(profiles) do
                         local snapshots = profile.Snapshots
@@ -188,11 +195,11 @@ function Commands:OnInitialized()
         elseif command == "help" then
             WowSync:Print(L["Usage: (/ws and /wowsync are interchangeable)"])
             WowSync:Print(L["  /ws - Toggle the UI"])
-            WowSync:Print(L["  /ws save <name> - Save current setup to a profile"])
-            WowSync:Print(L["  /ws apply <name>[@hash] [--merge|--exact] - Apply latest or a specific snapshot"])
+            WowSync:Print(L["  /ws save [note] - Snapshot your current setup"])
+            WowSync:Print(L["  /ws apply <character>[@hash[#index]] [--merge|--exact] - Apply latest or a specific snapshot"])
             WowSync:Print(L["  /ws undo - Undo the last apply"])
-            WowSync:Print(L["  /ws delete <name>[@hash] - Delete a profile or one of its snapshots"])
-            WowSync:Print(L["  /ws list [name] - List profiles, or a profile's snapshots"])
+            WowSync:Print(L["  /ws delete <character>[@hash[#index]] - Delete a character's profile or one of its snapshots"])
+            WowSync:Print(L["  /ws list [character] - List profiles, or a character's snapshots"])
             WowSync:Print(L["  /ws watcher on|off - Mirror your changes live"])
         else
             WowSync:Print(L["Unknown command. Type /ws help."])

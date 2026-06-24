@@ -11,6 +11,7 @@ local Time = addon.Time
     per-character undo stack:
 
         {
+            Index,                      -- profile-local identity, assigned by ProfileStore
             Hash,                       -- content fingerprint of Modules (Core/Hash)
             Timestamp,                  -- moment of creation (Core/Time); drives the subject
             Body,                       -- optional, editable note (UI tooltip)
@@ -19,9 +20,11 @@ local Time = addon.Time
             Modules = { [moduleName] = capturedData },
         }
 
-    The Hash is both an identity and a "nothing changed" detector (a save whose
-    Hash equals the profile's latest snapshot is skipped). The display subject is
-    derived from Timestamp on demand and is never stored or edited.
+    Hash is a content fingerprint and the "nothing changed" detector (a save
+    whose Hash equals the profile's latest snapshot is skipped). ProfileStore
+    assigns Index; together they form the user-facing selector <hash>#<index>.
+    The display subject is derived from Timestamp on demand and is never stored
+    or edited.
 ]]
 
 -- Deep copy so a snapshot is independent of the live Current table.
@@ -59,4 +62,12 @@ end
 -- Human-readable subject, e.g. "22 Jun 2026 16:47" (derived, not stored).
 function Snapshot:GetSubject(snapshot)
     return Time:ToShortDisplay(snapshot and snapshot.Timestamp)
+end
+
+-- Stable user-facing selector for commands and UI actions.
+function Snapshot:GetSelector(snapshot)
+    if not snapshot then
+        return nil
+    end
+    return ("%s#%s"):format(snapshot.Hash, snapshot.Index)
 end

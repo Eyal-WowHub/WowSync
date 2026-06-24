@@ -1,6 +1,7 @@
 local _, addon = ...
 WowSync = addon:NewObject(addon:GetName())
 local ProfileManager = addon:GetObject("ProfileManager")
+local Snapshot = addon:GetObject("Snapshot")
 
 local L = addon.L
 
@@ -12,6 +13,12 @@ WowSync.Models = {
 
 function WowSync:GetProfileManager()
     return ProfileManager
+end
+
+-- The stable <hash>#<index> selector for a snapshot, used by the companion UI
+-- to address a specific snapshot unambiguously.
+function WowSync:GetSnapshotSelector(snapshot)
+    return Snapshot:GetSelector(snapshot)
 end
 
 --[[ Addon entry points ]]
