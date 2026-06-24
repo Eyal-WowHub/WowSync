@@ -19,5 +19,6 @@ ignore:
   - README.md
 
 move-folders:
-  WowSync/Libs/CallbackHandler-1.0/CallbackHandler-1.0: WowSync/Libs/CallbackHandler-1.0
   WowSync/AddOns/WowSync_UI: WowSync_UI
+  WowSync/Libs/CallbackHandler-1.0/CallbackHandler-1.0: WowSync_UI/Libs/CallbackHandler-1.0
+  WowSync/Libs/AceDB-3.0: WowSync_UI/Libs/AceDB-3.0

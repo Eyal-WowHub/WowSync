@@ -11,9 +11,6 @@
 
 Libs\LibStub\LibStub.lua
 
-Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
-Libs\AceDB-3.0\AceDB-3.0.xml
-
 Libs\Contracts\Contracts.lua
 Libs\Addon\Addon.lua
 Libs\CharacterInfo\CharacterInfo.lua
@@ -23,6 +20,7 @@ Main.lua
 Core\Constants.lua
 Core\Colorizer.lua
 Core\Hash.lua
+Core\Database.lua
 Core\Time.lua
 Core\HashSet.lua
 Core\BoundedList.lua
@@ -33,13 +31,15 @@ Snapshots\Snapshot.lua
 Modules\ModuleInterface.lua
 Modules\ModuleRegistry.lua
 
+Snapshots\ProfileStore.lua
 Snapshots\CurrentStore.lua
 Snapshots\UndoStore.lua
 Snapshots\Differ.lua
-Snapshots\ProfileStore.lua
 
 Runtime\ApplyResult.lua
 Runtime\ProfileManager.lua
+
+Snapshots\SnapshotView.lua
 
 Locales\enUS.lua
 
