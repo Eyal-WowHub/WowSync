@@ -11,6 +11,11 @@ addon.Hash = Hash
     no knowledge of what it hashes.
 ]]
 
+-- Orders table keys by their string form so mixed key types sort deterministically.
+local function CompareKeys(leftKey, rightKey)
+    return tostring(leftKey) < tostring(rightKey)
+end
+
 -- Serialize a value into a canonical string (table keys sorted) so equal
 -- content always serializes identically.
 local function SerializeToCanonicalString(value, parts)
@@ -20,9 +25,7 @@ local function SerializeToCanonicalString(value, parts)
         for key in pairs(value) do
             keys[#keys + 1] = key
         end
-        table.sort(keys, function(leftKey, rightKey)
-            return tostring(leftKey) < tostring(rightKey)
-        end)
+        table.sort(keys, CompareKeys)
 
         parts[#parts + 1] = "{"
         for _, key in ipairs(keys) do
