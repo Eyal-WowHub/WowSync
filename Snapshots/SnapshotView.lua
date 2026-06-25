@@ -18,7 +18,7 @@ local Snapshot = addon:GetObject("Snapshot")
 ]]
 
 local ProfileStore = addon:GetObject("ProfileStore")
-local ProfileManager = addon:GetObject("ProfileManager")
+local SnapshotManager = addon:GetObject("SnapshotManager")
 
 -- Per-handle cache of the character-info DTO, weak so an entry is collected with
 -- the handle it describes. The fields it holds (owning key, captured character,
@@ -116,7 +116,7 @@ end
 -- True when the snapshot is identical to the logged-in character's current setup
 -- (so applying it would change nothing).
 function SnapshotView:IsCurrent(handle)
-    local myHead = ProfileManager:GetCurrentHead()
+    local myHead = SnapshotManager:GetCurrentHead()
     return myHead ~= nil and HashOf(handle) == myHead.Hash
 end
 
@@ -153,18 +153,18 @@ end
 -- character's current setup.
 function SnapshotView:Preview(handle, moduleSet)
     if handle.isHead then
-        return ProfileManager:PreviewApplyCurrentOf(handle.charKey, moduleSet)
+        return SnapshotManager:PreviewApplyCurrentOf(handle.charKey, moduleSet)
     end
-    return ProfileManager:PreviewApply(handle.charKey, Snapshot:GetSelector(handle.raw), moduleSet)
+    return SnapshotManager:PreviewApply(handle.charKey, Snapshot:GetSelector(handle.raw), moduleSet)
 end
 
 -- Apply the snapshot (optionally a module subset) to the logged-in character,
 -- pushing a safety snapshot first. Returns an ApplyResult.
 function SnapshotView:Apply(handle, strategy, moduleSet)
     if handle.isHead then
-        return ProfileManager:ApplyCurrentOf(handle.charKey, strategy, moduleSet)
+        return SnapshotManager:ApplyCurrentOf(handle.charKey, strategy, moduleSet)
     end
-    return ProfileManager:Apply(handle.charKey, Snapshot:GetSelector(handle.raw), strategy, moduleSet)
+    return SnapshotManager:Apply(handle.charKey, Snapshot:GetSelector(handle.raw), strategy, moduleSet)
 end
 
 -- Permanently remove a saved snapshot from its character's history. No-op for the head.
@@ -172,5 +172,5 @@ function SnapshotView:Delete(handle)
     if handle.isHead then
         return
     end
-    ProfileManager:DeleteSnapshot(handle.charKey, Snapshot:GetSelector(handle.raw))
+    SnapshotManager:DeleteSnapshot(handle.charKey, Snapshot:GetSelector(handle.raw))
 end

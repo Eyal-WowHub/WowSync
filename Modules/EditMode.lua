@@ -1,6 +1,6 @@
 local _, addon = ...
 local EditMode = addon:NewObject("EditMode")
-local ProfileManager = addon:GetObject("ProfileManager")
+local ModuleRegistry = addon:GetObject("ModuleRegistry")
 
 local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
@@ -186,5 +186,5 @@ end
 --[[ Registration ]]
 
 function EditMode:OnInitialized()
-    ProfileManager:RegisterModule(self)
+    ModuleRegistry:Register(self)
 end

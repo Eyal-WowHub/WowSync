@@ -1,6 +1,6 @@
 local _, addon = ...
 local Talents = addon:NewObject("Talents")
-local ProfileManager = addon:GetObject("ProfileManager")
+local ModuleRegistry = addon:GetObject("ModuleRegistry")
 
 local L = addon.L
 local HashSet = addon.HashSet
@@ -412,5 +412,5 @@ end
 --[[ Registration ]]
 
 function Talents:OnInitialized()
-    ProfileManager:RegisterModule(self)
+    ModuleRegistry:Register(self)
 end

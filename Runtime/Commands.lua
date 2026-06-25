@@ -1,6 +1,8 @@
 local _, addon = ...
 local Commands = addon:NewObject("Commands")
 local ProfileManager = addon:GetObject("ProfileManager")
+local SnapshotManager = addon:GetObject("SnapshotManager")
+local CharacterManager = addon:GetObject("CharacterManager")
 local GameWatcher = addon:GetObject("GameWatcher")
 local Snapshot = addon:GetObject("Snapshot")
 
@@ -9,9 +11,9 @@ local L = addon.L
 --[[
     Slash command interface ("/wowsync", "/ws").
 
-    Parses the player's input and routes it to the ProfileManager facade,
-    printing feedback through WowSync:Print. With no arguments it simply toggles
-    the companion UI (see WowSync:ToggleUI in Core/API.lua).
+    Parses the player's input and routes it to the snapshot and profile
+    managers, printing feedback through WowSync:Print. With no arguments it
+    simply toggles the companion UI.
 ]]
 
 -- Splits a "<name>@<hash[#index]>" selector. Returns the profile name plus
@@ -39,7 +41,7 @@ end
 -- Resolves a user-typed character token to a stored profile key, printing the
 -- not-found or ambiguous-match feedback itself. Returns the key, or nil.
 local function GetResolvedCharacter(token)
-    local key, reason, candidates = ProfileManager:ResolveCharacter(token)
+    local key, reason, candidates = CharacterManager:ResolveCharacterName(token)
 
     if key then
         return key
@@ -70,8 +72,8 @@ function Commands:OnInitialized()
 
         if command == "save" then
             local note = (arg and arg ~= "") and arg or nil
-            local evicted = ProfileManager:PreviewSave(nil)
-            ProfileManager:Save(note, nil, function(snapshot, reason)
+            local evicted = SnapshotManager:PreviewSave(nil)
+            SnapshotManager:Save(note, nil, function(snapshot, reason)
                 if snapshot then
                     WowSync:Print(L["Snapshot saved."])
                     if evicted then
@@ -113,7 +115,7 @@ function Commands:OnInitialized()
             profileName = key
 
             if selector then
-                local snapshot, reason, candidates = ProfileManager:GetSnapshot(profileName, selector)
+                local snapshot, reason, candidates = SnapshotManager:GetSnapshot(profileName, selector)
                 if not snapshot then
                     PrintSnapshotError(selector, reason, candidates)
                     return
@@ -121,7 +123,7 @@ function Commands:OnInitialized()
                 selector = Snapshot:GetSelector(snapshot)
             end
 
-            local result = ProfileManager:Apply(profileName, selector, { default = mode })
+            local result = SnapshotManager:Apply(profileName, selector, { default = mode })
             for _, name in ipairs(result:Applied()) do
                 local outcome = result:Get(name)
                 local msg = L["X: applied"]:format(name)
@@ -134,10 +136,10 @@ function Commands:OnInitialized()
                 WowSync:Print(L["X: skipped - Y"]:format(name, result:Get(name).reason or L["unknown"]))
             end
         elseif command == "undo" then
-            if not ProfileManager:HasUndo() then
+            if not SnapshotManager:HasUndo() then
                 WowSync:Print(L["Nothing to undo."])
             else
-                local result = ProfileManager:Undo()
+                local result = SnapshotManager:Undo()
                 if result then
                     WowSync:Print(L["Undid the last apply:"])
                     for _, name in ipairs(result:Applied()) do
@@ -157,14 +159,14 @@ function Commands:OnInitialized()
             profileName = key
 
             if selector then
-                local snapshot, reason, candidates = ProfileManager:GetSnapshot(profileName, selector)
+                local snapshot, reason, candidates = SnapshotManager:GetSnapshot(profileName, selector)
                 if not snapshot then
                     PrintSnapshotError(selector, reason, candidates)
                     return
                 end
 
                 selector = Snapshot:GetSelector(snapshot)
-                if ProfileManager:DeleteSnapshot(profileName, selector) then
+                if SnapshotManager:DeleteSnapshot(profileName, selector) then
                     WowSync:Print(L["Snapshot 'X' deleted."]:format(selector))
                 end
             elseif ProfileManager:DeleteProfile(profileName) then

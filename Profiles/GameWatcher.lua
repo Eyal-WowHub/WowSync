@@ -12,13 +12,13 @@ local C = LibStub("Contracts-1.0")
     into one recapture, and unrelated modules are never touched.
 
     Feedback guard: our own Apply/Undo change the game and so fire these very
-    events. ProfileManager brackets those with SuspendTracking/ResumeTracking,
+    events. SnapshotManager brackets those with SuspendTracking/ResumeTracking,
     which Suspend()s this object (Addon-1.0 drops event dispatch while suspended)
     across the apply plus a short settle window, so we never re-mirror our own
     writes. WoW delivers events between frames, never mid-function, so the
     synchronous apply loop itself cannot be interrupted by a recapture.
 
-    Save isolation: ProfileManager brackets a save with SuspendFlush/ResumeFlush,
+    Save isolation: SaveTask brackets a save with SuspendFlush/ResumeFlush,
     holding off recapture flushes while it reads Current (events still mark
     modules dirty) so the setup a save captures and fingerprints cannot change
     mid-save; the held changes flush the moment the save finishes.
@@ -33,8 +33,8 @@ local C = LibStub("Contracts-1.0")
 local DEBOUNCE_SECONDS = 0.5
 local SETTLE_SECONDS = 0.2
 
-local registry
-local currentStore
+local ModuleRegistry = addon:GetObject("ModuleRegistry")
+local CurrentStore = addon:GetObject("CurrentStore")
 
 -- eventName -> array of module names that care about it.
 local watchedModules = {}
@@ -64,7 +64,7 @@ local function Flush()
         return
     end
     for name in pairs(dirty) do
-        if currentStore:CaptureModule(name) then
+        if CurrentStore:CaptureModule(name) then
             dirty[name] = nil
         end
     end
@@ -112,9 +112,6 @@ end
 --[[ Lifecycle ]]
 
 function GameWatcher:OnInitialized()
-    registry = addon:GetObject("ModuleRegistry")
-    currentStore = addon:GetObject("CurrentStore")
-
     ResolveActivationMode()
 end
 
@@ -128,10 +125,10 @@ function GameWatcher:Watch()
 
     -- Catch up on everything that changed while inactive, so the mirror is
     -- correct before incremental events take over.
-    currentStore:Capture()
+    CurrentStore:Capture()
 
     wipe(watchedModules)
-    for name, module in registry:Iterate() do
+    for name, module in ModuleRegistry:Iterate() do
         if module.GetWatchedEvents then
             for _, event in ipairs(module:GetWatchedEvents()) do
                 local names = watchedModules[event]

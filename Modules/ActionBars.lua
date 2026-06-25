@@ -1,6 +1,6 @@
 local _, addon = ...
 local ActionBars = addon:NewObject("ActionBars")
-local ProfileManager = addon:GetObject("ProfileManager")
+local ModuleRegistry = addon:GetObject("ModuleRegistry")
 
 local L = addon.L
 local HashSet = addon.HashSet
@@ -153,7 +153,7 @@ function ActionBars:Apply(data, meta)
 
     C_CVar.SetCVar("Sound_EnableSFX", savedSFX)
 
-    -- Re-surface any placement error so ProfileManager reports the failure.
+    -- Re-surface any placement error so SnapshotManager reports the failure.
     if not ok then
         error(err)
     end
@@ -308,5 +308,5 @@ end
 --[[ Registration ]]
 
 function ActionBars:OnInitialized()
-    ProfileManager:RegisterModule(self)
+    ModuleRegistry:Register(self)
 end

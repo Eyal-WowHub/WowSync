@@ -22,7 +22,7 @@ local storedHandles = setmetatable({}, { __mode = "k" })
 local headHandles = {}
 
 local ProfileStore = addon:GetObject("ProfileStore")
-local ProfileManager = addon:GetObject("ProfileManager")
+local SnapshotManager = addon:GetObject("SnapshotManager")
 
 -- Newest-first ordering: later timestamp wins, index breaks ties.
 local function NewerFirst(a, b)
@@ -49,7 +49,7 @@ end
 
 -- A stable handle for a character's live head, or nil when nothing is captured.
 function SnapshotHandleCache:GetHead(charKey)
-    local head = ProfileManager:GetCurrentHead(charKey)
+    local head = SnapshotManager:GetCurrentHead(charKey)
     if not head then
         headHandles[charKey] = nil
         return nil

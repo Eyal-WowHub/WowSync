@@ -1,6 +1,6 @@
 local _, addon = ...
 local Chat = addon:NewObject("Chat")
-local ProfileManager = addon:GetObject("ProfileManager")
+local ModuleRegistry = addon:GetObject("ModuleRegistry")
 
 local L = addon.L
 local HashSet = addon.HashSet
@@ -288,5 +288,5 @@ end
 --[[ Registration ]]
 
 function Chat:OnInitialized()
-    ProfileManager:RegisterModule(self)
+    ModuleRegistry:Register(self)
 end

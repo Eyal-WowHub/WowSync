@@ -1,6 +1,6 @@
 local _, addon = ...
 local Macros = addon:NewObject("Macros")
-local ProfileManager = addon:GetObject("ProfileManager")
+local ModuleRegistry = addon:GetObject("ModuleRegistry")
 
 local L = addon.L
 local HashSet = addon.HashSet
@@ -163,5 +163,5 @@ end
 --[[ Registration ]]
 
 function Macros:OnInitialized()
-    ProfileManager:RegisterModule(self)
+    ModuleRegistry:Register(self)
 end

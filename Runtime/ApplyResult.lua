@@ -5,7 +5,7 @@ addon.ApplyResult = ApplyResult
 --[[
     ApplyResult — the per-module outcome of an apply or undo.
 
-    ProfileManager:Apply / :Undo / :UndoSteps build a { [moduleName] = outcome }
+    SnapshotManager:Apply / :Undo / :UndoSteps build a { [moduleName] = outcome }
     map, where each outcome is one of:
 
         { applied = true,  mode = "merge"|"exact", warning = string? }

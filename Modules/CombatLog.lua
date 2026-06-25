@@ -1,6 +1,6 @@
 local _, addon = ...
 local CombatLog = addon:NewObject("CombatLog")
-local ProfileManager = addon:GetObject("ProfileManager")
+local ModuleRegistry = addon:GetObject("ModuleRegistry")
 
 local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
@@ -140,5 +140,5 @@ end
 --[[ Registration ]]
 
 function CombatLog:OnInitialized()
-    ProfileManager:RegisterModule(self)
+    ModuleRegistry:Register(self)
 end

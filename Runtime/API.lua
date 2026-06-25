@@ -1,6 +1,9 @@
 local _, addon = ...
 WowSync = addon:NewObject(addon:GetName())
 local ProfileManager = addon:GetObject("ProfileManager")
+local SnapshotManager = addon:GetObject("SnapshotManager")
+local CharacterManager = addon:GetObject("CharacterManager")
+local ModuleRegistry = addon:GetObject("ModuleRegistry")
 local SnapshotView = addon:GetObject("SnapshotView")
 local SnapshotHandleCache = addon:GetObject("SnapshotHandleCache")
 local GameWatcher = addon:GetObject("GameWatcher")
@@ -15,6 +18,23 @@ WowSync.Models = {
 
 function WowSync:GetProfileManager()
     return ProfileManager
+end
+
+-- Captures, saves, applies, previews and undoes snapshots, and reports a
+-- character's current head.
+function WowSync:GetSnapshotManager()
+    return SnapshotManager
+end
+
+-- The roster of characters that have a profile or a captured current setup, and
+-- token-to-character resolution.
+function WowSync:GetCharacterManager()
+    return CharacterManager
+end
+
+-- The registry of installed modules (lookup by name and iteration).
+function WowSync:GetModuleRegistry()
+    return ModuleRegistry
 end
 
 -- The accessor/mutator interface onto an individual snapshot handle, and the

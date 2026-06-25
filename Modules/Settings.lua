@@ -1,6 +1,6 @@
 local _, addon = ...
 local Settings = addon:NewObject("Settings")
-local ProfileManager = addon:GetObject("ProfileManager")
+local ModuleRegistry = addon:GetObject("ModuleRegistry")
 
 local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
@@ -113,5 +113,5 @@ end
 --[[ Registration ]]
 
 function Settings:OnInitialized()
-    ProfileManager:RegisterModule(self)
+    ModuleRegistry:Register(self)
 end

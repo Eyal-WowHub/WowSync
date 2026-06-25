@@ -25,21 +25,26 @@ Core\Database.lua
 Core\Time.lua
 Core\HashSet.lua
 Core\BoundedList.lua
+Core\FrameTask.lua
 
 Locales\enUS.lua
 
 Runtime\ApplyResult.lua
-Runtime\FrameTask.lua
-Runtime\ProfileManager.lua
 Runtime\ModuleInterface.lua
 Runtime\ModuleRegistry.lua
 
+Profiles\ProfileStore.lua
+Profiles\UndoStore.lua
+Profiles\CurrentStore.lua
+Profiles\GameWatcher.lua
+Profiles\CharacterManager.lua
+Profiles\SaveTask.lua
+Profiles\ProfileManager.lua
+
 Snapshots\SnapshotApplyMode.lua
 Snapshots\Snapshot.lua
-Snapshots\ProfileStore.lua
-Snapshots\CurrentStore.lua
-Snapshots\UndoStore.lua
 Snapshots\Differ.lua
+Snapshots\SnapshotManager.lua
 Snapshots\SnapshotView.lua
 Snapshots\SnapshotHandleCache.lua
 
@@ -55,7 +60,6 @@ Modules\EditMode.lua
 Modules\Addons.lua
 Modules\Settings.lua
 
-Runtime\GameWatcher.lua
 Runtime\Commands.lua
 Runtime\API.lua
 
