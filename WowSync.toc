@@ -26,12 +26,10 @@ Core\Time.lua
 Core\HashSet.lua
 Core\BoundedList.lua
 Core\FrameTask.lua
+Core\Modules\ModuleInterface.lua
+Core\Modules\ModuleRegistry.lua
 
 Locales\enUS.lua
-
-Runtime\ApplyResult.lua
-Runtime\ModuleInterface.lua
-Runtime\ModuleRegistry.lua
 
 Profiles\ProfileStore.lua
 Profiles\UndoStore.lua
@@ -43,12 +41,14 @@ Profiles\ProfileManager.lua
 
 Snapshots\SnapshotApplyMode.lua
 Snapshots\Snapshot.lua
+Snapshots\ApplyResult.lua
 Snapshots\Differ.lua
 Snapshots\SnapshotManager.lua
 Snapshots\SnapshotView.lua
 Snapshots\SnapshotHandleCache.lua
 
 UI\StaticPopupDialogs.lua
+UI\Commands.lua
 
 Modules\ActionBars.lua
 Modules\Talents.lua
@@ -60,6 +60,5 @@ Modules\EditMode.lua
 Modules\Addons.lua
 Modules\Settings.lua
 
-Runtime\Commands.lua
-Runtime\API.lua
+API.lua
 
