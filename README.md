@@ -57,7 +57,7 @@ The window remembers its position, size, and panel layout between sessions.
 
 ## Live Tracking
 
-WowSync keeps an eye on your setup as you play. When you move an action button, edit a macro, change a key binding, or tweak any other tracked part of your setup, WowSync notices and keeps its picture of your current setup up to date on its own — so the **Current** entry, a preview, or a save always reflects exactly what you have right now, including how many entries were added, changed, or removed compared with a snapshot.
+WowSync keeps an eye on your game state (setup) as you play. When you move an action button, edit a macro, change a key binding, or tweak any other tracked part of your setup, WowSync notices and keeps its picture of your current setup up to date on its own — so the **Current** entry, a preview, or a save always reflects exactly what you have right now, including how many entries were added, changed, or removed compared with a snapshot.
 
 Anything that could interfere during combat (such as action bars) waits until you leave combat and then catches up automatically. Live tracking runs **on demand** — only while something needs your live setup, such as when the WowSync window is open — so it costs nothing while you just play. You can turn it off entirely, or back to on-demand, at any time with `/ws watcher off|lazy`.
 
@@ -73,7 +73,7 @@ Anything that could interfere during combat (such as action bars) waits until yo
 | `/ws undo` | Undo the last apply. |
 | `/ws delete <name>[@hash[#index]]` | Delete a profile, or a single snapshot by hash. |
 | `/ws list [name]` | List all saved profiles, or one profile's snapshots. |
-| `/ws watcher off\|lazy` | Track your game state live on demand, or turn tracking off entirely (lazy by default). |
+| `/ws watcher off\|lazy` | Track your setup live on demand, or turn tracking off entirely (lazy by default). |
 | `/ws reset database\|db` | Delete all saved profiles and snapshots (your settings are kept). |
 | `/ws help` | Show the list of commands. |
 
