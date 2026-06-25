@@ -82,6 +82,8 @@ When targeting a specific snapshot, `@hash` accepts the short hash shown by `/ws
 
 Applying a profile is reversible. After an apply, use **Undo** (in the window or `/ws undo`) to restore your previous setup. The window keeps a history of recent changes, so you can step back through several applies in one go — pick an entry in the **Recent changes** list to undo everything back to that point.
 
+Talent loadouts are an exception: undo can restore loadouts that were removed, but it will not delete talent loadouts that an apply added. Any extra loadouts can be removed manually in the talent UI.
+
 ## Side Notes
 
 * Profiles are saved per account, so they are shared across all of your characters.

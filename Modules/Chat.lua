@@ -87,7 +87,7 @@ end
 local function ConfigureTab(chatFrame, tab)
     FCF_SetWindowName(chatFrame, tab.Name)
 
-    if tab.FontSize then
+    if tab.FontSize and tab.FontSize > 0 then
         FCF_SetChatWindowFontSize(nil, chatFrame, tab.FontSize)
     end
 

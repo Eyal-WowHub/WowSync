@@ -122,8 +122,9 @@ function ActionBars:Capture()
     }
 end
 
-function ActionBars:Apply(capturedData, sourceMetadata)
+function ActionBars:Apply(capturedData, sourceMetadata, applyOptions)
     local isSameClass = sourceMetadata.ClassID == PlayerUtil.GetClassID()
+    local exact = applyOptions and applyOptions.mode == "exact"
 
     -- Mute UI sounds during bulk slot placement. Restore the original value
     -- even if placement errors, so we never leave the game muted.
@@ -138,6 +139,12 @@ function ActionBars:Apply(capturedData, sourceMetadata)
             end
         end
 
+        -- Exact mode: empty every shared slot the snapshot doesn't define, so the
+        -- bars end up matching the snapshot instead of merging onto what's there.
+        if exact then
+            self:ClearMissingSlots(SHARED_SLOT_RANGES, capturedData.Shared)
+        end
+
         -- Apply spec-specific bars (only if same class and matching spec exists)
         if capturedData.Specs and isSameClass then
             local specID = GetSpecializationInfo(GetSpecialization())
@@ -146,6 +153,10 @@ function ActionBars:Apply(capturedData, sourceMetadata)
             if specSlots then
                 for slotID, slotInfo in pairs(specSlots) do
                     self:PlaceAction(slotID, slotInfo, true)
+                end
+
+                if exact then
+                    self:ClearMissingSlots({ SPEC_SLOTS }, specSlots)
                 end
             end
         end
@@ -220,6 +231,19 @@ function ActionBars:PlaceAction(slotID, slotInfo, isSameClass)
 
     PlaceAction(slotID)
     ClearCursor()
+end
+
+-- Empty any slot in the given ranges that the desired set doesn't define, so an
+-- exact apply leaves only the snapshot's actions on the captured bars.
+function ActionBars:ClearMissingSlots(ranges, desiredSlots)
+    for _, range in ipairs(ranges) do
+        for slotID = range[1], range[2] do
+            if not (desiredSlots and desiredSlots[slotID]) and GetActionInfo(slotID) then
+                PickupAction(slotID)
+                ClearCursor()
+            end
+        end
+    end
 end
 
 -- A friendly name for the action in a slot, for diff previews.

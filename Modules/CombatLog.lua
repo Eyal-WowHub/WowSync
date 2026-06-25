@@ -6,7 +6,9 @@ local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
 CombatLog.Config = {
-    SnapshotApplyMode = SnapshotApplyMode.Merge,
+    -- Applying replaces the whole filter set wholesale, so the result always
+    -- matches the snapshot exactly; there is no additive merge to offer.
+    SnapshotApplyMode = SnapshotApplyMode.Exact,
 }
 
 --[[
