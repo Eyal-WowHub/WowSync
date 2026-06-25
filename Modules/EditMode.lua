@@ -64,9 +64,9 @@ local function GetActiveLayoutInfo()
     EnsureEditModeLoaded()
 
     if EditModeManagerFrame and EditModeManagerFrame.layoutInfo then
-        local info = EditModeManagerFrame.layoutInfo
-        if info.layouts and info.activeLayout then
-            return info.layouts[info.activeLayout]
+        local layoutInfo = EditModeManagerFrame.layoutInfo
+        if layoutInfo.layouts and layoutInfo.activeLayout then
+            return layoutInfo.layouts[layoutInfo.activeLayout]
         end
     end
 
@@ -97,12 +97,12 @@ function EditMode:Capture()
     }
 end
 
-function EditMode:Apply(data, meta)
-    if not data or not data.LayoutString then
+function EditMode:Apply(capturedData, sourceMetadata)
+    if not capturedData or not capturedData.LayoutString then
         return
     end
 
-    local importedLayout = C_EditMode.ConvertStringToLayoutInfo(data.LayoutString)
+    local importedLayout = C_EditMode.ConvertStringToLayoutInfo(capturedData.LayoutString)
     if not importedLayout then
         return
     end
@@ -146,9 +146,9 @@ function EditMode:Apply(data, meta)
 end
 
 -- The single layout as a keyed list entry, hashed by its export string.
-local function LayoutEntries(data)
-    if data and data.LayoutString then
-        return { { key = "layout", name = data.LayoutName or "Layout", String = data.LayoutString } }
+local function LayoutEntries(capturedData)
+    if capturedData and capturedData.LayoutString then
+        return { { key = "layout", name = capturedData.LayoutName or "Layout", String = capturedData.LayoutString } }
     end
     return {}
 end
@@ -161,10 +161,10 @@ local function LayoutLabel(entry)
     return entry.name
 end
 
--- Preview of whether applying this profile would change the Edit Mode layout.
-function EditMode:Diff(current, snapshot)
-    local currentSet = HashSet:From(LayoutEntries(current), LayoutKey, LayoutLabel)
-    local snapshotSet = HashSet:From(LayoutEntries(snapshot), LayoutKey, LayoutLabel)
+-- Preview of whether applying this snapshot would change the Edit Mode layout.
+function EditMode:Diff(currentData, snapshotData)
+    local currentSet = HashSet:From(LayoutEntries(currentData), LayoutKey, LayoutLabel)
+    local snapshotSet = HashSet:From(LayoutEntries(snapshotData), LayoutKey, LayoutLabel)
 
     return {
         added = currentSet:Added(snapshotSet),
@@ -173,7 +173,7 @@ function EditMode:Diff(current, snapshot)
     }
 end
 
-function EditMode:CanApply(meta)
+function EditMode:CanApply(sourceMetadata)
     return true
 end
 

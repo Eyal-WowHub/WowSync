@@ -36,12 +36,12 @@ function BoundedList:Wrap(list, options)
     }, self)
 end
 
-local function CapOf(self)
-    local max = self.max
-    if type(max) == "function" then
-        return max()
+local function GetCap(self)
+    local cap = self.max
+    if type(cap) == "function" then
+        return cap()
     end
-    return max
+    return cap
 end
 
 -- Append an entry, then evict the oldest non-protected entries past the cap.
@@ -49,10 +49,10 @@ function BoundedList:Push(entry)
     local list = self.list
     tinsert(list, entry)
 
-    local max = CapOf(self)
-    if max then
+    local cap = GetCap(self)
+    if cap then
         local index = 1
-        while #list > max and index <= #list do
+        while #list > cap and index <= #list do
             if self.isProtected and self.isProtected(list[index]) then
                 index = index + 1
             else

@@ -41,9 +41,9 @@ local MESSAGE_GROUP_TYPES = {
 -- which makes the Blizzard helper error on a nil lookup. Guard it so one missing
 -- type does not abort the whole capture.
 local function GetMessageTypeColorSafe(chatType)
-    local ok, r, g, b = pcall(GetMessageTypeColor, chatType)
+    local colorReadSucceeded, r, g, b = pcall(GetMessageTypeColor, chatType)
 
-    if not ok then
+    if not colorReadSucceeded then
         return nil
     end
 
@@ -180,19 +180,19 @@ local function TabKey(tab)
     return tab.Name
 end
 
-function Chat:Apply(data, meta, opts)
-    local exact = opts and opts.mode == "exact"
+function Chat:Apply(capturedData, sourceMetadata, applyOptions)
+    local exact = applyOptions and applyOptions.mode == "exact"
 
-    if data.Tabs then
+    if capturedData.Tabs then
         -- Index the existing custom tabs (3+) by name so we can reconfigure a
         -- tab in place instead of opening a duplicate window.
-        local existing = {}
+        local existingTabs = {}
         for i = 3, NUM_CHAT_WINDOWS do
             local chatFrame = _G["ChatFrame" .. i]
             if chatFrame then
                 local name = GetChatWindowInfo(i)
                 if name and name ~= "" then
-                    existing[name] = chatFrame
+                    existingTabs[name] = chatFrame
                 end
             end
         end
@@ -200,25 +200,25 @@ function Chat:Apply(data, meta, opts)
         -- Exact mode: close custom tabs that the snapshot does not contain.
         -- Iterate in reverse to avoid issues with dock reordering during close.
         if exact then
-            local wanted = {}
-            for _, tab in ipairs(data.Tabs) do
-                wanted[tab.Name] = true
+            local wantedTabs = {}
+            for _, tab in ipairs(capturedData.Tabs) do
+                wantedTabs[tab.Name] = true
             end
 
             for i = NUM_CHAT_WINDOWS, 3, -1 do
                 local chatFrame = _G["ChatFrame" .. i]
                 if chatFrame then
                     local name = GetChatWindowInfo(i)
-                    if name and name ~= "" and not wanted[name] then
+                    if name and name ~= "" and not wantedTabs[name] then
                         FCF_Close(chatFrame, ChatFrame1)
-                        existing[name] = nil
+                        existingTabs[name] = nil
                     end
                 end
             end
         end
 
         -- Create or reconfigure each saved tab.
-        for tabIndex, tab in ipairs(data.Tabs) do
+        for tabIndex, tab in ipairs(capturedData.Tabs) do
             local chatFrame
             local frameIndex
 
@@ -228,7 +228,7 @@ function Chat:Apply(data, meta, opts)
                 frameIndex = tabIndex
             else
                 -- Reuse an existing tab with the same name, else open a new one.
-                chatFrame = existing[tab.Name] or FCF_OpenNewWindow(tab.Name)
+                chatFrame = existingTabs[tab.Name] or FCF_OpenNewWindow(tab.Name)
                 if not chatFrame then
                     addon:Print(L["Could not create chat tab 'X' — maximum tabs reached."]:format(tab.Name))
                     break
@@ -256,17 +256,17 @@ function Chat:Apply(data, meta, opts)
     end
 
     -- Apply chat colors
-    if data.Colors then
-        for chatType, color in pairs(data.Colors) do
+    if capturedData.Colors then
+        for chatType, color in pairs(capturedData.Colors) do
             ChangeChatColor(chatType, color.r, color.g, color.b)
         end
     end
 end
 
 -- Preview of what applying these chat tabs would change.
-function Chat:Diff(current, snapshot)
-    local currentSet = HashSet:From(current and current.Tabs, TabKey, TabKey)
-    local snapshotSet = HashSet:From(snapshot and snapshot.Tabs, TabKey, TabKey)
+function Chat:Diff(currentData, snapshotData)
+    local currentSet = HashSet:From(currentData and currentData.Tabs, TabKey, TabKey)
+    local snapshotSet = HashSet:From(snapshotData and snapshotData.Tabs, TabKey, TabKey)
 
     return {
         added = currentSet:Added(snapshotSet),
@@ -275,7 +275,7 @@ function Chat:Diff(current, snapshot)
     }
 end
 
-function Chat:CanApply(meta)
+function Chat:CanApply(sourceMetadata)
     return true
 end
 

@@ -24,30 +24,30 @@ local Codec = addon.Codec
 -- Capture one module's live state, honoring its optional ShouldCapture() gate.
 -- Returns the captured data and true on success; nil and false when the module
 -- declined capture (e.g. combat lockdown) or its Capture() errored.
-local function TryCaptureModule(name, module)
+local function TryCaptureModule(moduleName, module)
     if module.ShouldCapture and not module:ShouldCapture() then
         return nil, false
     end
 
-    local ok, data = pcall(module.Capture, module)
-    if not ok then
+    local captureSucceeded, capturedData = pcall(module.Capture, module)
+    if not captureSucceeded then
         -- A module's Capture() is not expected to error; surface it so a broken
         -- module is diagnosable instead of silently vanishing.
-        addon:Print(addon.L["Could not capture module 'X': Y"]:format(name, tostring(data)))
+        addon:Print(addon.L["Could not capture module 'X': Y"]:format(moduleName, tostring(capturedData)))
         return nil, false
     end
 
-    return data, true
+    return capturedData, true
 end
 
 function CurrentStore:OnInitialized()
     -- A character's record exists from its first login.
-    local entry = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
+    local profile = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
 
     -- Decompress our own Current once so the live working set is a plain table
     -- for the session; every other character's stays compressed on its record.
-    if type(entry.Current) == "string" then
-        entry.Current = Codec:Decode(entry.Current) or {}
+    if type(profile.Current) == "string" then
+        profile.Current = Codec:Decode(profile.Current) or {}
     end
 
     -- Persist the logged-in character's live setup on logout/reload so other
@@ -61,37 +61,37 @@ end
 -- Compress the logged-in character's Current for storage, so what lands on disk
 -- is the small blob rather than the raw table.
 function CurrentStore:Compress()
-    local entry = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
-    if type(entry.Current) ~= "table" then
+    local profile = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
+    if type(profile.Current) ~= "table" then
         return
     end
 
-    local encoded = Codec:Encode(entry.Current)
+    local encoded = Codec:Encode(profile.Current)
     if encoded then
-        entry.Current = encoded
+        profile.Current = encoded
     end
 end
 
 -- Re-capture the logged-in character's live setup into its Current.
 function CurrentStore:Capture()
-    local entry = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
+    local profile = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
 
-    entry.Metadata.ClassID = PlayerUtil.GetClassID()
-    entry.Metadata.LastSeen = time()
+    profile.Metadata.ClassID = PlayerUtil.GetClassID()
+    profile.Metadata.LastSeen = time()
 
-    local previous = entry.Current
-    if type(previous) ~= "table" then
-        previous = {}
+    local previousModules = profile.Current
+    if type(previousModules) ~= "table" then
+        previousModules = {}
     end
-    local current = {}
+    local capturedModules = {}
     for name, module in ModuleRegistry:Iterate() do
-        local data, ok = TryCaptureModule(name, module)
-        if ok then
-            current[name] = data
+        local capturedData, captured = TryCaptureModule(name, module)
+        if captured then
+            capturedModules[name] = capturedData
         else
             -- The module declined capture (e.g. combat lockdown) or errored;
             -- keep its last-known data rather than dropping it from Current.
-            current[name] = previous[name]
+            capturedModules[name] = previousModules[name]
         end
 
         -- When driven by a sliced save (a coroutine), let the frame breathe
@@ -102,29 +102,29 @@ function CurrentStore:Capture()
         end
     end
 
-    entry.Current = current
-    return current
+    profile.Current = capturedModules
+    return capturedModules
 end
 
 -- Re-capture a single module into the logged-in character's Current, leaving the
 -- other modules untouched. Returns true when captured, or false when skipped
 -- (unknown module, or ShouldCapture declined it, e.g. during combat).
-function CurrentStore:CaptureModule(name)
-    local module = ModuleRegistry:Get(name)
+function CurrentStore:CaptureModule(moduleName)
+    local module = ModuleRegistry:Get(moduleName)
     if not module then
         return false
     end
 
-    local entry = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
-    entry.Metadata.ClassID = PlayerUtil.GetClassID()
-    entry.Metadata.LastSeen = time()
+    local profile = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
+    profile.Metadata.ClassID = PlayerUtil.GetClassID()
+    profile.Metadata.LastSeen = time()
 
-    local data, ok = TryCaptureModule(name, module)
-    if not ok then
+    local capturedData, captured = TryCaptureModule(moduleName, module)
+    if not captured then
         return false
     end
 
-    entry.Current[name] = data
+    profile.Current[moduleName] = capturedData
 
     -- Signal listeners that the live setup changed. Only this single-module path
     -- fires it; a bulk Capture() stays silent, so a listener that reacts by
@@ -136,18 +136,18 @@ end
 
 -- Current setup for a character (defaults to the logged-in one). Another
 -- character's Current is stored compressed, so this decompresses a copy.
-function CurrentStore:Get(key)
-    key = key or CharacterInfo:GetFullName()
-    local profile = ProfileStore:GetProfile(key)
-    local current = profile and profile.Current
-    if type(current) == "string" then
-        return Codec:Decode(current)
+function CurrentStore:Get(profileName)
+    profileName = profileName or CharacterInfo:GetFullName()
+    local profile = ProfileStore:GetProfile(profileName)
+    local capturedModules = profile and profile.Current
+    if type(capturedModules) == "string" then
+        return Codec:Decode(capturedModules)
     end
-    return current
+    return capturedModules
 end
 
-function CurrentStore:GetMetadata(key)
-    key = key or CharacterInfo:GetFullName()
-    local profile = ProfileStore:GetProfile(key)
+function CurrentStore:GetMetadata(profileName)
+    profileName = profileName or CharacterInfo:GetFullName()
+    local profile = ProfileStore:GetProfile(profileName)
     return profile and profile.Metadata
 end

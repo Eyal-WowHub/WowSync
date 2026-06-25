@@ -79,25 +79,25 @@ function Macros:Capture()
     }
 end
 
-function Macros:Apply(data, meta, opts)
-    local exact = opts and opts.mode == "exact"
+function Macros:Apply(capturedData, sourceMetadata, applyOptions)
+    local exact = applyOptions and applyOptions.mode == "exact"
 
-    if data.Account then
-        self:ApplyMacros(data.Account, false, exact)
+    if capturedData.Account then
+        self:ApplyMacros(capturedData.Account, false, exact)
     end
 
-    if data.Character then
-        self:ApplyMacros(data.Character, true, exact)
+    if capturedData.Character then
+        self:ApplyMacros(capturedData.Character, true, exact)
     end
 end
 
 function Macros:ApplyMacros(macros, isCharacterSpecific, exact)
     if exact then
-        local keep = {}
+        local keepNames = {}
         for _, macro in ipairs(macros) do
-            keep[macro.Name] = true
+            keepNames[macro.Name] = true
         end
-        DeleteExtraMacros(keep, isCharacterSpecific)
+        DeleteExtraMacros(keepNames, isCharacterSpecific)
     end
 
     for _, macro in ipairs(macros) do
@@ -122,14 +122,14 @@ function Macros:ApplyMacros(macros, isCharacterSpecific, exact)
 end
 
 -- Preview of what applying these macros would change, per scope.
-function Macros:Diff(current, snapshot)
-    current = current or {}
-    snapshot = snapshot or {}
+function Macros:Diff(currentData, snapshotData)
+    currentData = currentData or {}
+    snapshotData = snapshotData or {}
 
     local added, changed, removed = {}, {}, {}
 
-    local function MergeInto(target, source)
-        for _, label in ipairs(source) do
+    local function AppendLabels(target, labels)
+        for _, label in ipairs(labels) do
             tinsert(target, label)
         end
     end
@@ -140,17 +140,17 @@ function Macros:Diff(current, snapshot)
     }
 
     for _, scope in ipairs(scopes) do
-        local currentSet = HashSet:From(current[scope.field], MacroKey, scope.labelOf)
-        local snapshotSet = HashSet:From(snapshot[scope.field], MacroKey, scope.labelOf)
-        MergeInto(added, currentSet:Added(snapshotSet))
-        MergeInto(changed, currentSet:Changed(snapshotSet))
-        MergeInto(removed, currentSet:Removed(snapshotSet))
+        local currentSet = HashSet:From(currentData[scope.field], MacroKey, scope.labelOf)
+        local snapshotSet = HashSet:From(snapshotData[scope.field], MacroKey, scope.labelOf)
+        AppendLabels(added, currentSet:Added(snapshotSet))
+        AppendLabels(changed, currentSet:Changed(snapshotSet))
+        AppendLabels(removed, currentSet:Removed(snapshotSet))
     end
 
     return { added = added, changed = changed, removed = removed }
 end
 
-function Macros:CanApply(meta)
+function Macros:CanApply(sourceMetadata)
     return true
 end
 

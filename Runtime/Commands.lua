@@ -41,10 +41,10 @@ end
 -- Resolves a user-typed character token to a stored profile key, printing the
 -- not-found or ambiguous-match feedback itself. Returns the key, or nil.
 local function GetResolvedCharacter(token)
-    local key, reason, candidates = CharacterManager:ResolveCharacterName(token)
+    local profileName, reason, candidates = CharacterManager:ResolveCharacterName(token)
 
-    if key then
-        return key
+    if profileName then
+        return profileName
     end
 
     if reason == "ambiguous" then
@@ -106,13 +106,13 @@ function Commands:OnInitialized()
                 return
             end
 
-            local key = GetResolvedCharacter(profileName)
+            local resolvedProfileName = GetResolvedCharacter(profileName)
 
-            if not key then
+            if not resolvedProfileName then
                 return
             end
 
-            profileName = key
+            profileName = resolvedProfileName
 
             if selector then
                 local snapshot, reason, candidates = SnapshotManager:GetSnapshot(profileName, selector)
@@ -123,40 +123,40 @@ function Commands:OnInitialized()
                 selector = Snapshot:GetSelector(snapshot)
             end
 
-            local result = SnapshotManager:ApplySnapshot(profileName, selector, { default = mode })
-            for _, name in ipairs(result:Applied()) do
-                local outcome = result:Get(name)
-                local msg = L["X: applied"]:format(name)
+            local applyResult = SnapshotManager:ApplySnapshot(profileName, selector, { default = mode })
+            for _, moduleName in ipairs(applyResult:Applied()) do
+                local outcome = applyResult:Get(moduleName)
+                local message = L["X: applied"]:format(moduleName)
                 if outcome.warning then
-                    msg = L["X (Y)"]:format(msg, outcome.warning)
+                    message = L["X (Y)"]:format(message, outcome.warning)
                 end
-                WowSync:Print(msg)
+                WowSync:Print(message)
             end
-            for _, name in ipairs(result:Skipped()) do
-                WowSync:Print(L["X: skipped - Y"]:format(name, result:Get(name).reason or L["unknown"]))
+            for _, moduleName in ipairs(applyResult:Skipped()) do
+                WowSync:Print(L["X: skipped - Y"]:format(moduleName, applyResult:Get(moduleName).reason or L["unknown"]))
             end
         elseif command == "undo" then
             if not SnapshotManager:CanUndo() then
                 WowSync:Print(L["Nothing to undo."])
             else
-                local result = SnapshotManager:UndoLastApply()
-                if result then
+                local undoResult = SnapshotManager:UndoLastApply()
+                if undoResult then
                     WowSync:Print(L["Undid the last apply:"])
-                    for _, name in ipairs(result:Applied()) do
-                        WowSync:Print(L["  X: restored"]:format(name))
+                    for _, moduleName in ipairs(undoResult:Applied()) do
+                        WowSync:Print(L["  X: restored"]:format(moduleName))
                     end
                 end
             end
         elseif command == "delete" and arg and arg ~= "" then
             local profileName, selector = ParseSelector(arg)
 
-            local key = GetResolvedCharacter(profileName)
+            local resolvedProfileName = GetResolvedCharacter(profileName)
 
-            if not key then
+            if not resolvedProfileName then
                 return
             end
 
-            profileName = key
+            profileName = resolvedProfileName
 
             if selector then
                 local snapshot, reason, candidates = SnapshotManager:GetSnapshot(profileName, selector)
@@ -174,20 +174,20 @@ function Commands:OnInitialized()
             end
         elseif command == "list" then
             if arg and arg ~= "" then
-                local key = GetResolvedCharacter(arg)
+                local profileName = GetResolvedCharacter(arg)
 
-                if not key then
+                if not profileName then
                     return
                 end
 
-                local profile = ProfileManager:GetProfile(key)
+                local profile = ProfileManager:GetProfile(profileName)
                 local snapshots = profile.Snapshots
                 if not snapshots or #snapshots == 0 then
-                    WowSync:Print(L["Profile 'X' has no snapshots."]:format(key))
+                    WowSync:Print(L["Profile 'X' has no snapshots."]:format(profileName))
                     return
                 end
 
-                WowSync:Print(L["Snapshots for 'X':"]:format(key))
+                WowSync:Print(L["Snapshots for 'X':"]:format(profileName))
                 for index = #snapshots, 1, -1 do
                     local snapshot = snapshots[index]
                     local selector = ("%s#%s"):format(snapshot.Hash:sub(1, 7), snapshot.Index)
@@ -202,30 +202,30 @@ function Commands:OnInitialized()
                 local profiles = ProfileManager:GetProfiles()
                 if next(profiles) then
                     WowSync:Print(L["Saved profiles:"])
-                    for name, profile in pairs(profiles) do
+                    for profileName, profile in pairs(profiles) do
                         local snapshots = profile.Snapshots
-                        local latest = snapshots[#snapshots]
-                        local subject = latest and Snapshot:GetSubject(latest) or L["empty"]
-                        WowSync:Print(L["  X (Y) - Z"]:format(name, #snapshots, subject))
+                        local latestSnapshot = snapshots[#snapshots]
+                        local subject = latestSnapshot and Snapshot:GetSubject(latestSnapshot) or L["empty"]
+                        WowSync:Print(L["  X (Y) - Z"]:format(profileName, #snapshots, subject))
                     end
                 else
                     WowSync:Print(L["No saved profiles."])
                 end
             end
         elseif command == "watcher" then
-            local state = (arg or ""):lower()
-            if state == "lazy" then
+            local watcherMode = (arg or ""):lower()
+            if watcherMode == "lazy" then
                 GameWatcher:SetTrackingMode("lazy")
                 WowSync:Print(L["Live tracking is on demand."])
-            elseif state == "off" then
+            elseif watcherMode == "off" then
                 GameWatcher:SetTrackingMode("off")
                 WowSync:Print(L["Live tracking is off."])
             else
                 WowSync:Print(L["Usage: X"]:format("/ws watcher off|lazy"))
             end
         elseif command == "reset" then
-            local target = (arg or ""):lower()
-            if target == "database" or target == "db" then
+            local resetTarget = (arg or ""):lower()
+            if resetTarget == "database" or resetTarget == "db" then
                 StaticPopup_Show("WOWSYNC_RESET_DB")
             else
                 WowSync:Print(L["Usage: X"]:format("/ws reset database|db"))

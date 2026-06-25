@@ -20,8 +20,8 @@ local function SerializeToCanonicalString(value, parts)
         for key in pairs(value) do
             keys[#keys + 1] = key
         end
-        table.sort(keys, function(a, b)
-            return tostring(a) < tostring(b)
+        table.sort(keys, function(leftKey, rightKey)
+            return tostring(leftKey) < tostring(rightKey)
         end)
 
         parts[#parts + 1] = "{"

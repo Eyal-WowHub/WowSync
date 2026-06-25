@@ -12,12 +12,12 @@ Keybindings.Config = {
 --[[ Helpers ]]
 
 -- The map { [command] = {Key1,Key2} } as a list of keyed entries for HashSet.
-local function ToList(data)
-    local list = {}
-    for command, keys in pairs(data or {}) do
-        tinsert(list, { Command = command, Key1 = keys.Key1, Key2 = keys.Key2 })
+local function BindingEntries(capturedData)
+    local bindingEntries = {}
+    for command, keys in pairs(capturedData or {}) do
+        tinsert(bindingEntries, { Command = command, Key1 = keys.Key1, Key2 = keys.Key2 })
     end
-    return list
+    return bindingEntries
 end
 
 local function BindingKey(binding)
@@ -47,7 +47,7 @@ function Keybindings:Capture()
     return bindings
 end
 
-function Keybindings:Apply(data, meta, opts)
+function Keybindings:Apply(capturedData, sourceMetadata, applyOptions)
     -- Apply saved bindings. SetBinding overrides existing key assignments.
     -- In Exact mode, every currently bound key is cleared first so the
     -- result matches the snapshot exactly (including keys that merely moved
@@ -58,7 +58,7 @@ function Keybindings:Apply(data, meta, opts)
         return
     end
 
-    if opts and opts.mode == "exact" then
+    if applyOptions and applyOptions.mode == "exact" then
         for _, keys in pairs(self:Capture()) do
             if keys.Key1 then
                 SetBinding(keys.Key1, nil)
@@ -69,12 +69,12 @@ function Keybindings:Apply(data, meta, opts)
         end
     end
 
-    for action, keys in pairs(data) do
+    for command, keys in pairs(capturedData) do
         if keys.Key1 then
-            SetBinding(keys.Key1, action)
+            SetBinding(keys.Key1, command)
         end
         if keys.Key2 then
-            SetBinding(keys.Key2, action)
+            SetBinding(keys.Key2, command)
         end
     end
 
@@ -82,9 +82,9 @@ function Keybindings:Apply(data, meta, opts)
 end
 
 -- Preview of what applying these bindings would change.
-function Keybindings:Diff(current, snapshot)
-    local currentSet = HashSet:From(ToList(current), BindingKey, BindingLabel)
-    local snapshotSet = HashSet:From(ToList(snapshot), BindingKey, BindingLabel)
+function Keybindings:Diff(currentData, snapshotData)
+    local currentSet = HashSet:From(BindingEntries(currentData), BindingKey, BindingLabel)
+    local snapshotSet = HashSet:From(BindingEntries(snapshotData), BindingKey, BindingLabel)
 
     return {
         added = currentSet:Added(snapshotSet),
@@ -93,7 +93,7 @@ function Keybindings:Diff(current, snapshot)
     }
 end
 
-function Keybindings:CanApply(meta)
+function Keybindings:CanApply(sourceMetadata)
     return true
 end
 

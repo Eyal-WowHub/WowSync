@@ -4,7 +4,7 @@ local Interface = addon:GetObject("ModuleInterface")
 
 local C = LibStub("Contracts-1.0")
 
-local modules = {}
+local registeredModules = {}
 
 function ModuleRegistry:Register(module)
     C:IsTable(module, 2)
@@ -28,16 +28,16 @@ function ModuleRegistry:Register(module)
         end
     end
 
-    local name = module:GetName()
-    C:Ensures(not modules[name], "Register: module '%s' is already registered", name)
+    local moduleName = module:GetName()
+    C:Ensures(not registeredModules[moduleName], "Register: module '%s' is already registered", moduleName)
 
-    modules[name] = module
+    registeredModules[moduleName] = module
 end
 
-function ModuleRegistry:Get(name)
-    return modules[name]
+function ModuleRegistry:Get(moduleName)
+    return registeredModules[moduleName]
 end
 
 function ModuleRegistry:Iterate()
-    return pairs(modules)
+    return pairs(registeredModules)
 end

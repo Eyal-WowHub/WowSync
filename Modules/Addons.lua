@@ -13,7 +13,7 @@ Addons.Config = {
     Addon enabled/disabled state sync.
 
     Captures which user (non-Blizzard) addons are enabled, and restores
-    that state when applying a profile. Changes take effect on reload.
+    that state when applying a snapshot. Changes take effect on reload.
 
     API:
         C_AddOns.GetNumAddOns()                   → total addon count
@@ -72,17 +72,17 @@ function Addons:Capture()
     }
 end
 
-function Addons:Apply(data, meta, opts)
-    if not data or not data.Enabled then
+function Addons:Apply(capturedData, sourceMetadata, applyOptions)
+    if not capturedData or not capturedData.Enabled then
         return
     end
 
-    local exact = opts and opts.mode == "exact"
+    local exact = applyOptions and applyOptions.mode == "exact"
     local character = UnitName("player")
 
-    -- Build a lookup set from the profile's enabled list
+    -- Build a lookup set from the snapshot's enabled list.
     local shouldBeEnabled = {}
-    for _, name in ipairs(data.Enabled) do
+    for _, name in ipairs(capturedData.Enabled) do
         shouldBeEnabled[name] = true
     end
 
@@ -117,10 +117,10 @@ function Addons:Apply(data, meta, opts)
     end
 end
 
--- Preview of which addons applying this profile would enable or disable.
-function Addons:Diff(current, snapshot)
-    local currentSet = HashSet:From(current and current.Enabled, Identity, Identity)
-    local snapshotSet = HashSet:From(snapshot and snapshot.Enabled, Identity, Identity)
+-- Preview of which addons applying this snapshot would enable or disable.
+function Addons:Diff(currentData, snapshotData)
+    local currentSet = HashSet:From(currentData and currentData.Enabled, Identity, Identity)
+    local snapshotSet = HashSet:From(snapshotData and snapshotData.Enabled, Identity, Identity)
 
     return {
         added = currentSet:Added(snapshotSet),
@@ -129,7 +129,7 @@ function Addons:Diff(current, snapshot)
     }
 end
 
-function Addons:CanApply(meta)
+function Addons:CanApply(sourceMetadata)
     return true
 end
 

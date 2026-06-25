@@ -11,15 +11,15 @@ local ApplyResult = addon.ApplyResult
 
     It owns no state of its own; it coordinates the registry, the profile
     history (ProfileStore), the per-character live setup (CurrentStore), the
-    safety-snapshot stack (UndoStore), the snapshot value-object (Snapshot), and
+    rollback snapshot stack (UndoStore), the snapshot value-object (Snapshot), and
     the apply preview (Differ).
 
     Flow:
       Save    -> capture Current, build a Snapshot, append to the profile
                  (skipped when nothing changed since the latest snapshot).
-      Apply   -> push a FULL safety snapshot of Current to the undo stack, then
+      Apply   -> push a FULL rollback snapshot of Current to the undo stack, then
                  apply the chosen snapshot's modules (per-module Merge/Exact).
-      Undo    -> re-apply the top safety snapshot in Exact mode, then pop it.
+      Undo    -> re-apply the top rollback snapshot in Exact mode, then pop it.
 ]]
 
 local ModuleRegistry = addon:GetObject("ModuleRegistry")
@@ -45,7 +45,7 @@ end
 
 --[[ Internal helpers ]]
 
-local function CurrentSource()
+local function BuildCurrentSource()
     return {
         Character = CharacterInfo:GetFullName(),
         ClassID = PlayerUtil.GetClassID(),
@@ -53,21 +53,21 @@ local function CurrentSource()
 end
 
 -- The meta passed to a module's CanApply/Apply, derived from a snapshot's source.
-local function MetaOf(snapshot)
+local function BuildApplyMeta(snapshot)
     return { ClassID = snapshot.Source and snapshot.Source.ClassID }
 end
 
 -- The chosen module subset (intersected with what was actually captured), or
 -- the whole capture when no subset is given.
-local function SubsetOf(modules, moduleSet)
+local function FilterCapturedModules(capturedModules, moduleSet)
     if not moduleSet then
-        return modules or {}
+        return capturedModules or {}
     end
     local subset = {}
-    if modules then
+    if capturedModules then
         for name in pairs(moduleSet) do
-            if modules[name] ~= nil then
-                subset[name] = modules[name]
+            if capturedModules[name] ~= nil then
+                subset[name] = capturedModules[name]
             end
         end
     end
@@ -77,28 +77,28 @@ end
 -- Resolve the effective set of module names: the chosen subset intersected with
 -- what the snapshot actually contains, or everything in the snapshot when no
 -- subset is given.
-local function ResolveNames(moduleModules, moduleSet)
-    local names = {}
+local function ResolveModuleNames(capturedModules, moduleSet)
+    local moduleNames = {}
     if moduleSet then
         for name in pairs(moduleSet) do
-            if moduleModules[name] ~= nil then
-                names[name] = true
+            if capturedModules[name] ~= nil then
+                moduleNames[name] = true
             end
         end
     else
-        for name in pairs(moduleModules) do
-            names[name] = true
+        for name in pairs(capturedModules) do
+            moduleNames[name] = true
         end
     end
-    return names
+    return moduleNames
 end
 
--- Shared apply core: capture a FULL safety snapshot of Current before touching
+-- Shared apply core: capture a FULL rollback snapshot of Current before touching
 -- anything (so any change, including Exact deletions and per-module undo, can be
 -- rolled back), then apply the given module set with the per-module strategy.
--- The safety snapshot is only pushed to the undo stack when an apply actually
+-- The rollback snapshot is only pushed to the undo stack when an apply actually
 -- happens. Returns an ApplyResult.
-local function ApplyModules(sourceModules, meta, strategy, moduleSet)
+local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet)
     -- Finish any in-flight save first so it cannot capture a half-applied setup.
     SaveTask:Drain()
 
@@ -106,44 +106,44 @@ local function ApplyModules(sourceModules, meta, strategy, moduleSet)
     local defaultMode = strategy.default or "merge"
     local overrides = strategy.overrides or {}
 
-    local safety = Snapshot:New(CurrentStore:Capture(), CurrentSource())
+    local rollbackSnapshot = Snapshot:New(CurrentStore:Capture(), BuildCurrentSource())
 
-    local names = ResolveNames(sourceModules, moduleSet)
-    local results = {}
+    local moduleNames = ResolveModuleNames(sourceModules, moduleSet)
+    local applyResults = {}
     local applied = false
 
     -- Don't let our own writes echo back in as if the player made them.
     GameWatcher:SuspendTracking()
 
-    for name in pairs(names) do
+    for name in pairs(moduleNames) do
         local module = ModuleRegistry:Get(name)
-        local data = sourceModules[name]
+        local capturedData = sourceModules[name]
 
-        if module and data ~= nil then
+        if module and capturedData ~= nil then
             local canApply, warning = module:CanApply(meta)
             if not canApply then
-                results[name] = { applied = false, reason = warning }
+                applyResults[name] = { applied = false, reason = warning }
             else
                 local mode = overrides[name] or defaultMode
-                local ok, err = pcall(module.Apply, module, data, meta, { mode = mode })
-                if ok then
-                    results[name] = { applied = true, mode = mode, warning = warning }
+                local applySucceeded, applyError = pcall(module.Apply, module, capturedData, meta, { mode = mode })
+                if applySucceeded then
+                    applyResults[name] = { applied = true, mode = mode, warning = warning }
                     applied = true
                 else
-                    results[name] = { applied = false, reason = tostring(err) }
+                    applyResults[name] = { applied = false, reason = tostring(applyError) }
                 end
             end
         end
     end
 
     if applied then
-        UndoStore:Push(nil, safety)
+        UndoStore:Push(nil, rollbackSnapshot)
         CurrentStore:Capture()
     end
 
     GameWatcher:ResumeTracking()
 
-    return ApplyResult:New(results)
+    return ApplyResult:New(applyResults)
 end
 
 --[[ Modules ]]
@@ -165,8 +165,8 @@ end
 
 -- True when the logged-in character has anything captured to save.
 function SnapshotManager:HasCapturedGameData()
-    local current = CurrentStore:Get()
-    return current ~= nil and next(current) ~= nil
+    local capturedModules = CurrentStore:Get()
+    return capturedModules ~= nil and next(capturedModules) ~= nil
 end
 
 -- The logged-in character's profile key (its full name).
@@ -182,15 +182,15 @@ end
 function SnapshotManager:GetCharInfo(charKey)
     charKey = charKey or CharacterInfo:GetFullName()
 
-    local current = CurrentStore:Get(charKey)
-    if not current or not next(current) then
+    local capturedModules = CurrentStore:Get(charKey)
+    if not capturedModules or not next(capturedModules) then
         return nil
     end
 
     local charMeta = CurrentStore:GetMetadata(charKey)
     return {
-        Hash = Snapshot:Fingerprint(current),
-        Modules = current,
+        Hash = Snapshot:Fingerprint(capturedModules),
+        Modules = capturedModules,
         LastSeen = charMeta and charMeta.LastSeen,
         ClassID = charMeta and charMeta.ClassID,
         IsCurrent = charKey == CharacterInfo:GetFullName(),
@@ -211,15 +211,15 @@ end
 -- snapshot is handed to onComplete.
 function SnapshotManager:SaveCurrentSnapshot(note, moduleSet, onComplete)
     SaveTask:Run(function()
-        local modules = SubsetOf(CurrentStore:Capture(), moduleSet)
+        local snapshotModules = FilterCapturedModules(CurrentStore:Capture(), moduleSet)
 
-        local id = CharacterInfo:GetFullName()
-        ProfileStore:CreateProfile(id)
+        local profileName = CharacterInfo:GetFullName()
+        ProfileStore:CreateProfile(profileName)
 
-        local snapshot = Snapshot:New(modules, CurrentSource())
+        local snapshot = Snapshot:New(snapshotModules, BuildCurrentSource())
         snapshot.Notes = note
 
-        return ProfileStore:AddSnapshot(id, snapshot)
+        return ProfileStore:AddSnapshot(profileName, snapshot)
     end, onComplete)
 end
 
@@ -241,19 +241,19 @@ function SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, onCompl
     C:IsString(charKey, 2)
 
     SaveTask:Run(function()
-        local source = CurrentStore:Get(charKey)
-        if not source then
+        local capturedModules = CurrentStore:Get(charKey)
+        if not capturedModules then
             return nil, "unknown-character"
         end
 
-        local modules = SubsetOf(source, moduleSet)
+        local snapshotModules = FilterCapturedModules(capturedModules, moduleSet)
 
-        local meta = CurrentStore:GetMetadata(charKey)
+        local characterMetadata = CurrentStore:GetMetadata(charKey)
         ProfileStore:CreateProfile(charKey)
 
-        local snapshot = Snapshot:New(modules, {
+        local snapshot = Snapshot:New(snapshotModules, {
             Character = charKey,
-            ClassID = meta and meta.ClassID,
+            ClassID = characterMetadata and characterMetadata.ClassID,
         })
         snapshot.Notes = note
 
@@ -277,8 +277,8 @@ function SnapshotManager:PreviewApplySnapshot(profileName, selector, moduleSet)
         return nil
     end
 
-    local current = CurrentStore:Capture()
-    return Differ:Preview(current, Snapshot:GetModules(snapshot), moduleSet)
+    local currentModules = CurrentStore:Capture()
+    return Differ:Preview(currentModules, Snapshot:GetModules(snapshot), moduleSet)
 end
 
 -- Preview applying a character's current setup (its head) over the logged-in
@@ -287,20 +287,20 @@ end
 function SnapshotManager:PreviewApplyHeadByCharKey(charKey, moduleSet)
     C:IsString(charKey, 2)
 
-    local source = CurrentStore:Get(charKey)
-    if not source then
+    local sourceModules = CurrentStore:Get(charKey)
+    if not sourceModules then
         return nil
     end
 
-    local current = CurrentStore:Capture()
-    return Differ:Preview(current, source, moduleSet)
+    local currentModules = CurrentStore:Capture()
+    return Differ:Preview(currentModules, sourceModules, moduleSet)
 end
 
 --[[ Apply ]]
 
 -- Apply a profile snapshot (latest when selector is nil) to the current character.
 -- strategy = { default = "merge"|"exact", overrides = { [name] = mode } }.
--- A full safety snapshot of Current is pushed to the undo stack first.
+-- A full rollback snapshot of Current is pushed to the undo stack first.
 function SnapshotManager:ApplySnapshot(profileName, selector, strategy, moduleSet)
     C:IsString(profileName, 2)
 
@@ -310,23 +310,23 @@ function SnapshotManager:ApplySnapshot(profileName, selector, strategy, moduleSe
     else
         snapshot = ProfileStore:GetLatestSnapshot(profileName)
     end
-    C:Ensures(snapshot, "Apply: profile '%s' has no snapshot to apply", profileName)
+    C:Ensures(snapshot, "ApplySnapshot: profile '%s' has no snapshot to apply", profileName)
 
-    return ApplyModules(Snapshot:GetModules(snapshot), MetaOf(snapshot), strategy, moduleSet)
+    return ApplyCapturedModules(Snapshot:GetModules(snapshot), BuildApplyMeta(snapshot), strategy, moduleSet)
 end
 
 -- Apply a character's current setup (its head) to the logged-in character. Like
 -- ApplySnapshot, but sources a character's live or last-captured modules instead
--- of a stored snapshot. A full safety snapshot of Current is pushed first.
+-- of a stored snapshot. A full rollback snapshot of Current is pushed first.
 function SnapshotManager:ApplyHeadByCharKey(charKey, strategy, moduleSet)
     C:IsString(charKey, 2)
 
-    local source = CurrentStore:Get(charKey)
-    C:Ensures(source, "ApplyCurrentOf: character '%s' has nothing captured", charKey)
+    local sourceModules = CurrentStore:Get(charKey)
+    C:Ensures(sourceModules, "ApplyHeadByCharKey: character '%s' has nothing captured", charKey)
 
-    local charMeta = CurrentStore:GetMetadata(charKey)
-    local meta = { ClassID = charMeta and charMeta.ClassID }
-    return ApplyModules(source, meta, strategy, moduleSet)
+    local characterMetadata = CurrentStore:GetMetadata(charKey)
+    local applyMeta = { ClassID = characterMetadata and characterMetadata.ClassID }
+    return ApplyCapturedModules(sourceModules, applyMeta, strategy, moduleSet)
 end
 
 --[[ Undo ]]
@@ -335,71 +335,71 @@ function SnapshotManager:CanUndo()
     return UndoStore:Has()
 end
 
--- Subject + sorted module names describing a single safety snapshot.
-local function DescribeSafety(safety)
+-- Subject + sorted module names describing a single rollback snapshot.
+local function DescribeRollbackSnapshot(rollbackSnapshot)
     local moduleNames = {}
-    for name in pairs(safety.Modules) do
+    for name in pairs(rollbackSnapshot.Modules) do
         tinsert(moduleNames, name)
     end
     table.sort(moduleNames)
 
     return {
-        Subject = Snapshot:GetSubject(safety),
-        Timestamp = safety.Timestamp,
+        Subject = Snapshot:GetSubject(rollbackSnapshot),
+        Timestamp = rollbackSnapshot.Timestamp,
         ModuleNames = moduleNames,
     }
 end
 
 -- Subject + module names of the change that UndoLastApply would roll back.
 function SnapshotManager:GetNextUndoPoint()
-    local safety = UndoStore:Peek()
-    if not safety then
+    local rollbackSnapshot = UndoStore:Peek()
+    if not rollbackSnapshot then
         return nil
     end
 
-    return DescribeSafety(safety)
+    return DescribeRollbackSnapshot(rollbackSnapshot)
 end
 
 -- The undo points newest-first, each describing one apply that can be rolled
 -- back. Index 1 is the most recent (what a single UndoLastApply reverts); undoing
 -- to a deeper index rolls back every apply above it as well.
 function SnapshotManager:GetUndoPoints()
-    local stack = UndoStore:List()
-    local out = {}
-    for i = #stack, 1, -1 do
-        tinsert(out, DescribeSafety(stack[i]))
+    local rollbackSnapshots = UndoStore:List()
+    local undoPoints = {}
+    for i = #rollbackSnapshots, 1, -1 do
+        tinsert(undoPoints, DescribeRollbackSnapshot(rollbackSnapshots[i]))
     end
-    return out
+    return undoPoints
 end
 
--- Roll back the most recent apply by re-applying the top safety snapshot in
+-- Roll back the most recent apply by re-applying the top rollback snapshot in
 -- Exact mode (optionally limited to a subset), then pop it off the stack.
 function SnapshotManager:UndoLastApply(moduleSet)
     -- Finish any in-flight save first so it cannot capture a half-undone setup.
     SaveTask:Drain()
 
-    local safety = UndoStore:Peek()
-    if not safety then
+    local rollbackSnapshot = UndoStore:Peek()
+    if not rollbackSnapshot then
         return nil
     end
 
-    local meta = MetaOf(safety)
-    local safetyModules = Snapshot:GetModules(safety)
-    local names = ResolveNames(safetyModules, moduleSet)
-    local results = {}
+    local applyMeta = BuildApplyMeta(rollbackSnapshot)
+    local rollbackModules = Snapshot:GetModules(rollbackSnapshot)
+    local moduleNames = ResolveModuleNames(rollbackModules, moduleSet)
+    local applyResults = {}
 
     GameWatcher:SuspendTracking()
 
-    for name in pairs(names) do
+    for name in pairs(moduleNames) do
         local module = ModuleRegistry:Get(name)
-        local data = safetyModules[name]
+        local capturedData = rollbackModules[name]
 
-        if module and data ~= nil then
-            local ok, err = pcall(module.Apply, module, data, meta, { mode = "exact" })
-            if ok then
-                results[name] = { applied = true }
+        if module and capturedData ~= nil then
+            local applySucceeded, applyError = pcall(module.Apply, module, capturedData, applyMeta, { mode = "exact" })
+            if applySucceeded then
+                applyResults[name] = { applied = true }
             else
-                results[name] = { applied = false, reason = tostring(err) }
+                applyResults[name] = { applied = false, reason = tostring(applyError) }
             end
         end
     end
@@ -407,7 +407,7 @@ function SnapshotManager:UndoLastApply(moduleSet)
     UndoStore:Pop()
     CurrentStore:Capture()
     GameWatcher:ResumeTracking()
-    return ApplyResult:New(results)
+    return ApplyResult:New(applyResults)
 end
 
 -- Roll back the most recent `count` applies, newest first, by undoing one step
@@ -421,9 +421,9 @@ function SnapshotManager:UndoApplies(count)
             break
         end
 
-        local step = self:UndoLastApply()
-        if step then
-            aggregate:Merge(step)
+        local stepResult = self:UndoLastApply()
+        if stepResult then
+            aggregate:Merge(stepResult)
         end
     end
 

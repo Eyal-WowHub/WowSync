@@ -23,20 +23,21 @@ local ModuleInterface = addon:NewObject("ModuleInterface")
         addon:NewObject(name) — modules do not implement it themselves, but it
         must be present, so it is listed as required.
 
-    Capture() -> data
+    Capture() -> capturedData
         Read the player's current live state for this domain and return it as a
         plain, serializable table. No side effects. Called by CurrentStore when
-        mirroring live state and when saving a profile.
+        mirroring live state and when saving a snapshot.
 
-    Apply(data, meta, opts)
-        Write a previously captured `data` back into the game. `meta` carries the
-        source snapshot's provenance (notably ClassID). `opts.mode` is "merge"
-        (add/overwrite snapshot items, leave the rest) or "exact" (also remove
-        live items absent from the snapshot); modules that only support merge may
-        ignore `opts`. The only contract member with real side effects. Called by
-        SnapshotManager during apply and undo.
+    Apply(capturedData, sourceMetadata, applyOptions)
+        Write a previously captured module table back into the game. The source
+        metadata carries the snapshot's provenance (notably ClassID).
+        applyOptions.mode is "merge" (add/overwrite snapshot items, leave the
+        rest) or "exact" (also remove live items absent from the snapshot);
+        modules that only support merge may ignore applyOptions. The only
+        contract member with real side effects. Called by SnapshotManager during
+        apply and undo.
 
-    CanApply(meta) -> boolean[, warning]
+    CanApply(sourceMetadata) -> boolean[, warning]
         Pre-flight gate asked before Apply. Returns whether applying is sensible
         for this snapshot's origin, plus an optional human-readable caveat shown
         in the UI/chat (e.g. a cross-class warning). A false return blocks the
@@ -44,7 +45,7 @@ local ModuleInterface = addon:NewObject("ModuleInterface")
 
     ── Optional methods (validated only when present) ────────────────────────
 
-    Diff(current, snapshot) -> { added, changed, removed }
+    Diff(currentData, snapshotData) -> { added, changed, removed }
         Pure comparison, no side effects. Returns three lists of display labels
         describing what an apply would change. Powers the preview UI and the
         unsaved-changes badge. Called by Differ.

@@ -72,21 +72,21 @@ end
 
 local function ScheduleFlush()
     flushGeneration = flushGeneration + 1
-    local mine = flushGeneration
+    local scheduledGeneration = flushGeneration
     C_Timer.After(DEBOUNCE_SECONDS, function()
-        if mine == flushGeneration then
+        if scheduledGeneration == flushGeneration then
             Flush()
         end
     end)
 end
 
 local function OnWatchedEvent(_, event)
-    local names = watchedModules[event]
-    if not names then
+    local moduleNames = watchedModules[event]
+    if not moduleNames then
         return
     end
 
-    for _, name in ipairs(names) do
+    for _, name in ipairs(moduleNames) do
         dirty[name] = true
     end
     ScheduleFlush()
@@ -131,13 +131,13 @@ function GameWatcher:Watch()
     for name, module in ModuleRegistry:Iterate() do
         if module.GetWatchedEvents then
             for _, event in ipairs(module:GetWatchedEvents()) do
-                local names = watchedModules[event]
-                if not names then
-                    names = {}
-                    watchedModules[event] = names
+                local moduleNames = watchedModules[event]
+                if not moduleNames then
+                    moduleNames = {}
+                    watchedModules[event] = moduleNames
                     self:RegisterEvent(event, OnWatchedEvent)
                 end
-                tinsert(names, name)
+                tinsert(moduleNames, name)
             end
         end
     end
@@ -178,16 +178,16 @@ end
 
 -- Register interest in live tracking under an id. Ids are deduplicated, so
 -- attaching the same id twice still counts as one.
-function GameWatcher:Attach(id)
-    C:IsString(id, 2)
-    attachments[id] = true
+function GameWatcher:Attach(consumerId)
+    C:IsString(consumerId, 2)
+    attachments[consumerId] = true
     ResolveActivationMode()
 end
 
 -- Drop an attachment's interest. Live tracking stops once the last one leaves.
-function GameWatcher:Detach(id)
-    C:IsString(id, 2)
-    attachments[id] = nil
+function GameWatcher:Detach(consumerId)
+    C:IsString(consumerId, 2)
+    attachments[consumerId] = nil
     ResolveActivationMode()
 end
 
@@ -210,9 +210,9 @@ end
 -- (which WoW delivers on the following frame) to pass unheeded.
 function GameWatcher:ResumeTracking()
     resumeGeneration = resumeGeneration + 1
-    local mine = resumeGeneration
+    local scheduledGeneration = resumeGeneration
     C_Timer.After(SETTLE_SECONDS, function()
-        if mine == resumeGeneration then
+        if scheduledGeneration == resumeGeneration then
             self:Resume()
         end
     end)

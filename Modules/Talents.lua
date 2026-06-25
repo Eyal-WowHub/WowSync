@@ -113,7 +113,7 @@ local function ReadLoadoutHeader(importStream)
 end
 
 local function ReadLoadoutContent(importStream, treeID)
-    local results = {}
+    local loadoutContent = {}
     local treeNodes = C_Traits.GetTreeNodes(treeID)
     for i, _ in ipairs(treeNodes) do
         local isNodeSelected = importStream:ExtractValue(1) == 1
@@ -137,7 +137,7 @@ local function ReadLoadoutContent(importStream, treeID)
             end
         end
 
-        results[i] = {
+        loadoutContent[i] = {
             isNodeSelected = isNodeSelected,
             isNodeGranted = isNodeSelected and not isNodePurchased,
             isPartiallyRanked = isPartiallyRanked,
@@ -146,41 +146,41 @@ local function ReadLoadoutContent(importStream, treeID)
             choiceNodeSelection = choiceNodeSelection + 1,
         }
     end
-    return results
+    return loadoutContent
 end
 
-local function CreateEntryInfoFromSingleNode(results, configID, nodeInfo, indexInfo)
+local function CreateEntryInfoFromSingleNode(loadoutEntries, configID, nodeInfo, indexInfo)
     if not nodeInfo or not indexInfo or not indexInfo.isNodeSelected then
         return
     end
 
-    local result = {
+    local loadoutEntry = {
         nodeID = nodeInfo.ID,
         ranksGranted = indexInfo.isNodeGranted and 1 or 0,
     }
 
     if indexInfo.isNodeSelected and not indexInfo.isNodeGranted then
-        result.ranksPurchased = indexInfo.isPartiallyRanked and indexInfo.partialRanksPurchased or nodeInfo.maxRanks
+        loadoutEntry.ranksPurchased = indexInfo.isPartiallyRanked and indexInfo.partialRanksPurchased or nodeInfo.maxRanks
     else
-        result.ranksPurchased = 0
+        loadoutEntry.ranksPurchased = 0
     end
 
     if indexInfo.isChoiceNode and indexInfo.choiceNodeSelection then
-        result.selectionEntryID = nodeInfo.entryIDs[indexInfo.choiceNodeSelection]
+        loadoutEntry.selectionEntryID = nodeInfo.entryIDs[indexInfo.choiceNodeSelection]
     elseif nodeInfo.activeEntry then
-        result.selectionEntryID = nodeInfo.activeEntry.entryID
+        loadoutEntry.selectionEntryID = nodeInfo.activeEntry.entryID
     end
 
-    if not result.selectionEntryID then
-        result.selectionEntryID = nodeInfo.entryIDs[1]
+    if not loadoutEntry.selectionEntryID then
+        loadoutEntry.selectionEntryID = nodeInfo.entryIDs[1]
     end
 
-    if result.selectionEntryID then
-        tinsert(results, result)
+    if loadoutEntry.selectionEntryID then
+        tinsert(loadoutEntries, loadoutEntry)
     end
 end
 
-local function CreateEntryInfoFromTieredNode(results, configID, nodeInfo, indexInfo)
+local function CreateEntryInfoFromTieredNode(loadoutEntries, configID, nodeInfo, indexInfo)
     if not nodeInfo or not indexInfo or not indexInfo.isNodeSelected then
         return
     end
@@ -197,7 +197,7 @@ local function CreateEntryInfoFromTieredNode(results, configID, nodeInfo, indexI
             local ranksForThisEntry = math.min(remainingRanks, entryInfo.maxRanks)
             local isGranted = indexInfo.isNodeGranted and (index == 1)
             if ranksForThisEntry > 0 or isGranted then
-                tinsert(results, {
+                tinsert(loadoutEntries, {
                     nodeID = nodeInfo.ID,
                     ranksGranted = isGranted and 1 or 0,
                     ranksPurchased = ranksForThisEntry,
@@ -210,33 +210,33 @@ local function CreateEntryInfoFromTieredNode(results, configID, nodeInfo, indexI
 end
 
 local function ConvertToImportLoadoutEntryInfo(configID, treeID, loadoutContent)
-    local results = {}
+    local loadoutEntries = {}
     local treeNodes = C_Traits.GetTreeNodes(treeID)
     for index, treeNodeID in ipairs(treeNodes) do
         local indexInfo = loadoutContent[index]
         local nodeInfo = C_Traits.GetNodeInfo(configID, treeNodeID)
         if nodeInfo then
             if nodeInfo.type == Enum.TraitNodeType.Tiered then
-                CreateEntryInfoFromTieredNode(results, configID, nodeInfo, indexInfo)
+                CreateEntryInfoFromTieredNode(loadoutEntries, configID, nodeInfo, indexInfo)
             else
-                CreateEntryInfoFromSingleNode(results, configID, nodeInfo, indexInfo)
+                CreateEntryInfoFromSingleNode(loadoutEntries, configID, nodeInfo, indexInfo)
             end
         end
     end
-    return results
+    return loadoutEntries
 end
 
 local function IsTreeHashEmpty(treeHash)
-    for _, v in ipairs(treeHash) do
-        if v ~= 0 then return false end
+    for _, hashByte in ipairs(treeHash) do
+        if hashByte ~= 0 then return false end
     end
     return true
 end
 
-local function TreeHashesMatch(a, b)
-    if #a ~= #b then return false end
-    for i, v in ipairs(a) do
-        if v ~= b[i] then return false end
+local function TreeHashesMatch(leftHash, rightHash)
+    if #leftHash ~= #rightHash then return false end
+    for i, hashByte in ipairs(leftHash) do
+        if hashByte ~= rightHash[i] then return false end
     end
     return true
 end
@@ -275,7 +275,7 @@ end
 --[[ Module API ]]
 
 function Talents:Capture()
-    local data = {
+    local capturedData = {
         Specs = {},
         StarterBuildActive = C_ClassTalents.GetHasStarterBuild() and C_ClassTalents.GetStarterBuildActive() or false,
     }
@@ -302,22 +302,22 @@ function Talents:Capture()
         end
 
         if #specEntry.Loadouts > 0 or specEntry.PvpTalents then
-            data.Specs[specID] = specEntry
+            capturedData.Specs[specID] = specEntry
         end
     end
 
-    return data
+    return capturedData
 end
 
-function Talents:Apply(data, meta)
+function Talents:Apply(capturedData, sourceMetadata)
     local currentSpecID = GetSpecializationInfo(GetSpecialization())
-    local specEntry = data.Specs[currentSpecID]
+    local specEntry = capturedData.Specs[currentSpecID]
 
     if not specEntry then
         return
     end
 
-    if data.StarterBuildActive then
+    if capturedData.StarterBuildActive then
         addon:Print(L["Note: This profile was saved with the Starter Build active."])
     end
 
@@ -336,16 +336,16 @@ function Talents:Apply(data, meta)
     local importedCount = 0
     for _, loadout in ipairs(specEntry.Loadouts) do
         if loadout.ExportString then
-            local ok, result1, result2 = pcall(ImportLoadoutFromString, configID, treeID, loadout.ExportString, loadout.Name)
-            if not ok then
-                addon:Print(L["Failed to import 'X': Y"]:format(loadout.Name, tostring(result1)))
+            local importSucceeded, importResult, importError = pcall(ImportLoadoutFromString, configID, treeID, loadout.ExportString, loadout.Name)
+            if not importSucceeded then
+                addon:Print(L["Failed to import 'X': Y"]:format(loadout.Name, tostring(importResult)))
                 addon:Print(L["  Export string: X"]:format(loadout.ExportString))
-            elseif result1 then
+            elseif importResult then
                 local activeTag = loadout.WasActive and L[" (was active)"] or ""
                 addon:Print(L["Imported talent loadout 'X'Y"]:format(loadout.Name, activeTag))
                 importedCount = importedCount + 1
             else
-                addon:Print(L["Failed to import 'X': Y"]:format(loadout.Name, result2 or L["Unknown error"]))
+                addon:Print(L["Failed to import 'X': Y"]:format(loadout.Name, importError or L["Unknown error"]))
                 addon:Print(L["  Export string: X"]:format(loadout.ExportString))
             end
         end
@@ -357,37 +357,37 @@ function Talents:Apply(data, meta)
 
     -- PvP talents (informational — must be selected manually in the Talent UI)
     if specEntry.PvpTalents then
-        local names = {}
+        local pvpTalentNames = {}
         for _, pvp in ipairs(specEntry.PvpTalents) do
-            tinsert(names, pvp.Name)
+            tinsert(pvpTalentNames, pvp.Name)
         end
-        addon:Print(L["PvP Talents to restore: X"]:format(table.concat(names, ", ")))
+        addon:Print(L["PvP Talents to restore: X"]:format(table.concat(pvpTalentNames, ", ")))
     end
 end
 
 -- Flatten the current spec's loadouts into a keyed list, hashing only the
 -- stable identity (name + export string) so a changed active flag isn't a
 -- "change". Mirror Apply, which only imports the current spec's loadouts.
-local function FlattenLoadouts(data)
-    local list = {}
+local function FlattenLoadouts(capturedData)
+    local loadoutEntries = {}
     local specID = GetSpecializationInfo(GetSpecialization())
-    local specEntry = specID and data and data.Specs and data.Specs[specID]
+    local specEntry = specID and capturedData and capturedData.Specs and capturedData.Specs[specID]
     if specEntry then
         for _, loadout in ipairs(specEntry.Loadouts or {}) do
-            tinsert(list, { Name = loadout.Name, ExportString = loadout.ExportString })
+            tinsert(loadoutEntries, { Name = loadout.Name, ExportString = loadout.ExportString })
         end
     end
-    return list
+    return loadoutEntries
 end
 
 local function LoadoutKey(loadout)
     return loadout.Name
 end
 
--- Preview of which talent loadouts applying this profile would change.
-function Talents:Diff(current, snapshot)
-    local currentSet = HashSet:From(FlattenLoadouts(current), LoadoutKey, LoadoutKey)
-    local snapshotSet = HashSet:From(FlattenLoadouts(snapshot), LoadoutKey, LoadoutKey)
+-- Preview of which talent loadouts applying this snapshot would change.
+function Talents:Diff(currentData, snapshotData)
+    local currentSet = HashSet:From(FlattenLoadouts(currentData), LoadoutKey, LoadoutKey)
+    local snapshotSet = HashSet:From(FlattenLoadouts(snapshotData), LoadoutKey, LoadoutKey)
 
     return {
         added = currentSet:Added(snapshotSet),
@@ -396,8 +396,8 @@ function Talents:Diff(current, snapshot)
     }
 end
 
-function Talents:CanApply(meta)
-    if meta.ClassID ~= PlayerUtil.GetClassID() then
+function Talents:CanApply(sourceMetadata)
+    if sourceMetadata.ClassID ~= PlayerUtil.GetClassID() then
         return false, L["Talents are class-specific"]
     end
     return true

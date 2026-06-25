@@ -43,7 +43,7 @@ end
 --[[ Module API ]]
 
 function CombatLog:Capture()
-    local data = {}
+    local capturedData = {}
 
     -- Attempt to load Blizzard_CombatLog if not already loaded
     if not IsBlizzardCombatLogLoaded() then
@@ -52,24 +52,24 @@ function CombatLog:Capture()
 
     -- Capture filter settings if the addon is loaded
     if IsBlizzardCombatLogLoaded() and Blizzard_CombatLog_Filters then
-        data.Filters = DeepCopy(Blizzard_CombatLog_Filters)
+        capturedData.Filters = DeepCopy(Blizzard_CombatLog_Filters)
 
         -- Track which filter index is currently active
         if Blizzard_CombatLog_CurrentSettings then
             for i, filter in ipairs(Blizzard_CombatLog_Filters) do
                 if filter.settings == Blizzard_CombatLog_CurrentSettings then
-                    data.ActiveFilterIndex = i
+                    capturedData.ActiveFilterIndex = i
                     break
                 end
             end
         end
     end
 
-    return data
+    return capturedData
 end
 
-function CombatLog:Apply(data, meta)
-    if not data.Filters then
+function CombatLog:Apply(capturedData, sourceMetadata)
+    if not capturedData.Filters then
         return
     end
 
@@ -83,10 +83,10 @@ function CombatLog:Apply(data, meta)
     end
 
     -- Restore filter settings
-    Blizzard_CombatLog_Filters = DeepCopy(data.Filters)
+    Blizzard_CombatLog_Filters = DeepCopy(capturedData.Filters)
 
     -- Restore the active filter reference
-    local activeIndex = data.ActiveFilterIndex or 1
+    local activeIndex = capturedData.ActiveFilterIndex or 1
     if Blizzard_CombatLog_Filters[activeIndex] then
         Blizzard_CombatLog_CurrentSettings = Blizzard_CombatLog_Filters[activeIndex].settings
     end
@@ -102,15 +102,15 @@ function CombatLog:Apply(data, meta)
 end
 
 -- Each combat-log filter preset as a keyed list entry, hashed by its content.
-local function FilterEntries(data)
-    local list = {}
-    if data and data.Filters then
-        for i, filter in ipairs(data.Filters) do
+local function FilterEntries(capturedData)
+    local filterEntries = {}
+    if capturedData and capturedData.Filters then
+        for i, filter in ipairs(capturedData.Filters) do
             local label = filter.name or ("Filter " .. i)
-            tinsert(list, { key = filter.name or i, label = label, filter = filter })
+            tinsert(filterEntries, { key = filter.name or i, label = label, filter = filter })
         end
     end
-    return list
+    return filterEntries
 end
 
 local function FilterKey(entry)
@@ -121,10 +121,10 @@ local function FilterLabel(entry)
     return entry.label
 end
 
--- Preview of which combat-log filters applying this profile would change.
-function CombatLog:Diff(current, snapshot)
-    local currentSet = HashSet:From(FilterEntries(current), FilterKey, FilterLabel)
-    local snapshotSet = HashSet:From(FilterEntries(snapshot), FilterKey, FilterLabel)
+-- Preview of which combat-log filters applying this snapshot would change.
+function CombatLog:Diff(currentData, snapshotData)
+    local currentSet = HashSet:From(FilterEntries(currentData), FilterKey, FilterLabel)
+    local snapshotSet = HashSet:From(FilterEntries(snapshotData), FilterKey, FilterLabel)
 
     return {
         added = currentSet:Added(snapshotSet),
@@ -133,7 +133,7 @@ function CombatLog:Diff(current, snapshot)
     }
 end
 
-function CombatLog:CanApply(meta)
+function CombatLog:CanApply(sourceMetadata)
     return true
 end
 

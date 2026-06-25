@@ -6,13 +6,13 @@ local BoundedList = addon.BoundedList
 --[[
     ProfileStore — one record per character, owning that character's history.
 
-    A character's record lives under DB.Profiles[id], keyed by its full name. It
+    A character's record lives under DB.Profiles[profileName], keyed by its full name. It
     bundles everything stored for that character:
 
         {
             Metadata  = { Created, NextIndex, ClassID, LastSeen },
             Current   = <live setup; owned by CurrentStore>,
-            Undo      = { <safety snapshot>, ... },   -- owned by UndoStore
+            Undo      = { <rollback snapshot>, ... }, -- owned by UndoStore
             Snapshots = { <snapshot>, ... },          -- the saved history
         }
 
@@ -78,7 +78,7 @@ local function EnsureMetadata(profile)
 end
 
 -- The soft cap on snapshots per profile (pinned snapshots may exceed it).
-local function MaxSnapshots()
+local function GetMaxSnapshotsSetting()
     return addon.DB.Settings.MaxSnapshots or DEFAULT_MAX_SNAPSHOTS
 end
 
@@ -121,14 +121,14 @@ local function FindSnapshot(profile, selector)
     end
 
     -- Otherwise accept a single prefix match; more than one is ambiguous.
-    local match, matchIndex, candidates
+    local prefixMatch, prefixIndex, candidates
     for index = 1, #snapshots do
         if snapshots[index].Hash:sub(1, #hash) == hash then
-            if match then
-                candidates = candidates or { match }
+            if prefixMatch then
+                candidates = candidates or { prefixMatch }
                 tinsert(candidates, snapshots[index])
             else
-                match, matchIndex = snapshots[index], index
+                prefixMatch, prefixIndex = snapshots[index], index
             end
         end
     end
@@ -137,8 +137,8 @@ local function FindSnapshot(profile, selector)
         return nil, nil, "ambiguous", candidates
     end
 
-    if match then
-        return match, matchIndex
+    if prefixMatch then
+        return prefixMatch, prefixIndex
     end
     return nil, nil, "not-found"
 end
@@ -154,8 +154,8 @@ end
 
 -- Create the character's record if it does not exist, ensuring the canonical
 -- shape (Metadata + Current + Undo + Snapshots); returns it either way.
-function ProfileStore:CreateProfile(id)
-    local profile = profiles[id]
+function ProfileStore:CreateProfile(profileName)
+    local profile = profiles[profileName]
     if not profile then
         profile = {
             Metadata = { Created = Time:Now(), NextIndex = 1 },
@@ -163,7 +163,7 @@ function ProfileStore:CreateProfile(id)
             Undo = {},
             Snapshots = {},
         }
-        profiles[id] = profile
+        profiles[profileName] = profile
     else
         profile.Current = profile.Current or {}
         profile.Undo = profile.Undo or {}
@@ -172,11 +172,11 @@ function ProfileStore:CreateProfile(id)
     return profile
 end
 
-function ProfileStore:GetProfile(name)
-    if profiles[name] then
-        EnsureMetadata(profiles[name])
+function ProfileStore:GetProfile(profileName)
+    if profiles[profileName] then
+        EnsureMetadata(profiles[profileName])
     end
-    return profiles[name]
+    return profiles[profileName]
 end
 
 function ProfileStore:GetProfiles()
@@ -186,9 +186,9 @@ function ProfileStore:GetProfiles()
     return profiles
 end
 
-function ProfileStore:DeleteProfile(name)
-    if profiles[name] then
-        profiles[name] = nil
+function ProfileStore:DeleteProfile(profileName)
+    if profiles[profileName] then
+        profiles[profileName] = nil
         return true
     end
     return false
@@ -198,8 +198,8 @@ end
 
 -- Append a snapshot to a profile, creating the profile if needed. Always stores
 -- the snapshot (a save is a save, even when nothing changed) and returns it.
-function ProfileStore:AddSnapshot(name, snapshot)
-    local profile = self:CreateProfile(name)
+function ProfileStore:AddSnapshot(profileName, snapshot)
+    local profile = self:CreateProfile(profileName)
     local snapshots = profile.Snapshots
 
     local metadata = EnsureMetadata(profile)
@@ -207,29 +207,29 @@ function ProfileStore:AddSnapshot(name, snapshot)
     metadata.NextIndex = metadata.NextIndex + 1
 
     BoundedList:Wrap(snapshots, {
-        max = MaxSnapshots,
-        isProtected = function(entry) return entry.Pinned end,
+        max = GetMaxSnapshotsSetting,
+        isProtected = function(snapshotEntry) return snapshotEntry.Pinned end,
     }):Push(snapshot)
     return snapshot
 end
 
 -- The soft cap on snapshots per profile.
 function ProfileStore:GetMaxSnapshots()
-    return MaxSnapshots()
+    return GetMaxSnapshotsSetting()
 end
 
 -- The snapshot a save would prune to stay within the cap: the oldest un-pinned
 -- snapshot once the history is at (or over) MaxSnapshots. Returns nil when a
 -- save would evict nothing (under the cap, or every snapshot is pinned).
-function ProfileStore:PendingEviction(name)
-    local profile = profiles[name]
+function ProfileStore:PendingEviction(profileName)
+    local profile = profiles[profileName]
     if not profile then
         return nil
     end
 
     EnsureMetadata(profile)
     local snapshots = profile.Snapshots
-    if #snapshots < MaxSnapshots() then
+    if #snapshots < GetMaxSnapshotsSetting() then
         return nil
     end
 
@@ -241,8 +241,8 @@ function ProfileStore:PendingEviction(name)
     return nil
 end
 
-function ProfileStore:GetLatestSnapshot(name)
-    local profile = profiles[name]
+function ProfileStore:GetLatestSnapshot(profileName)
+    local profile = profiles[profileName]
     if not profile then
         return nil
     end
@@ -251,8 +251,8 @@ function ProfileStore:GetLatestSnapshot(name)
 end
 
 -- The profile's saved snapshot history, oldest-first (empty when none).
-function ProfileStore:GetSnapshots(name)
-    local profile = profiles[name]
+function ProfileStore:GetSnapshots(profileName)
+    local profile = profiles[profileName]
     if not profile then
         return {}
     end
@@ -260,8 +260,8 @@ function ProfileStore:GetSnapshots(name)
     return profile.Snapshots
 end
 
-function ProfileStore:GetSnapshot(name, selector)
-    local profile = profiles[name]
+function ProfileStore:GetSnapshot(profileName, selector)
+    local profile = profiles[profileName]
     if not profile then
         return nil, "not-found"
     end
@@ -269,8 +269,8 @@ function ProfileStore:GetSnapshot(name, selector)
     return snapshot, reason, candidates
 end
 
-function ProfileStore:DeleteSnapshot(name, selector)
-    local profile = profiles[name]
+function ProfileStore:DeleteSnapshot(profileName, selector)
+    local profile = profiles[profileName]
     if not profile then
         return false
     end
@@ -284,8 +284,8 @@ function ProfileStore:DeleteSnapshot(name, selector)
     return true
 end
 
-function ProfileStore:SetSnapshotNotes(name, selector, text)
-    local profile = profiles[name]
+function ProfileStore:SetSnapshotNotes(profileName, selector, text)
+    local profile = profiles[profileName]
     if not profile then
         return false
     end
@@ -299,8 +299,8 @@ function ProfileStore:SetSnapshotNotes(name, selector, text)
     return true
 end
 
-function ProfileStore:PinSnapshot(name, selector)
-    local profile = profiles[name]
+function ProfileStore:PinSnapshot(profileName, selector)
+    local profile = profiles[profileName]
     if not profile then
         return false
     end
@@ -314,8 +314,8 @@ function ProfileStore:PinSnapshot(name, selector)
     return true
 end
 
-function ProfileStore:UnpinSnapshot(name, selector)
-    local profile = profiles[name]
+function ProfileStore:UnpinSnapshot(profileName, selector)
+    local profile = profiles[profileName]
     if not profile then
         return false
     end

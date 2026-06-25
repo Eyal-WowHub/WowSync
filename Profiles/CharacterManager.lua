@@ -34,23 +34,23 @@ end
 --   { Key, ClassID, LastSeen, IsCurrent, HasCurrent, HasHistory }
 -- Sorted with the logged-in character first, then most-recently-seen.
 function CharacterManager:GetSavedCharacters()
-    local me = CharacterInfo:GetFullName()
-    local out = {}
+    local currentCharKey = CharacterInfo:GetFullName()
+    local characters = {}
 
     -- One record per character now holds both its Current and its history, so a
     -- single pass covers every character that has either.
-    for key, record in pairs(ProfileStore:GetProfiles()) do
-        local current = record.Current
-        local hasCurrent = type(current) == "string"
-            or (type(current) == "table" and next(current) ~= nil)
-        local history = record.Snapshots
-        local hasHistory = history ~= nil and #history > 0
+    for key, profile in pairs(ProfileStore:GetProfiles()) do
+        local capturedModules = profile.Current
+        local hasCurrent = type(capturedModules) == "string"
+            or (type(capturedModules) == "table" and next(capturedModules) ~= nil)
+        local snapshots = profile.Snapshots
+        local hasHistory = snapshots ~= nil and #snapshots > 0
 
         if hasCurrent or hasHistory then
-            local metadata = record.Metadata or {}
-            local entry = {
+            local metadata = profile.Metadata or {}
+            local character = {
                 Key = key,
-                IsCurrent = key == me,
+                IsCurrent = key == currentCharKey,
                 HasCurrent = hasCurrent or nil,
                 HasHistory = hasHistory or nil,
                 ClassID = metadata.ClassID,
@@ -59,24 +59,24 @@ function CharacterManager:GetSavedCharacters()
 
             -- Fall back to the latest snapshot's source for identity when the
             -- record carries no Current metadata (e.g. history kept, data pruned).
-            if not entry.ClassID and hasHistory then
-                local latest = history[#history]
-                entry.ClassID = latest.Source and latest.Source.ClassID
-                entry.LastSeen = entry.LastSeen or latest.Timestamp
+            if not character.ClassID and hasHistory then
+                local latestSnapshot = snapshots[#snapshots]
+                character.ClassID = latestSnapshot.Source and latestSnapshot.Source.ClassID
+                character.LastSeen = character.LastSeen or latestSnapshot.Timestamp
             end
 
-            tinsert(out, entry)
+            tinsert(characters, character)
         end
     end
 
-    table.sort(out, function(a, b)
-        if a.IsCurrent ~= b.IsCurrent then
-            return a.IsCurrent
+    table.sort(characters, function(left, right)
+        if left.IsCurrent ~= right.IsCurrent then
+            return left.IsCurrent
         end
-        return (a.LastSeen or 0) > (b.LastSeen or 0)
+        return (left.LastSeen or 0) > (right.LastSeen or 0)
     end)
 
-    return out
+    return characters
 end
 
 -- Resolve a user-typed character token to a stored profile key. Accepted forms:
@@ -98,29 +98,29 @@ function CharacterManager:ResolveCharacterName(token)
     local wantRealm = NormalizeRealm(realmText)
     local myRealm = NormalizeRealm(CharacterInfo:GetRealm())
 
-    local matches = {}
-    for _, entry in ipairs(self:GetSavedCharacters()) do
-        local charName, charRealm = SplitNameRealm(entry.Key)
+    local matchingKeys = {}
+    for _, character in ipairs(self:GetSavedCharacters()) do
+        local charName, charRealm = SplitNameRealm(character.Key)
         if charName:lower() == wantName then
             local realm = NormalizeRealm(charRealm)
-            local ok
+            local realmMatches
             if wantRealm ~= "" then
-                ok = realm:find(wantRealm, 1, true) == 1
+                realmMatches = realm:find(wantRealm, 1, true) == 1
             elseif otherRealm then
-                ok = realm ~= myRealm
+                realmMatches = realm ~= myRealm
             else
-                ok = realm == myRealm
+                realmMatches = realm == myRealm
             end
-            if ok then
-                tinsert(matches, entry.Key)
+            if realmMatches then
+                tinsert(matchingKeys, character.Key)
             end
         end
     end
 
-    if #matches == 0 then
+    if #matchingKeys == 0 then
         return nil, "notfound"
-    elseif #matches > 1 then
-        return nil, "ambiguous", matches
+    elseif #matchingKeys > 1 then
+        return nil, "ambiguous", matchingKeys
     end
-    return matches[1]
+    return matchingKeys[1]
 end

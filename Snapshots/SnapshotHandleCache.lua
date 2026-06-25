@@ -25,11 +25,11 @@ local ProfileStore = addon:GetObject("ProfileStore")
 local SnapshotManager = addon:GetObject("SnapshotManager")
 
 -- Newest-first ordering: later timestamp wins, index breaks ties.
-local function NewerFirst(a, b)
-    if a.Timestamp ~= b.Timestamp then
-        return a.Timestamp > b.Timestamp
+local function NewerSnapshotFirst(leftSnapshot, rightSnapshot)
+    if leftSnapshot.Timestamp ~= rightSnapshot.Timestamp then
+        return leftSnapshot.Timestamp > rightSnapshot.Timestamp
     end
-    return (a.Index or 0) > (b.Index or 0)
+    return (leftSnapshot.Index or 0) > (rightSnapshot.Index or 0)
 end
 
 -- A stable handle for a stored snapshot owned by the given character.
@@ -37,30 +37,30 @@ local function EnsureStoredHandle(snapshot, charKey)
     if not snapshot then
         return nil
     end
-    local handle = storedHandles[snapshot]
-    if not handle then
-        handle = { isHead = false, raw = snapshot, charKey = charKey }
-        storedHandles[snapshot] = handle
+    local storedHandle = storedHandles[snapshot]
+    if not storedHandle then
+        storedHandle = { isHead = false, raw = snapshot, charKey = charKey }
+        storedHandles[snapshot] = storedHandle
     else
-        handle.charKey = charKey
+        storedHandle.charKey = charKey
     end
-    return handle
+    return storedHandle
 end
 
 -- A stable handle for a character's live head, or nil when nothing is captured.
 function SnapshotHandleCache:GetHead(charKey)
-    local head = SnapshotManager:GetCharInfo(charKey)
-    if not head then
+    local headInfo = SnapshotManager:GetCharInfo(charKey)
+    if not headInfo then
         headHandles[charKey] = nil
         return nil
     end
-    local handle = headHandles[charKey]
-    if not handle then
-        handle = { isHead = true, charKey = charKey }
-        headHandles[charKey] = handle
+    local headHandle = headHandles[charKey]
+    if not headHandle then
+        headHandle = { isHead = true, charKey = charKey }
+        headHandles[charKey] = headHandle
     end
-    handle.head = head
-    return handle
+    headHandle.head = headInfo
+    return headHandle
 end
 
 -- A character's most recent saved snapshot as a handle, or nil when none exist.
@@ -76,30 +76,30 @@ end
 -- The character's full timeline as ordered handles: head first, then pinned
 -- snapshots newest-first, then un-pinned snapshots newest-first.
 function SnapshotHandleCache:GetTimeline(charKey)
-    local handles = {}
+    local timelineHandles = {}
 
-    local head = self:GetHead(charKey)
-    if head then
-        tinsert(handles, head)
+    local headHandle = self:GetHead(charKey)
+    if headHandle then
+        tinsert(timelineHandles, headHandle)
     end
 
-    local pinned, history = {}, {}
+    local pinnedSnapshots, unpinnedSnapshots = {}, {}
     for _, snapshot in ipairs(ProfileStore:GetSnapshots(charKey)) do
         if snapshot.Pinned then
-            tinsert(pinned, snapshot)
+            tinsert(pinnedSnapshots, snapshot)
         else
-            tinsert(history, snapshot)
+            tinsert(unpinnedSnapshots, snapshot)
         end
     end
-    table.sort(pinned, NewerFirst)
-    table.sort(history, NewerFirst)
+    table.sort(pinnedSnapshots, NewerSnapshotFirst)
+    table.sort(unpinnedSnapshots, NewerSnapshotFirst)
 
-    for _, snapshot in ipairs(pinned) do
-        tinsert(handles, EnsureStoredHandle(snapshot, charKey))
+    for _, snapshot in ipairs(pinnedSnapshots) do
+        tinsert(timelineHandles, EnsureStoredHandle(snapshot, charKey))
     end
-    for _, snapshot in ipairs(history) do
-        tinsert(handles, EnsureStoredHandle(snapshot, charKey))
+    for _, snapshot in ipairs(unpinnedSnapshots) do
+        tinsert(timelineHandles, EnsureStoredHandle(snapshot, charKey))
     end
 
-    return handles
+    return timelineHandles
 end

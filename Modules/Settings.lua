@@ -52,45 +52,45 @@ function Settings:Capture()
     }
 end
 
-function Settings:Apply(data, meta)
-    if data.Account then
-        for cvar, value in pairs(data.Account) do
+function Settings:Apply(capturedData, sourceMetadata)
+    if capturedData.Account then
+        for cvar, value in pairs(capturedData.Account) do
             SetTrackedCVar(cvar, value)
         end
     end
 
-    if data.Character then
-        for cvar, value in pairs(data.Character) do
+    if capturedData.Character then
+        for cvar, value in pairs(capturedData.Character) do
             SetTrackedCVar(cvar, value)
         end
     end
 end
 
 -- Each tracked CVar as a keyed list entry, hashed by name + value.
-local function CVarEntries(data)
-    local list = {}
-    if not data then
-        return list
+local function CVarEntries(capturedData)
+    local cvarEntries = {}
+    if not capturedData then
+        return cvarEntries
     end
     for _, scope in ipairs({ "Account", "Character" }) do
-        local map = data[scope]
-        if map then
-            for cvar, value in pairs(map) do
-                tinsert(list, { Name = cvar, Value = value })
+        local scopedCVars = capturedData[scope]
+        if scopedCVars then
+            for cvar, value in pairs(scopedCVars) do
+                tinsert(cvarEntries, { Name = cvar, Value = value })
             end
         end
     end
-    return list
+    return cvarEntries
 end
 
 local function CVarKey(entry)
     return entry.Name
 end
 
--- Preview of which CVars applying this profile would change.
-function Settings:Diff(current, snapshot)
-    local currentSet = HashSet:From(CVarEntries(current), CVarKey, CVarKey)
-    local snapshotSet = HashSet:From(CVarEntries(snapshot), CVarKey, CVarKey)
+-- Preview of which CVars applying this snapshot would change.
+function Settings:Diff(currentData, snapshotData)
+    local currentSet = HashSet:From(CVarEntries(currentData), CVarKey, CVarKey)
+    local snapshotSet = HashSet:From(CVarEntries(snapshotData), CVarKey, CVarKey)
 
     return {
         added = currentSet:Added(snapshotSet),
@@ -99,7 +99,7 @@ function Settings:Diff(current, snapshot)
     }
 end
 
-function Settings:CanApply(meta)
+function Settings:CanApply(sourceMetadata)
     return true
 end
 

@@ -29,16 +29,16 @@ local FORMAT_VERSION = "1"
 -- Turns a Lua value into a versioned, compressed, Base64 string.
 -- Returns the encoded string, or nil plus an error message.
 function Codec:Encode(value)
-    local ok, result = pcall(function()
+    local encodeSucceeded, encodedText = pcall(function()
         local serialized = C_EncodingUtil.SerializeCBOR(value)
         local compressed = C_EncodingUtil.CompressString(serialized, COMPRESSION_METHOD, COMPRESSION_LEVEL)
         return FORMAT_VERSION .. C_EncodingUtil.EncodeBase64(compressed, BASE64_VARIANT)
     end)
 
-    if not ok then
-        return nil, result
+    if not encodeSucceeded then
+        return nil, encodedText
     end
-    return result
+    return encodedText
 end
 
 -- Restores the Lua value from a string produced by Encode.
@@ -54,14 +54,14 @@ function Codec:Decode(text)
     end
 
     local payload = text:sub(#FORMAT_VERSION + 1)
-    local ok, result = pcall(function()
+    local decodeSucceeded, decodedValue = pcall(function()
         local compressed = C_EncodingUtil.DecodeBase64(payload, BASE64_VARIANT)
         local serialized = C_EncodingUtil.DecompressString(compressed, COMPRESSION_METHOD)
         return C_EncodingUtil.DeserializeCBOR(serialized)
     end)
 
-    if not ok then
-        return nil, result
+    if not decodeSucceeded then
+        return nil, decodedValue
     end
-    return result
+    return decodedValue
 end

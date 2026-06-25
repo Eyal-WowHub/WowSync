@@ -33,7 +33,7 @@ end
 -- onComplete, which always runs exactly once. A request made while a save is
 -- already in flight is rejected with "busy". The live mirror's recapture is held
 -- off for the duration so it cannot change Current mid-save.
-function SaveTask:Run(body, onComplete)
+function SaveTask:Run(saveBody, onComplete)
     if task:IsRunning() then
         if onComplete then
             onComplete(nil, "busy")
@@ -44,16 +44,16 @@ function SaveTask:Run(body, onComplete)
     GameWatcher:SuspendFlush()
     WowSync:TriggerEvent("WOWSYNC_SAVE_STARTED")
 
-    task:Start(body, function(ok, stored, reason)
+    task:Start(saveBody, function(saveSucceeded, storedSnapshot, reason)
         -- A crash surfaces as (false, message); map it to the "error" reason. A
         -- successful body may still decline with (true, nil, reason).
-        if not ok then
-            stored, reason = nil, "error"
+        if not saveSucceeded then
+            storedSnapshot, reason = nil, "error"
         end
         GameWatcher:ResumeFlush()
-        WowSync:TriggerEvent("WOWSYNC_SAVE_FINISHED", stored, reason)
+        WowSync:TriggerEvent("WOWSYNC_SAVE_FINISHED", storedSnapshot, reason)
         if onComplete then
-            onComplete(stored, reason)
+            onComplete(storedSnapshot, reason)
         end
     end)
 end

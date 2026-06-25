@@ -26,14 +26,14 @@ local SnapshotManager = addon:GetObject("SnapshotManager")
 local characterInfo = setmetatable({}, { __mode = "k" })
 
 local function SortedNames(set)
-    local names = {}
+    local moduleNames = {}
     if set then
         for name in pairs(set) do
-            tinsert(names, name)
+            tinsert(moduleNames, name)
         end
     end
-    table.sort(names)
-    return names
+    table.sort(moduleNames)
+    return moduleNames
 end
 
 -- The content fingerprint a handle stands for, used to tell whether applying it
@@ -60,28 +60,29 @@ end
 -- The character a snapshot belongs to: its owning profile key, the character it
 -- was captured from, and the class it was captured on.
 function SnapshotView:GetCharacterInfo(handle)
-    local info = characterInfo[handle]
-    if info then
-        return info
+    local cachedCharacterInfo = characterInfo[handle]
+    if cachedCharacterInfo then
+        return cachedCharacterInfo
     end
 
+    local snapshotCharacterInfo
     if handle.isHead then
-        info = {
+        snapshotCharacterInfo = {
             Key = handle.charKey,
             Character = handle.charKey,
             ClassID = handle.head.ClassID,
         }
     else
-        local source = handle.raw.Source
-        info = {
+        local snapshotSource = handle.raw.Source
+        snapshotCharacterInfo = {
             Key = handle.charKey,
-            Character = source and source.Character,
-            ClassID = source and source.ClassID,
+            Character = snapshotSource and snapshotSource.Character,
+            ClassID = snapshotSource and snapshotSource.ClassID,
         }
     end
 
-    characterInfo[handle] = info
-    return info
+    characterInfo[handle] = snapshotCharacterInfo
+    return snapshotCharacterInfo
 end
 
 -- The moment the snapshot was captured (the head reports when it was last seen).
@@ -116,8 +117,8 @@ end
 -- True when the snapshot is identical to the logged-in character's current setup
 -- (so applying it would change nothing).
 function SnapshotView:IsCurrent(handle)
-    local myHead = SnapshotManager:GetCharInfo()
-    return myHead ~= nil and HashOf(handle) == myHead.Hash
+    local currentHead = SnapshotManager:GetCharInfo()
+    return currentHead ~= nil and HashOf(handle) == currentHead.Hash
 end
 
 --[[ Writes (validated) ]]
@@ -159,7 +160,7 @@ function SnapshotView:Preview(handle, moduleSet)
 end
 
 -- Apply the snapshot (optionally a module subset) to the logged-in character,
--- pushing a safety snapshot first. Returns an ApplyResult.
+-- pushing a rollback snapshot first. Returns an ApplyResult.
 function SnapshotView:Apply(handle, strategy, moduleSet)
     if handle.isHead then
         return SnapshotManager:ApplyHeadByCharKey(handle.charKey, strategy, moduleSet)

@@ -55,44 +55,44 @@ local function FindFlyoutInSpellBook(flyoutID)
 end
 
 local function GetSlotInfo(slotID)
-    local actionType, id, subType = GetActionInfo(slotID)
+    local actionType, actionID, actionSubType = GetActionInfo(slotID)
 
     if not actionType then
         return nil
     end
 
-    local info = {
+    local slotInfo = {
         type = actionType,
-        id = id,
-        subType = subType,
+        id = actionID,
+        subType = actionSubType,
     }
 
     -- For macros, store the name so we can find them on another character
     -- (macro indices differ per character)
-    if actionType == "macro" and type(id) == "number" then
-        local name = GetMacroInfo(id)
+    if actionType == "macro" and type(actionID) == "number" then
+        local name = GetMacroInfo(actionID)
         if name then
-            info.macroName = name
+            slotInfo.macroName = name
         end
     end
 
     -- For equipment sets, store the name for cross-character lookup
     if actionType == "equipmentset" then
-        local setName = C_EquipmentSet.GetEquipmentSetInfo(id)
+        local setName = C_EquipmentSet.GetEquipmentSetInfo(actionID)
         if setName then
-            info.setName = setName
+            slotInfo.setName = setName
         end
     end
 
-    return info
+    return slotInfo
 end
 
 local function CaptureSlotRange(startSlot, endSlot)
     local slots = {}
     for slotID = startSlot, endSlot do
-        local info = GetSlotInfo(slotID)
-        if info then
-            slots[slotID] = info
+        local slotInfo = GetSlotInfo(slotID)
+        if slotInfo then
+            slots[slotID] = slotInfo
         end
     end
     return slots
@@ -122,30 +122,30 @@ function ActionBars:Capture()
     }
 end
 
-function ActionBars:Apply(data, meta)
-    local isSameClass = meta.ClassID == PlayerUtil.GetClassID()
+function ActionBars:Apply(capturedData, sourceMetadata)
+    local isSameClass = sourceMetadata.ClassID == PlayerUtil.GetClassID()
 
     -- Mute UI sounds during bulk slot placement. Restore the original value
     -- even if placement errors, so we never leave the game muted.
     local savedSFX = C_CVar.GetCVar("Sound_EnableSFX")
     C_CVar.SetCVar("Sound_EnableSFX", "0")
 
-    local ok, err = pcall(function()
+    local placementSucceeded, placementError = pcall(function()
         -- Apply shared bars
-        if data.Shared then
-            for slotID, info in pairs(data.Shared) do
-                self:PlaceAction(slotID, info, isSameClass)
+        if capturedData.Shared then
+            for slotID, slotInfo in pairs(capturedData.Shared) do
+                self:PlaceAction(slotID, slotInfo, isSameClass)
             end
         end
 
         -- Apply spec-specific bars (only if same class and matching spec exists)
-        if data.Specs and isSameClass then
+        if capturedData.Specs and isSameClass then
             local specID = GetSpecializationInfo(GetSpecialization())
-            local specData = specID and data.Specs[specID]
+            local specSlots = specID and capturedData.Specs[specID]
 
-            if specData then
-                for slotID, info in pairs(specData) do
-                    self:PlaceAction(slotID, info, true)
+            if specSlots then
+                for slotID, slotInfo in pairs(specSlots) do
+                    self:PlaceAction(slotID, slotInfo, true)
                 end
             end
         end
@@ -154,56 +154,56 @@ function ActionBars:Apply(data, meta)
     C_CVar.SetCVar("Sound_EnableSFX", savedSFX)
 
     -- Re-surface any placement error so SnapshotManager reports the failure.
-    if not ok then
-        error(err)
+    if not placementSucceeded then
+        error(placementError)
     end
 end
 
-function ActionBars:PlaceAction(slotID, info, isSameClass)
+function ActionBars:PlaceAction(slotID, slotInfo, isSameClass)
     -- Skip if slot already has the desired action
     local currentType, currentID = GetActionInfo(slotID)
-    if currentType == info.type and currentID == info.id then
+    if currentType == slotInfo.type and currentID == slotInfo.id then
         return
     end
 
     -- Pick up the action onto the cursor, then place it in the slot
-    if info.type == "spell" then
-        if not C_SpellBook.IsPlayerSpell(info.id) then
+    if slotInfo.type == "spell" then
+        if not C_SpellBook.IsPlayerSpell(slotInfo.id) then
             if not isSameClass then
                 return -- Cross-class: skip unknown spells
             end
         end
-        C_Spell.PickupSpell(info.id)
-    elseif info.type == "item" then
-        C_Item.PickupItem(info.id)
-    elseif info.type == "macro" then
+        C_Spell.PickupSpell(slotInfo.id)
+    elseif slotInfo.type == "item" then
+        C_Item.PickupItem(slotInfo.id)
+    elseif slotInfo.type == "macro" then
         -- Use macro name for cross-character compatibility
-        local macroName = info.macroName or info.id
+        local macroName = slotInfo.macroName or slotInfo.id
         local macroIndex = GetMacroIndexByName(macroName)
         if macroIndex and macroIndex > 0 then
             PickupMacro(macroIndex)
         else
             return -- Macro doesn't exist on this character
         end
-    elseif info.type == "companion" and info.subType == "MOUNT" then
+    elseif slotInfo.type == "companion" and slotInfo.subType == "MOUNT" then
         -- Mount spells can be picked up as spells
-        C_Spell.PickupSpell(info.id)
-    elseif info.type == "summonpet" then
-        C_PetJournal.PickupPet(info.id)
-    elseif info.type == "flyout" then
-        local bookSlot = FindFlyoutInSpellBook(info.id)
+        C_Spell.PickupSpell(slotInfo.id)
+    elseif slotInfo.type == "summonpet" then
+        C_PetJournal.PickupPet(slotInfo.id)
+    elseif slotInfo.type == "flyout" then
+        local bookSlot = FindFlyoutInSpellBook(slotInfo.id)
         if bookSlot then
             C_SpellBook.PickupSpellBookItem(bookSlot, Enum.SpellBookSpellBank.Player)
         else
             return
         end
-    elseif info.type == "equipmentset" then
+    elseif slotInfo.type == "equipmentset" then
         -- Look up by name for cross-character compatibility
         local setID = nil
-        if info.setName then
+        if slotInfo.setName then
             for _, id in ipairs(C_EquipmentSet.GetEquipmentSetIDs()) do
                 local name = C_EquipmentSet.GetEquipmentSetInfo(id)
-                if name == info.setName then
+                if name == slotInfo.setName then
                     setID = id
                     break
                 end
@@ -224,59 +224,59 @@ end
 
 -- A friendly name for the action in a slot, for diff previews.
 local function ActionLabel(entry)
-    local info = entry.info
-    if info.type == "spell" or info.type == "companion" then
-        return C_Spell.GetSpellName(info.id) or ("Spell " .. tostring(info.id))
-    elseif info.type == "item" then
-        return (C_Item.GetItemNameByID and C_Item.GetItemNameByID(info.id)) or ("Item " .. tostring(info.id))
-    elseif info.type == "macro" then
-        return info.macroName or ("Macro " .. tostring(info.id))
-    elseif info.type == "equipmentset" then
-        return info.setName or "Equipment set"
-    elseif info.type == "summonpet" then
+    local slotInfo = entry.info
+    if slotInfo.type == "spell" or slotInfo.type == "companion" then
+        return C_Spell.GetSpellName(slotInfo.id) or ("Spell " .. tostring(slotInfo.id))
+    elseif slotInfo.type == "item" then
+        return (C_Item.GetItemNameByID and C_Item.GetItemNameByID(slotInfo.id)) or ("Item " .. tostring(slotInfo.id))
+    elseif slotInfo.type == "macro" then
+        return slotInfo.macroName or ("Macro " .. tostring(slotInfo.id))
+    elseif slotInfo.type == "equipmentset" then
+        return slotInfo.setName or "Equipment set"
+    elseif slotInfo.type == "summonpet" then
         return "Battle pet"
-    elseif info.type == "flyout" then
-        return "Flyout " .. tostring(info.id)
+    elseif slotInfo.type == "flyout" then
+        return "Flyout " .. tostring(slotInfo.id)
     end
-    return tostring(info.type)
+    return tostring(slotInfo.type)
 end
 
 -- Flatten the nested Shared/Specs maps into a keyed list for comparison.
 -- Mirror Apply: shared slots plus only the current spec's slots, so the
 -- preview never reports changes to inactive specs that Apply won't make.
-local function FlattenSlots(data)
-    local list = {}
-    if not data then
-        return list
+local function FlattenSlots(capturedData)
+    local slotEntries = {}
+    if not capturedData then
+        return slotEntries
     end
 
-    if data.Shared then
-        for slot, info in pairs(data.Shared) do
-            tinsert(list, { key = "shared:" .. slot, info = info })
+    if capturedData.Shared then
+        for slotID, slotInfo in pairs(capturedData.Shared) do
+            tinsert(slotEntries, { key = "shared:" .. slotID, info = slotInfo })
         end
     end
 
-    if data.Specs then
+    if capturedData.Specs then
         local specID = GetSpecializationInfo(GetSpecialization())
-        local slots = specID and data.Specs[specID]
-        if slots then
-            for slot, info in pairs(slots) do
-                tinsert(list, { key = specID .. ":" .. slot, info = info })
+        local specSlots = specID and capturedData.Specs[specID]
+        if specSlots then
+            for slotID, slotInfo in pairs(specSlots) do
+                tinsert(slotEntries, { key = specID .. ":" .. slotID, info = slotInfo })
             end
         end
     end
 
-    return list
+    return slotEntries
 end
 
 local function SlotKey(entry)
     return entry.key
 end
 
--- Preview of which action slots applying this profile would change.
-function ActionBars:Diff(current, snapshot)
-    local currentSet = HashSet:From(FlattenSlots(current), SlotKey, ActionLabel)
-    local snapshotSet = HashSet:From(FlattenSlots(snapshot), SlotKey, ActionLabel)
+-- Preview of which action slots applying this snapshot would change.
+function ActionBars:Diff(currentData, snapshotData)
+    local currentSet = HashSet:From(FlattenSlots(currentData), SlotKey, ActionLabel)
+    local snapshotSet = HashSet:From(FlattenSlots(snapshotData), SlotKey, ActionLabel)
 
     return {
         added = currentSet:Added(snapshotSet),
@@ -285,8 +285,8 @@ function ActionBars:Diff(current, snapshot)
     }
 end
 
-function ActionBars:CanApply(meta)
-    if meta.ClassID ~= PlayerUtil.GetClassID() then
+function ActionBars:CanApply(sourceMetadata)
+    if sourceMetadata.ClassID ~= PlayerUtil.GetClassID() then
         return true, L["Only common actions will be applied"]
     end
     return true

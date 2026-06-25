@@ -6,7 +6,7 @@ local CharacterInfo = LibStub("CharacterInfo-1.0")
 local BoundedList = addon.BoundedList
 
 --[[
-    UndoStore — a per-character stack of safety snapshots.
+    UndoStore — a per-character stack of rollback snapshots.
 
     Before any apply, the current live setup is captured and pushed here so the
     change can be undone. Entries share the Snapshot shape and live on the
@@ -21,46 +21,46 @@ function UndoStore:OnInitialized()
     profiles = addon.DB.Profiles
 end
 
-function UndoStore:Push(key, snapshot)
-    key = key or CharacterInfo:GetFullName()
-    local stack = ProfileStore:CreateProfile(key).Undo
-    BoundedList:Wrap(stack, {
+function UndoStore:Push(profileName, rollbackSnapshot)
+    profileName = profileName or CharacterInfo:GetFullName()
+    local rollbackStack = ProfileStore:CreateProfile(profileName).Undo
+    BoundedList:Wrap(rollbackStack, {
         max = function() return addon.DB.Settings.MaxUndo or 10 end,
-    }):Push(snapshot)
+    }):Push(rollbackSnapshot)
 end
 
-function UndoStore:Peek(key)
-    key = key or CharacterInfo:GetFullName()
-    local profile = profiles[key]
-    local stack = profile and profile.Undo
-    return stack and stack[#stack]
+function UndoStore:Peek(profileName)
+    profileName = profileName or CharacterInfo:GetFullName()
+    local profile = profiles[profileName]
+    local rollbackStack = profile and profile.Undo
+    return rollbackStack and rollbackStack[#rollbackStack]
 end
 
-function UndoStore:Pop(key)
-    key = key or CharacterInfo:GetFullName()
-    local profile = profiles[key]
-    local stack = profile and profile.Undo
-    if stack and #stack > 0 then
-        return tremove(stack)
+function UndoStore:Pop(profileName)
+    profileName = profileName or CharacterInfo:GetFullName()
+    local profile = profiles[profileName]
+    local rollbackStack = profile and profile.Undo
+    if rollbackStack and #rollbackStack > 0 then
+        return tremove(rollbackStack)
     end
 end
 
-function UndoStore:List(key)
-    key = key or CharacterInfo:GetFullName()
-    local profile = profiles[key]
+function UndoStore:List(profileName)
+    profileName = profileName or CharacterInfo:GetFullName()
+    local profile = profiles[profileName]
     return (profile and profile.Undo) or {}
 end
 
-function UndoStore:Has(key)
-    key = key or CharacterInfo:GetFullName()
-    local profile = profiles[key]
-    local stack = profile and profile.Undo
-    return stack ~= nil and #stack > 0
+function UndoStore:Has(profileName)
+    profileName = profileName or CharacterInfo:GetFullName()
+    local profile = profiles[profileName]
+    local rollbackStack = profile and profile.Undo
+    return rollbackStack ~= nil and #rollbackStack > 0
 end
 
-function UndoStore:Clear(key)
-    key = key or CharacterInfo:GetFullName()
-    local profile = profiles[key]
+function UndoStore:Clear(profileName)
+    profileName = profileName or CharacterInfo:GetFullName()
+    local profile = profiles[profileName]
     if profile then
         profile.Undo = {}
     end

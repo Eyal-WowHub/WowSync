@@ -35,14 +35,14 @@ local Codec = addon.Codec
 ]]
 
 -- Deep copy so a snapshot is independent of the live Current table.
-local function DeepCopy(value)
-    if type(value) ~= "table" then
-        return value
+local function DeepCopy(sourceValue)
+    if type(sourceValue) ~= "table" then
+        return sourceValue
     end
 
     local copy = {}
-    for key, inner in pairs(value) do
-        copy[key] = DeepCopy(inner)
+    for key, innerValue in pairs(sourceValue) do
+        copy[key] = DeepCopy(innerValue)
     end
     return copy
 end
@@ -50,40 +50,40 @@ end
 --[[ API ]]
 
 -- Fingerprint of a captured module set (without building a full snapshot).
-function Snapshot:Fingerprint(modules)
-    return Hash:Create(modules or {})
+function Snapshot:Fingerprint(capturedModules)
+    return Hash:Create(capturedModules or {})
 end
 
 -- The plaintext set of module names present in a captured module set.
-local function NameSet(modules)
-    local names = {}
-    for name in pairs(modules) do
-        names[name] = true
+local function BuildModuleNameSet(capturedModules)
+    local moduleNames = {}
+    for name in pairs(capturedModules) do
+        moduleNames[name] = true
     end
-    return names
+    return moduleNames
 end
 
 -- Build an independent snapshot from a captured module set, compressing the
 -- captured data into Data and keeping only the module-name set in Modules.
-function Snapshot:New(modules, source)
-    modules = modules or {}
+function Snapshot:New(capturedModules, snapshotSource)
+    capturedModules = capturedModules or {}
     local snapshot = {
-        Hash = Hash:Create(modules),
+        Hash = Hash:Create(capturedModules),
         Timestamp = Time:Now(),
         Pinned = false,
-        Source = source,
+        Source = snapshotSource,
     }
 
-    local encoded = Codec:Encode(modules)
-    if encoded then
-        -- Hash, Encode and NameSet only read the source, so the compressed Data
+    local encodedModules = Codec:Encode(capturedModules)
+    if encodedModules then
+        -- Hash, Encode and BuildModuleNameSet only read the source, so the compressed Data
         -- and the name set are already independent of the live Current table.
-        snapshot.Modules = NameSet(modules)
-        snapshot.Data = encoded
+        snapshot.Modules = BuildModuleNameSet(capturedModules)
+        snapshot.Data = encodedModules
     else
         -- Compression unavailable; keep an independent copy of the raw data so
         -- the snapshot stays detached from the live Current table and usable.
-        snapshot.Modules = DeepCopy(modules)
+        snapshot.Modules = DeepCopy(capturedModules)
     end
     return snapshot
 end
@@ -104,14 +104,14 @@ end
 -- The sorted list of module names a snapshot contains, read from the plaintext
 -- name set without decompressing the captured data.
 function Snapshot:GetModuleNames(snapshot)
-    local names = {}
+    local moduleNames = {}
     if snapshot and snapshot.Modules then
         for name in pairs(snapshot.Modules) do
-            tinsert(names, name)
+            tinsert(moduleNames, name)
         end
     end
-    table.sort(names)
-    return names
+    table.sort(moduleNames)
+    return moduleNames
 end
 
 -- Human-readable subject, e.g. "22 Jun 2026 16:47" (derived, not stored).

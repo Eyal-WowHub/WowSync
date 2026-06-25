@@ -33,28 +33,28 @@ end
 
 -- True while a body is mid-flight: started and not yet completed.
 function Task:IsRunning()
-    return self.co ~= nil
+    return self.bodyCoroutine ~= nil
 end
 
 -- Tear down the in-flight body and deliver its outcome to onComplete exactly
 -- once. Varargs are forwarded verbatim so nil returns are preserved.
-local function Complete(self, ok, ...)
+local function Complete(self, succeeded, ...)
     self.driver:SetScript("OnUpdate", nil)
     self.driver:Hide()
-    self.co = nil
+    self.bodyCoroutine = nil
 
     local onComplete = self.onComplete
     self.onComplete = nil
     if onComplete then
-        onComplete(ok, ...)
+        onComplete(succeeded, ...)
     end
 end
 
 -- Interpret one coroutine.resume of the body. Returns true once the task has
 -- completed (Complete has run), false when the body merely yielded for the next
 -- slice. Varargs carry the resume results so the body's returns pass untouched.
-local function HandleResume(self, ok, ...)
-    if not ok then
+local function HandleResume(self, resumeSucceeded, ...)
+    if not resumeSucceeded then
         -- The body errored; the first vararg is the message -- surface it through
         -- the game's error handler, then report a failed run, not a silent one.
         local message = ...
@@ -63,7 +63,7 @@ local function HandleResume(self, ok, ...)
         return true
     end
 
-    if coroutine.status(self.co) == "dead" then
+    if coroutine.status(self.bodyCoroutine) == "dead" then
         Complete(self, true, ...)
         return true
     end
@@ -73,14 +73,14 @@ end
 
 -- Resume the body once.
 local function Step(self)
-    return HandleResume(self, coroutine.resume(self.co))
+    return HandleResume(self, coroutine.resume(self.bodyCoroutine))
 end
 
 -- Begin running body across frames. onComplete(ok, ...) runs once when the body
 -- finishes (ok = true, with its return values) or errors (ok = false, with the
 -- message). Calling Start while a body is already running replaces it.
 function Task:Start(body, onComplete)
-    self.co = coroutine.create(body)
+    self.bodyCoroutine = coroutine.create(body)
     self.onComplete = onComplete
 
     self.driver:SetScript("OnUpdate", function()
@@ -104,7 +104,7 @@ end
 -- Run the remaining steps to completion now, for a caller that needs the result
 -- before the next frame. A no-op when nothing is running.
 function Task:Drain()
-    while self.co do
+    while self.bodyCoroutine do
         Step(self)
     end
 end

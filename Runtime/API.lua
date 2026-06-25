@@ -10,8 +10,7 @@ local GameWatcher = addon:GetObject("GameWatcher")
 
 local L = addon.L
 
--- Public value objects, exposed so other addons (e.g. the companion UI) can
--- interpret data this addon returns.
+-- Public value objects returned by this addon's APIs.
 WowSync.Models = {
     SnapshotApplyMode = addon.SnapshotApplyMode,
 }
@@ -37,8 +36,7 @@ function WowSync:GetModuleRegistry()
     return ModuleRegistry
 end
 
--- The accessor/mutator interface onto an individual snapshot handle, and the
--- ordered view of a character's snapshots (head, pinned, history).
+-- The accessor/mutator interface onto an individual snapshot handle.
 function WowSync:GetSnapshotView()
     return SnapshotView
 end
@@ -49,15 +47,15 @@ function WowSync:GetSnapshotHandleCache()
     return SnapshotHandleCache
 end
 
--- Registers interest in live tracking under an id; while any attachment is
+-- Registers interest in live tracking under a consumer id; while any attachment is
 -- present, lazy mode keeps the current setup mirrored.
-function WowSync:Attach(id)
-    GameWatcher:Attach(id)
+function WowSync:Attach(consumerId)
+    GameWatcher:Attach(consumerId)
 end
 
 -- Drops an attachment's interest; tracking stops once the last one leaves.
-function WowSync:Detach(id)
-    GameWatcher:Detach(id)
+function WowSync:Detach(consumerId)
+    GameWatcher:Detach(consumerId)
 end
 
 -- True while at least one consumer is attached.

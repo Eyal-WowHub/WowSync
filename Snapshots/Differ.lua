@@ -25,23 +25,23 @@ function Differ:Preview(currentModules, snapshotModules, moduleSet)
     currentModules = currentModules or EMPTY
     snapshotModules = snapshotModules or EMPTY
 
-    local perModule = {}
-    local totals = { added = 0, changed = 0, removed = 0 }
+    local moduleDiffs = {}
+    local diffTotals = { added = 0, changed = 0, removed = 0 }
 
     for name in pairs(moduleSet or snapshotModules) do
         local module = ModuleRegistry:Get(name)
         local snapshotData = snapshotModules[name]
 
         if module and module.Diff and snapshotData ~= nil then
-            local diff = module:Diff(currentModules[name], snapshotData)
-            if diff then
-                perModule[name] = diff
-                totals.added = totals.added + Count(diff.added)
-                totals.changed = totals.changed + Count(diff.changed)
-                totals.removed = totals.removed + Count(diff.removed)
+            local moduleDiff = module:Diff(currentModules[name], snapshotData)
+            if moduleDiff then
+                moduleDiffs[name] = moduleDiff
+                diffTotals.added = diffTotals.added + Count(moduleDiff.added)
+                diffTotals.changed = diffTotals.changed + Count(moduleDiff.changed)
+                diffTotals.removed = diffTotals.removed + Count(moduleDiff.removed)
             end
         end
     end
 
-    return { perModule = perModule, totals = totals }
+    return { perModule = moduleDiffs, totals = diffTotals }
 end

@@ -26,12 +26,12 @@ local Hash = addon.Hash
 
 HashSet.__index = HashSet
 
--- Build a set from a list. keyOf(entry) -> unique key (nil entries skipped);
+-- Build a set from an entry list. keyOf(entry) -> unique key (nil entries skipped);
 -- labelOf(entry) -> human label (defaults to the key).
-function HashSet:From(list, keyOf, labelOf)
+function HashSet:From(entryList, keyOf, labelOf)
     local entries = {}
 
-    for _, entry in ipairs(list or {}) do
+    for _, entry in ipairs(entryList or {}) do
         local key = keyOf(entry)
         if key ~= nil then
             entries[key] = {
@@ -49,28 +49,28 @@ function HashSet:Has(key)
 end
 
 function HashSet:Label(key)
-    local item = self.entries[key]
-    return item and item.label
+    local setEntry = self.entries[key]
+    return setEntry and setEntry.label
 end
 
--- Labels of keys present in `other` but not in self.
-function HashSet:Added(other)
+-- Labels of keys present in `otherSet` but not in self.
+function HashSet:Added(otherSet)
     local labels = {}
-    for key, item in pairs(other.entries) do
+    for key, setEntry in pairs(otherSet.entries) do
         if not self.entries[key] then
-            tinsert(labels, item.label)
+            tinsert(labels, setEntry.label)
         end
     end
     table.sort(labels)
     return labels
 end
 
--- Labels of keys present in self but not in `other`.
-function HashSet:Removed(other)
+-- Labels of keys present in self but not in `otherSet`.
+function HashSet:Removed(otherSet)
     local labels = {}
-    for key, item in pairs(self.entries) do
-        if not other.entries[key] then
-            tinsert(labels, item.label)
+    for key, setEntry in pairs(self.entries) do
+        if not otherSet.entries[key] then
+            tinsert(labels, setEntry.label)
         end
     end
     table.sort(labels)
@@ -78,12 +78,12 @@ function HashSet:Removed(other)
 end
 
 -- Labels of keys present in both whose fingerprint differs.
-function HashSet:Changed(other)
+function HashSet:Changed(otherSet)
     local labels = {}
-    for key, item in pairs(self.entries) do
-        local otherItem = other.entries[key]
-        if otherItem and otherItem.hash ~= item.hash then
-            tinsert(labels, otherItem.label)
+    for key, setEntry in pairs(self.entries) do
+        local otherEntry = otherSet.entries[key]
+        if otherEntry and otherEntry.hash ~= setEntry.hash then
+            tinsert(labels, otherEntry.label)
         end
     end
     table.sort(labels)
