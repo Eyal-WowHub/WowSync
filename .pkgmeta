@@ -16,6 +16,7 @@ ignore:
   - Libs/**/LibStub/*
   - Libs/**/*.toc
   - Libs/**/*.textile
+  - Screenshots/*
   - README.md
 
 move-folders:
