@@ -67,7 +67,7 @@ Anything that could interfere during combat (such as action bars) waits until yo
 
 | Command | Description |
 |---|---|
-| `/ws` | Open or close the WowSync window. |
+| `/ws` | Open or close the WowSync UI window. |
 | `/ws save [note]` | Save a snapshot of your current setup, optionally with a short note. |
 | `/ws apply <name>[@hash[#index]] [--merge\|--exact]` | Apply a profile's latest snapshot, or a specific snapshot by hash (merge by default). |
 | `/ws undo` | Undo the last applied snapshot. |

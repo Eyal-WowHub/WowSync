@@ -201,14 +201,15 @@ function Commands:OnInitialized()
             end
         elseif command == "help" then
             WowSync:Print(L["Usage: (X and Y are interchangeable)"]:format("/ws", "/wowsync"))
-            WowSync:Print(L["  X - Y"]:format("/ws", L["Toggle the UI"]))
-            WowSync:Print(L["  X - Y"]:format("/ws save [note]", L["Snapshot your current setup"]))
-            WowSync:Print(L["  X - Y"]:format("/ws apply <character>[@hash[#index]] [--merge|--exact]", L["Apply latest or a specific snapshot"]))
-            WowSync:Print(L["  X - Y"]:format("/ws undo", L["Undo the last apply"]))
-            WowSync:Print(L["  X - Y"]:format("/ws delete <character>[@hash[#index]]", L["Delete a character's profile or one of its snapshots"]))
-            WowSync:Print(L["  X - Y"]:format("/ws list [character]", L["List profiles, or a character's snapshots"]))
-            WowSync:Print(L["  X - Y"]:format("/ws watcher off|lazy", L["Mirror your changes live on demand"]))
-            WowSync:Print(L["  X - Y"]:format("/ws reset database|db", L["Delete all saved profiles and snapshots"]))
+            WowSync:Print(L["  X - Y"]:format("/ws", L["Open or close the WowSync UI window"]))
+            WowSync:Print(L["  X - Y"]:format("/ws save [note]", L["Save a snapshot of your current setup, optionally with a short note"]))
+            WowSync:Print(L["  X - Y"]:format("/ws apply <name>[@hash[#index]] [--merge|--exact]", L["Apply a profile's latest snapshot, or a specific snapshot by hash (merge by default)"]))
+            WowSync:Print(L["  X - Y"]:format("/ws undo", L["Undo the last applied snapshot"]))
+            WowSync:Print(L["  X - Y"]:format("/ws delete <name>[@hash[#index]]", L["Delete a profile, or delete a specific snapshot by hash"]))
+            WowSync:Print(L["  X - Y"]:format("/ws list [name]", L["List all saved profiles, or list one profile's snapshots"]))
+            WowSync:Print(L["  X - Y"]:format("/ws watcher off|lazy", L["Track your setup live on demand, or turn tracking off entirely (lazy by default)"]))
+            WowSync:Print(L["  X - Y"]:format("/ws reset database|db", L["Delete all saved profiles and snapshots, while keeping your settings"]))
+            WowSync:Print(L["  X - Y"]:format("/ws help", L["Show the command list"]))
         else
             WowSync:Print(L["Unknown command. Type X."]:format("/ws help"))
         end
