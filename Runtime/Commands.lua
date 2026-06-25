@@ -72,8 +72,8 @@ function Commands:OnInitialized()
 
         if command == "save" then
             local note = (arg and arg ~= "") and arg or nil
-            local evicted = SnapshotManager:PreviewSave(nil)
-            SnapshotManager:Save(note, nil, function(snapshot, reason)
+            local evicted = SnapshotManager:PreviewSaveSnapshotByCharKey(nil)
+            SnapshotManager:SaveCurrentSnapshot(note, nil, function(snapshot, reason)
                 if snapshot then
                     WowSync:Print(L["Snapshot saved."])
                     if evicted then
@@ -123,7 +123,7 @@ function Commands:OnInitialized()
                 selector = Snapshot:GetSelector(snapshot)
             end
 
-            local result = SnapshotManager:Apply(profileName, selector, { default = mode })
+            local result = SnapshotManager:ApplySnapshot(profileName, selector, { default = mode })
             for _, name in ipairs(result:Applied()) do
                 local outcome = result:Get(name)
                 local msg = L["X: applied"]:format(name)
@@ -136,10 +136,10 @@ function Commands:OnInitialized()
                 WowSync:Print(L["X: skipped - Y"]:format(name, result:Get(name).reason or L["unknown"]))
             end
         elseif command == "undo" then
-            if not SnapshotManager:HasUndo() then
+            if not SnapshotManager:CanUndo() then
                 WowSync:Print(L["Nothing to undo."])
             else
-                local result = SnapshotManager:Undo()
+                local result = SnapshotManager:UndoLastApply()
                 if result then
                     WowSync:Print(L["Undid the last apply:"])
                     for _, name in ipairs(result:Applied()) do

@@ -49,7 +49,7 @@ end
 
 -- A stable handle for a character's live head, or nil when nothing is captured.
 function SnapshotHandleCache:GetHead(charKey)
-    local head = SnapshotManager:GetCurrentHead(charKey)
+    local head = SnapshotManager:GetCharInfo(charKey)
     if not head then
         headHandles[charKey] = nil
         return nil

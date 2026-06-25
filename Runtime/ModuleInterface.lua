@@ -64,7 +64,7 @@ local ModuleInterface = addon:NewObject("ModuleInterface")
 
     Config = { SnapshotApplyMode = <flags> }
         Static declaration of supported apply modes (Merge, or All = Merge+Exact).
-        Read by SnapshotManager:GetModuleSnapshotApplyMode to drive the UI's
+        Read by SnapshotManager:GetModuleApplyMode to drive the UI's
         merge/exact toggle and the `opts.mode` passed to Apply. A table field,
         not a method.
 

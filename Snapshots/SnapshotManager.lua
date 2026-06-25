@@ -150,7 +150,7 @@ end
 
 -- The apply modes a module supports (None when unknown), so the apply UI can
 -- offer Merge/Exact only where each is meaningful.
-function SnapshotManager:GetModuleSnapshotApplyMode(name)
+function SnapshotManager:GetModuleApplyMode(name)
     C:IsString(name, 2)
     local module = ModuleRegistry:Get(name)
     return module and module.Config and module.Config.SnapshotApplyMode or SnapshotApplyMode.None
@@ -159,18 +159,18 @@ end
 --[[ Current ]]
 
 -- Re-capture the logged-in character's live setup; returns the captured modules.
-function SnapshotManager:CaptureCurrent()
+function SnapshotManager:CaptureGameData()
     return CurrentStore:Capture()
 end
 
 -- True when the logged-in character has anything captured to save.
-function SnapshotManager:HasCurrent()
+function SnapshotManager:HasCapturedGameData()
     local current = CurrentStore:Get()
     return current ~= nil and next(current) ~= nil
 end
 
 -- The logged-in character's profile key (its full name).
-function SnapshotManager:GetCurrentCharacterKey()
+function SnapshotManager:GetCurrentCharKey()
     return CharacterInfo:GetFullName()
 end
 
@@ -179,7 +179,7 @@ end
 -- captured. Not a stored snapshot: it carries a content Hash but no Index. The
 -- companion UI floats it above the saved history as the always-current top of
 -- the timeline.
-function SnapshotManager:GetCurrentHead(charKey)
+function SnapshotManager:GetCharInfo(charKey)
     charKey = charKey or CharacterInfo:GetFullName()
 
     local current = CurrentStore:Get(charKey)
@@ -198,7 +198,7 @@ function SnapshotManager:GetCurrentHead(charKey)
 end
 
 -- The soft cap on snapshots kept per character profile.
-function SnapshotManager:GetMaxSnapshots()
+function SnapshotManager:GetSnapshotLimit()
     return ProfileStore:GetMaxSnapshots()
 end
 
@@ -209,7 +209,7 @@ end
 -- capture and fingerprint are sliced across frames, bracketed by
 -- WOWSYNC_SAVE_STARTED/FINISHED so the UI can show progress; the stored
 -- snapshot is handed to onComplete.
-function SnapshotManager:Save(note, moduleSet, onComplete)
+function SnapshotManager:SaveCurrentSnapshot(note, moduleSet, onComplete)
     SaveTask:Run(function()
         local modules = SubsetOf(CurrentStore:Capture(), moduleSet)
 
@@ -228,16 +228,16 @@ end
 -- reports the eviction it would cause. Returns:
 --   evicted - the snapshot a save would prune to stay within MaxSnapshots, or
 --             nil when nothing would be removed (under the cap, or all pinned).
-function SnapshotManager:PreviewSave(moduleSet, charKey)
+function SnapshotManager:PreviewSaveSnapshotByCharKey(moduleSet, charKey)
     charKey = charKey or CharacterInfo:GetFullName()
     return ProfileStore:PendingEviction(charKey)
 end
 
 -- Append a snapshot built from another character's captured Current to that
--- character's profile, tagging it with the given optional note. Like Save, it
--- is sliced across frames with start/finish events; onComplete receives the
--- stored snapshot, or nil + a reason ("unknown-character").
-function SnapshotManager:SaveFromCharacter(charKey, moduleSet, note, onComplete)
+-- character's profile, tagging it with the given optional note. Like
+-- SaveCurrentSnapshot, it is sliced across frames with start/finish events;
+-- onComplete receives the stored snapshot, or nil + a reason ("unknown-character").
+function SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, onComplete)
     C:IsString(charKey, 2)
 
     SaveTask:Run(function()
@@ -264,7 +264,7 @@ end
 --[[ Preview ]]
 
 -- Preview applying a profile snapshot (latest when selector is nil) over Current.
-function SnapshotManager:PreviewApply(profileName, selector, moduleSet)
+function SnapshotManager:PreviewApplySnapshot(profileName, selector, moduleSet)
     C:IsString(profileName, 2)
 
     local snapshot
@@ -282,9 +282,9 @@ function SnapshotManager:PreviewApply(profileName, selector, moduleSet)
 end
 
 -- Preview applying a character's current setup (its head) over the logged-in
--- character's Current. Mirrors PreviewApply but sources a character's live or
--- last-captured modules instead of a stored snapshot.
-function SnapshotManager:PreviewApplyCurrentOf(charKey, moduleSet)
+-- character's Current. Mirrors PreviewApplySnapshot but sources a character's
+-- live or last-captured modules instead of a stored snapshot.
+function SnapshotManager:PreviewApplyHeadByCharKey(charKey, moduleSet)
     C:IsString(charKey, 2)
 
     local source = CurrentStore:Get(charKey)
@@ -301,7 +301,7 @@ end
 -- Apply a profile snapshot (latest when selector is nil) to the current character.
 -- strategy = { default = "merge"|"exact", overrides = { [name] = mode } }.
 -- A full safety snapshot of Current is pushed to the undo stack first.
-function SnapshotManager:Apply(profileName, selector, strategy, moduleSet)
+function SnapshotManager:ApplySnapshot(profileName, selector, strategy, moduleSet)
     C:IsString(profileName, 2)
 
     local snapshot
@@ -316,9 +316,9 @@ function SnapshotManager:Apply(profileName, selector, strategy, moduleSet)
 end
 
 -- Apply a character's current setup (its head) to the logged-in character. Like
--- Apply, but sources a character's live or last-captured modules instead of a
--- stored snapshot. A full safety snapshot of Current is pushed first.
-function SnapshotManager:ApplyCurrentOf(charKey, strategy, moduleSet)
+-- ApplySnapshot, but sources a character's live or last-captured modules instead
+-- of a stored snapshot. A full safety snapshot of Current is pushed first.
+function SnapshotManager:ApplyHeadByCharKey(charKey, strategy, moduleSet)
     C:IsString(charKey, 2)
 
     local source = CurrentStore:Get(charKey)
@@ -331,7 +331,7 @@ end
 
 --[[ Undo ]]
 
-function SnapshotManager:HasUndo()
+function SnapshotManager:CanUndo()
     return UndoStore:Has()
 end
 
@@ -350,8 +350,8 @@ local function DescribeSafety(safety)
     }
 end
 
--- Subject + module names of the change that Undo would roll back.
-function SnapshotManager:GetUndoInfo()
+-- Subject + module names of the change that UndoLastApply would roll back.
+function SnapshotManager:GetNextUndoPoint()
     local safety = UndoStore:Peek()
     if not safety then
         return nil
@@ -361,9 +361,9 @@ function SnapshotManager:GetUndoInfo()
 end
 
 -- The undo points newest-first, each describing one apply that can be rolled
--- back. Index 1 is the most recent (what a single Undo reverts); undoing to a
--- deeper index rolls back every apply above it as well.
-function SnapshotManager:GetUndoStack()
+-- back. Index 1 is the most recent (what a single UndoLastApply reverts); undoing
+-- to a deeper index rolls back every apply above it as well.
+function SnapshotManager:GetUndoPoints()
     local stack = UndoStore:List()
     local out = {}
     for i = #stack, 1, -1 do
@@ -374,7 +374,7 @@ end
 
 -- Roll back the most recent apply by re-applying the top safety snapshot in
 -- Exact mode (optionally limited to a subset), then pop it off the stack.
-function SnapshotManager:Undo(moduleSet)
+function SnapshotManager:UndoLastApply(moduleSet)
     -- Finish any in-flight save first so it cannot capture a half-undone setup.
     SaveTask:Drain()
 
@@ -413,7 +413,7 @@ end
 -- Roll back the most recent `count` applies, newest first, by undoing one step
 -- at a time. Returns the aggregated per-module results across every step that
 -- ran (later steps win when a module appears in more than one).
-function SnapshotManager:UndoSteps(count)
+function SnapshotManager:UndoApplies(count)
     count = count or 1
     local aggregate = ApplyResult:New()
     for _ = 1, count do
@@ -421,7 +421,7 @@ function SnapshotManager:UndoSteps(count)
             break
         end
 
-        local step = self:Undo()
+        local step = self:UndoLastApply()
         if step then
             aggregate:Merge(step)
         end

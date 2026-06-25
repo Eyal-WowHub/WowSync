@@ -116,7 +116,7 @@ end
 -- True when the snapshot is identical to the logged-in character's current setup
 -- (so applying it would change nothing).
 function SnapshotView:IsCurrent(handle)
-    local myHead = SnapshotManager:GetCurrentHead()
+    local myHead = SnapshotManager:GetCharInfo()
     return myHead ~= nil and HashOf(handle) == myHead.Hash
 end
 
@@ -153,18 +153,18 @@ end
 -- character's current setup.
 function SnapshotView:Preview(handle, moduleSet)
     if handle.isHead then
-        return SnapshotManager:PreviewApplyCurrentOf(handle.charKey, moduleSet)
+        return SnapshotManager:PreviewApplyHeadByCharKey(handle.charKey, moduleSet)
     end
-    return SnapshotManager:PreviewApply(handle.charKey, Snapshot:GetSelector(handle.raw), moduleSet)
+    return SnapshotManager:PreviewApplySnapshot(handle.charKey, Snapshot:GetSelector(handle.raw), moduleSet)
 end
 
 -- Apply the snapshot (optionally a module subset) to the logged-in character,
 -- pushing a safety snapshot first. Returns an ApplyResult.
 function SnapshotView:Apply(handle, strategy, moduleSet)
     if handle.isHead then
-        return SnapshotManager:ApplyCurrentOf(handle.charKey, strategy, moduleSet)
+        return SnapshotManager:ApplyHeadByCharKey(handle.charKey, strategy, moduleSet)
     end
-    return SnapshotManager:Apply(handle.charKey, Snapshot:GetSelector(handle.raw), strategy, moduleSet)
+    return SnapshotManager:ApplySnapshot(handle.charKey, Snapshot:GetSelector(handle.raw), strategy, moduleSet)
 end
 
 -- Permanently remove a saved snapshot from its character's history. No-op for the head.
