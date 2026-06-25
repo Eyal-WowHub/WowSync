@@ -8,15 +8,20 @@ local C = LibStub("Contracts-1.0")
     Modules declare GetWatchedEvents() (e.g. UPDATE_MACROS). When one of those
     events fires, the matching module is marked dirty and a single short debounce
     timer is (re)started; on fire, only the dirty modules are re-captured into
-    Current via CurrentStore:RefreshModule. A burst of events therefore collapses
+    Current via CurrentStore:CaptureModule. A burst of events therefore collapses
     into one recapture, and unrelated modules are never touched.
 
     Feedback guard: our own Apply/Undo change the game and so fire these very
-    events. ProfileManager brackets those with PauseForApply/ResumeAfterApply,
+    events. ProfileManager brackets those with SuspendTracking/ResumeTracking,
     which Suspend()s this object (Addon-1.0 drops event dispatch while suspended)
     across the apply plus a short settle window, so we never re-mirror our own
     writes. WoW delivers events between frames, never mid-function, so the
     synchronous apply loop itself cannot be interrupted by a recapture.
+
+    Save isolation: ProfileManager brackets a save with SuspendFlush/ResumeFlush,
+    holding off recapture flushes while it reads Current (events still mark
+    modules dirty) so the setup a save captures and fingerprints cannot change
+    mid-save; the held changes flush the moment the save finishes.
 
     Combat: a module may decline capture in combat (ShouldCapture); such modules
     stay dirty and are flushed again on PLAYER_REGEN_ENABLED.
@@ -36,9 +41,14 @@ local watchedModules = {}
 -- moduleName -> true: modules whose live state changed and await recapture.
 local dirty = {}
 
-local started = false
-local flushToken = 0
-local resumeToken = 0
+local watching = false
+local flushGeneration = 0
+local resumeGeneration = 0
+
+-- True while a save holds Current: recapture flushes are held off so the live
+-- mirror never changes the setup a save is reading; dirty modules accumulate and
+-- are flushed once it clears.
+local flushSuspended = false
 
 -- id -> true: consumers that want live tracking (e.g. the open companion UI).
 local attachments = {}
@@ -48,18 +58,23 @@ local attachments = {}
 -- Re-capture every dirty module into Current. A module that declines capture
 -- (e.g. combat lockdown) stays dirty so PLAYER_REGEN_ENABLED can flush it later.
 local function Flush()
+    if flushSuspended then
+        -- A save is reading Current; leave the changes dirty and recapture them
+        -- once it finishes, so nothing mutates the setup mid-save.
+        return
+    end
     for name in pairs(dirty) do
-        if currentStore:RefreshModule(name) then
+        if currentStore:CaptureModule(name) then
             dirty[name] = nil
         end
     end
 end
 
 local function ScheduleFlush()
-    flushToken = flushToken + 1
-    local mine = flushToken
+    flushGeneration = flushGeneration + 1
+    local mine = flushGeneration
     C_Timer.After(DEBOUNCE_SECONDS, function()
-        if mine == flushToken then
+        if mine == flushGeneration then
             Flush()
         end
     end)
@@ -84,26 +99,36 @@ local function OnCombatEnd()
     end
 end
 
+-- Start or stop live tracking to match the current mode and attachments: lazy
+-- tracks only while attached; off never tracks.
+local function ResolveActivationMode()
+    if GameWatcher:GetTrackingMode() == "lazy" and GameWatcher:HasAttachments() then
+        GameWatcher:Watch()
+    else
+        GameWatcher:Unwatch()
+    end
+end
+
 --[[ Lifecycle ]]
 
 function GameWatcher:OnInitialized()
     registry = addon:GetObject("ModuleRegistry")
     currentStore = addon:GetObject("CurrentStore")
 
-    self:ResolveActivationMode()
+    ResolveActivationMode()
 end
 
 -- Begin live tracking: register every module's watch events (each once) and the
 -- combat-end retry. Safe to call repeatedly.
-function GameWatcher:Start()
-    if started then
+function GameWatcher:Watch()
+    if watching then
         return
     end
-    started = true
+    watching = true
 
     -- Catch up on everything that changed while inactive, so the mirror is
     -- correct before incremental events take over.
-    currentStore:Refresh()
+    currentStore:Capture()
 
     wipe(watchedModules)
     for name, module in registry:Iterate() do
@@ -124,11 +149,11 @@ function GameWatcher:Start()
 end
 
 -- Stop live tracking: drop all watch registrations and any pending recapture.
-function GameWatcher:Stop()
-    if not started then
+function GameWatcher:Unwatch()
+    if not watching then
         return
     end
-    started = false
+    watching = false
 
     for event in pairs(watchedModules) do
         self:UnregisterEvent(event)
@@ -136,7 +161,7 @@ function GameWatcher:Stop()
     wipe(watchedModules)
     self:UnregisterEvent("PLAYER_REGEN_ENABLED")
 
-    flushToken = flushToken + 1 -- cancel any pending flush
+    flushGeneration = flushGeneration + 1 -- cancel any pending flush
     wipe(dirty)
 end
 
@@ -144,14 +169,14 @@ end
 
 -- The persisted tracking mode: "lazy" (track only while a consumer is attached)
 -- or "off". Any unrecognised stored value resolves to the lazy default.
-function GameWatcher:GetMode()
+function GameWatcher:GetTrackingMode()
     return addon.DB.Settings.Watcher == "off" and "off" or "lazy"
 end
 
 -- Persist the tracking mode and converge live tracking to match it.
-function GameWatcher:SetMode(mode)
+function GameWatcher:SetTrackingMode(mode)
     addon.DB.Settings.Watcher = mode == "off" and "off" or "lazy"
-    self:ResolveActivationMode()
+    ResolveActivationMode()
 end
 
 -- Register interest in live tracking under an id. Ids are deduplicated, so
@@ -159,14 +184,14 @@ end
 function GameWatcher:Attach(id)
     C:IsString(id, 2)
     attachments[id] = true
-    self:ResolveActivationMode()
+    ResolveActivationMode()
 end
 
 -- Drop an attachment's interest. Live tracking stops once the last one leaves.
 function GameWatcher:Detach(id)
     C:IsString(id, 2)
     attachments[id] = nil
-    self:ResolveActivationMode()
+    ResolveActivationMode()
 end
 
 -- True while at least one consumer is attached.
@@ -174,33 +199,40 @@ function GameWatcher:HasAttachments()
     return next(attachments) ~= nil
 end
 
--- Start or stop live tracking to match the current mode and attachments: lazy
--- tracks only while attached; off never tracks.
-function GameWatcher:ResolveActivationMode()
-    if self:GetMode() == "lazy" and self:HasAttachments() then
-        self:Start()
-    else
-        self:Stop()
-    end
-end
-
---[[ Feedback guard (called by ProfileManager around Apply/Undo) ]]
+--[[ Recapture guards: hold the live mirror still while we change the game
+     ourselves (apply/undo), or while a save reads Current. ]]
 
 -- Suspend live tracking for the duration of an apply so our own writes are not
 -- mirrored back as if the player had made them.
-function GameWatcher:PauseForApply()
-    resumeToken = resumeToken + 1 -- cancel any pending resume
+function GameWatcher:SuspendTracking()
+    resumeGeneration = resumeGeneration + 1 -- cancel any pending resume
     self:Suspend()
 end
 
 -- Resume after a short settle window, long enough for the apply's own events
 -- (which WoW delivers on the following frame) to pass unheeded.
-function GameWatcher:ResumeAfterApply()
-    resumeToken = resumeToken + 1
-    local mine = resumeToken
+function GameWatcher:ResumeTracking()
+    resumeGeneration = resumeGeneration + 1
+    local mine = resumeGeneration
     C_Timer.After(SETTLE_SECONDS, function()
-        if mine == resumeToken then
+        if mine == resumeGeneration then
             self:Resume()
         end
     end)
+end
+
+-- Hold off recapture flushes while a save reads Current, so the setup it
+-- captures and fingerprints cannot change underneath it. Events still mark
+-- modules dirty for the matching ResumeFlush to flush.
+function GameWatcher:SuspendFlush()
+    flushSuspended = true
+end
+
+-- Resume recapture once a save is done and flush anything that changed while it
+-- ran, so the live mirror catches up immediately rather than on the next event.
+function GameWatcher:ResumeFlush()
+    flushSuspended = false
+    if next(dirty) then
+        Flush()
+    end
 end

@@ -213,10 +213,10 @@ function Commands:OnInitialized()
         elseif command == "watcher" then
             local state = (arg or ""):lower()
             if state == "lazy" then
-                GameWatcher:SetMode("lazy")
+                GameWatcher:SetTrackingMode("lazy")
                 WowSync:Print(L["Live tracking is on demand."])
             elseif state == "off" then
-                GameWatcher:SetMode("off")
+                GameWatcher:SetTrackingMode("off")
                 WowSync:Print(L["Live tracking is off."])
             else
                 WowSync:Print(L["Usage: X"]:format("/ws watcher off|lazy"))

@@ -24,7 +24,7 @@ local Codec = addon.Codec
 -- Capture one module's live state, honoring its optional ShouldCapture() gate.
 -- Returns the captured data and true on success; nil and false when the module
 -- declined capture (e.g. combat lockdown) or its Capture() errored.
-local function CaptureModule(name, module)
+local function TryCaptureModule(name, module)
     if module.ShouldCapture and not module:ShouldCapture() then
         return nil, false
     end
@@ -53,7 +53,7 @@ function CurrentStore:OnInitialized()
     -- Persist the logged-in character's live setup on logout/reload so other
     -- characters can browse it without logging in, then compress it for storage.
     self:RegisterEvent("PLAYER_LOGOUT", function()
-        self:Refresh()
+        self:Capture()
         self:Compress()
     end)
 end
@@ -73,7 +73,7 @@ function CurrentStore:Compress()
 end
 
 -- Re-capture the logged-in character's live setup into its Current.
-function CurrentStore:Refresh()
+function CurrentStore:Capture()
     local entry = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
 
     entry.Metadata.ClassID = PlayerUtil.GetClassID()
@@ -85,13 +85,20 @@ function CurrentStore:Refresh()
     end
     local current = {}
     for name, module in ModuleRegistry:Iterate() do
-        local data, ok = CaptureModule(name, module)
+        local data, ok = TryCaptureModule(name, module)
         if ok then
             current[name] = data
         else
             -- The module declined capture (e.g. combat lockdown) or errored;
             -- keep its last-known data rather than dropping it from Current.
             current[name] = previous[name]
+        end
+
+        -- When driven by a sliced save (a coroutine), let the frame breathe
+        -- between modules so a full capture never hitches; a synchronous caller
+        -- (logout, apply) runs straight through.
+        if coroutine.running() then
+            coroutine.yield()
         end
     end
 
@@ -100,10 +107,9 @@ function CurrentStore:Refresh()
 end
 
 -- Re-capture a single module into the logged-in character's Current, leaving the
--- other modules untouched. Used by the live GameWatcher to mirror just what
--- changed. Returns true when captured, or false when skipped (unknown module, or
--- ShouldCapture declined it, e.g. during combat).
-function CurrentStore:RefreshModule(name)
+-- other modules untouched. Returns true when captured, or false when skipped
+-- (unknown module, or ShouldCapture declined it, e.g. during combat).
+function CurrentStore:CaptureModule(name)
     local module = ModuleRegistry:Get(name)
     if not module then
         return false
@@ -113,17 +119,16 @@ function CurrentStore:RefreshModule(name)
     entry.Metadata.ClassID = PlayerUtil.GetClassID()
     entry.Metadata.LastSeen = time()
 
-    local data, ok = CaptureModule(name, module)
+    local data, ok = TryCaptureModule(name, module)
     if not ok then
         return false
     end
 
     entry.Current[name] = data
 
-    -- Signal listeners (e.g. the companion UI's "unsaved changes" badge) that the
-    -- live setup changed. Only this single-module live path fires the event;
-    -- Refresh() deliberately does not, since PreviewApply() calls Refresh() and
-    -- a UI that recomputes on this event would otherwise loop.
+    -- Signal listeners that the live setup changed. Only this single-module path
+    -- fires it; a bulk Capture() stays silent, so a listener that reacts by
+    -- recapturing cannot feed back into a loop.
     WowSync:TriggerEvent("WOWSYNC_CURRENT_CHANGED")
 
     return true
@@ -141,7 +146,7 @@ function CurrentStore:Get(key)
     return current
 end
 
-function CurrentStore:GetMeta(key)
+function CurrentStore:GetMetadata(key)
     key = key or CharacterInfo:GetFullName()
     local profile = ProfileStore:GetProfile(key)
     return profile and profile.Metadata

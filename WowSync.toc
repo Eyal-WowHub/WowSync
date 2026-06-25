@@ -29,6 +29,7 @@ Core\BoundedList.lua
 Locales\enUS.lua
 
 Runtime\ApplyResult.lua
+Runtime\FrameTask.lua
 Runtime\ProfileManager.lua
 Runtime\ModuleInterface.lua
 Runtime\ModuleRegistry.lua

@@ -78,17 +78,26 @@ local function Multiply64(highA, lowA, highB, lowB)
     return high, low
 end
 
+-- The fingerprint yields control back to a driving coroutine every this many
+-- bytes, so fingerprinting a large value spreads across frames instead of
+-- hitching; a synchronous caller (not in a coroutine) runs straight through.
+local YIELD_STRIDE = 1024
+
 -- FNV-1a -> 16-char hex fingerprint of any value.
 function Hash:Create(value)
     local parts = {}
     SerializeToCanonicalString(value, parts)
     local text = table.concat(parts)
 
+    local running = coroutine.running()
     local high, low = OFFSET_HIGH, OFFSET_LOW
     for i = 1, #text do
         -- bit.bxor may sign-extend; mask back to an unsigned 32-bit lane.
         low = bit.bxor(low, text:byte(i)) % 4294967296
         high, low = Multiply64(high, low, PRIME_HIGH, PRIME_LOW)
+        if running and i % YIELD_STRIDE == 0 then
+            coroutine.yield()
+        end
     end
 
     return string.format("%08x%08x", high, low)

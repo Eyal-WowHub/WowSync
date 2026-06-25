@@ -5,6 +5,7 @@ local CharacterInfo = LibStub("CharacterInfo-1.0")
 local C = LibStub("Contracts-1.0")
 local SnapshotApplyMode = addon.SnapshotApplyMode
 local ApplyResult = addon.ApplyResult
+local FrameTask = addon.FrameTask
 
 --[[
     ProfileManager — the storage subsystem's orchestrator/facade.
@@ -30,6 +31,10 @@ local snapshots
 local differ
 local gameWatcher
 
+-- Defined below with the save machinery; forward-declared so OnInitialized can
+-- register the logout drain.
+local DrainPendingSave
+
 function ProfileManager:OnInitialized()
     registry = addon:GetObject("ModuleRegistry")
     profileStore = addon:GetObject("ProfileStore")
@@ -38,6 +43,16 @@ function ProfileManager:OnInitialized()
     snapshots = addon:GetObject("Snapshot")
     differ = addon:GetObject("Differ")
     gameWatcher = addon:GetObject("GameWatcher")
+
+    -- Finish any in-flight sliced save before SavedVariables is written, so an
+    -- explicit Save started just before logout still lands. Draining re-captures
+    -- Current as a raw table, so compress it again here; CurrentStore's logout
+    -- handler also ends in a compress, so whichever of the two runs last leaves
+    -- Current stored compressed.
+    self:RegisterEvent("PLAYER_LOGOUT", function()
+        DrainPendingSave()
+        currentStore:Compress()
+    end)
 end
 
 --[[ Internal helpers ]]
@@ -49,38 +64,53 @@ local function CurrentSource()
     }
 end
 
--- True while a deferred save is mid-flight, so a second request is rejected
--- rather than queueing a duplicate snapshot.
-local saving = false
+-- The most time a sliced save spends in any single frame before yielding, kept
+-- low enough that capturing and fingerprinting never produce a visible hitch.
+local SAVE_FRAME_BUDGET_MS = 6
 
--- Run a save body one frame later so the UI can paint a "saving" state before
--- the capture/compress hitch, bracketed by WOWSYNC_SAVE_STARTED/FINISHED. The
--- body returns the stored snapshot (or nil + reason); the result is forwarded to
--- the finish event and the optional onComplete, which always runs exactly once.
--- A request made while a save is already in flight is rejected with "busy" and a
--- body that errors is reported as "error" -- neither is left silent.
-local function RunDeferredSave(body, onComplete)
-    if saving then
+-- The across-frames runner for the in-flight save. At most one save runs at a
+-- time; a second request while one is running is rejected.
+local saveTask = FrameTask.New(SAVE_FRAME_BUDGET_MS)
+
+-- Run a save body across frames so its capture and fingerprint never hitch a
+-- single frame, bracketed by WOWSYNC_SAVE_STARTED/FINISHED. The body returns the
+-- stored snapshot, or nil plus a reason; a body that crashes is reported as
+-- "error" (its message already surfaced through the game's error handler). The
+-- result is forwarded to the finish event and the optional onComplete, which
+-- always runs exactly once. A request made while a save is already in flight is
+-- rejected with "busy". The live mirror's recapture is held off for the duration
+-- so it cannot change Current mid-save.
+local function RunSave(body, onComplete)
+    if saveTask:IsRunning() then
         if onComplete then
             onComplete(nil, "busy")
         end
         return
     end
-    saving = true
+
+    gameWatcher:SuspendFlush()
     WowSync:TriggerEvent("WOWSYNC_SAVE_STARTED")
 
-    C_Timer.After(0, function()
-        local ok, stored, reason = pcall(body)
-        saving = false
+    saveTask:Start(body, function(ok, stored, reason)
+        -- A crash surfaces as (false, message); map it to the "error" reason. A
+        -- successful body may still decline with (true, nil, reason).
         if not ok then
-            -- The body errored; report a failed save instead of a silent one.
             stored, reason = nil, "error"
         end
+        gameWatcher:ResumeFlush()
         WowSync:TriggerEvent("WOWSYNC_SAVE_FINISHED", stored, reason)
         if onComplete then
             onComplete(stored, reason)
         end
     end)
+end
+
+-- Finish any in-flight sliced save now, running its remaining steps
+-- synchronously. A no-op when nothing is running.
+function DrainPendingSave()
+    if saveTask:IsRunning() then
+        saveTask:Drain()
+    end
 end
 
 -- The meta passed to a module's CanApply/Apply, derived from a snapshot's source.
@@ -146,18 +176,21 @@ end
 -- The safety snapshot is only pushed to the undo stack when an apply actually
 -- happens. Returns an ApplyResult.
 local function ApplyModules(sourceModules, meta, strategy, moduleSet)
+    -- Finish any in-flight save first so it cannot capture a half-applied setup.
+    DrainPendingSave()
+
     strategy = strategy or {}
     local defaultMode = strategy.default or "merge"
     local overrides = strategy.overrides or {}
 
-    local safety = snapshots:New(currentStore:Refresh(), CurrentSource())
+    local safety = snapshots:New(currentStore:Capture(), CurrentSource())
 
     local names = ResolveNames(sourceModules, moduleSet)
     local results = {}
     local applied = false
 
     -- Don't let our own writes echo back in as if the player made them.
-    gameWatcher:PauseForApply()
+    gameWatcher:SuspendTracking()
 
     for name in pairs(names) do
         local module = registry:Get(name)
@@ -182,10 +215,10 @@ local function ApplyModules(sourceModules, meta, strategy, moduleSet)
 
     if applied then
         undoStore:Push(nil, safety)
-        currentStore:Refresh()
+        currentStore:Capture()
     end
 
-    gameWatcher:ResumeAfterApply()
+    gameWatcher:ResumeTracking()
 
     return ApplyResult:New(results)
 end
@@ -216,18 +249,19 @@ end
 
 -- Re-capture the logged-in character's live setup; returns the captured modules.
 function ProfileManager:CaptureCurrent()
-    return currentStore:Refresh()
+    return currentStore:Capture()
 end
 
 --[[ Save ]]
 
 -- Capture Current (optionally a subset) and append it as a snapshot to the
 -- logged-in character's profile, tagging it with the given optional note. The
--- capture runs one frame later, bracketed by WOWSYNC_SAVE_STARTED/FINISHED so
--- the UI can show progress; the stored snapshot is handed to onComplete.
+-- capture and fingerprint are sliced across frames, bracketed by
+-- WOWSYNC_SAVE_STARTED/FINISHED so the UI can show progress; the stored
+-- snapshot is handed to onComplete.
 function ProfileManager:Save(note, moduleSet, onComplete)
-    RunDeferredSave(function()
-        local modules = SubsetOf(currentStore:Refresh(), moduleSet)
+    RunSave(function()
+        local modules = SubsetOf(currentStore:Capture(), moduleSet)
 
         local id = CharacterInfo:GetFullName()
         profileStore:CreateProfile(id)
@@ -263,7 +297,7 @@ function ProfileManager:GetCurrentHead(charKey)
         return nil
     end
 
-    local charMeta = currentStore:GetMeta(charKey)
+    local charMeta = currentStore:GetMetadata(charKey)
     return {
         Hash = snapshots:Fingerprint(current),
         Modules = current,
@@ -304,7 +338,7 @@ function ProfileManager:PreviewApply(profileName, selector, moduleSet)
         return nil
     end
 
-    local current = currentStore:Refresh()
+    local current = currentStore:Capture()
     return differ:Preview(current, snapshots:GetModules(snapshot), moduleSet)
 end
 
@@ -319,7 +353,7 @@ function ProfileManager:PreviewApplyCurrentOf(charKey, moduleSet)
         return nil
     end
 
-    local current = currentStore:Refresh()
+    local current = currentStore:Capture()
     return differ:Preview(current, source, moduleSet)
 end
 
@@ -351,7 +385,7 @@ function ProfileManager:ApplyCurrentOf(charKey, strategy, moduleSet)
     local source = currentStore:Get(charKey)
     C:Ensures(source, "ApplyCurrentOf: character '%s' has nothing captured", charKey)
 
-    local charMeta = currentStore:GetMeta(charKey)
+    local charMeta = currentStore:GetMetadata(charKey)
     local meta = { ClassID = charMeta and charMeta.ClassID }
     return ApplyModules(source, meta, strategy, moduleSet)
 end
@@ -402,6 +436,9 @@ end
 -- Roll back the most recent apply by re-applying the top safety snapshot in
 -- Exact mode (optionally limited to a subset), then pop it off the stack.
 function ProfileManager:Undo(moduleSet)
+    -- Finish any in-flight save first so it cannot capture a half-undone setup.
+    DrainPendingSave()
+
     local safety = undoStore:Peek()
     if not safety then
         return nil
@@ -412,7 +449,7 @@ function ProfileManager:Undo(moduleSet)
     local names = ResolveNames(safetyModules, moduleSet)
     local results = {}
 
-    gameWatcher:PauseForApply()
+    gameWatcher:SuspendTracking()
 
     for name in pairs(names) do
         local module = registry:Get(name)
@@ -429,8 +466,8 @@ function ProfileManager:Undo(moduleSet)
     end
 
     undoStore:Pop()
-    currentStore:Refresh()
-    gameWatcher:ResumeAfterApply()
+    currentStore:Capture()
+    gameWatcher:ResumeTracking()
     return ApplyResult:New(results)
 end
 
@@ -612,12 +649,12 @@ end
 
 -- Append a snapshot built from another character's captured Current to that
 -- character's profile, tagging it with the given optional note. Like Save, it
--- runs a frame later with start/finish events; onComplete receives the stored
--- snapshot, or nil + a reason ("unknown-character").
+-- is sliced across frames with start/finish events; onComplete receives the
+-- stored snapshot, or nil + a reason ("unknown-character").
 function ProfileManager:SaveFromCharacter(charKey, moduleSet, note, onComplete)
     C:IsString(charKey, 2)
 
-    RunDeferredSave(function()
+    RunSave(function()
         local source = currentStore:Get(charKey)
         if not source then
             return nil, "unknown-character"
@@ -625,7 +662,7 @@ function ProfileManager:SaveFromCharacter(charKey, moduleSet, note, onComplete)
 
         local modules = SubsetOf(source, moduleSet)
 
-        local meta = currentStore:GetMeta(charKey)
+        local meta = currentStore:GetMetadata(charKey)
         profileStore:CreateProfile(charKey)
 
         local snapshot = snapshots:New(modules, {
