@@ -68,12 +68,13 @@ Anything that could interfere during combat (such as action bars) waits until yo
 | Command | Description |
 | --- | --- |
 | `/ws` | Open or close the WowSync window. |
-| `/ws save <name>` | Save the current setup as a new snapshot of a profile. |
+| `/ws save [note]` | Snapshot your current setup, optionally with a short note. |
 | `/ws apply <name>[@hash[#index]] [--merge\|--exact]` | Apply a profile's latest snapshot, or a specific one by hash (Merge by default). |
 | `/ws undo` | Undo the last apply. |
 | `/ws delete <name>[@hash[#index]]` | Delete a profile, or a single snapshot by hash. |
 | `/ws list [name]` | List all saved profiles, or one profile's snapshots. |
 | `/ws watcher on\|off` | Turn live tracking of your setup on or off (on by default). |
+| `/ws reset database\|db` | Delete all saved profiles and snapshots (your settings are kept). |
 | `/ws help` | Show the list of commands. |
 
 When targeting a specific snapshot, `@hash` accepts the short hash shown by `/ws list <name>`. As with Git, any unambiguous prefix works; if two snapshots share the same hash, add `#index` (for example `@a1b2#3`) to pick exactly one.
