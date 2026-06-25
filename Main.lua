@@ -12,7 +12,7 @@ local DB_DEFAULTS = {
     Settings = {
         MaxSnapshots = 20,
         MaxUndo = 10,
-        Watcher = true,
+        Watcher = "lazy",
     },
     Profiles = {},
 }

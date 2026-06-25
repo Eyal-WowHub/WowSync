@@ -183,14 +183,14 @@ function Commands:OnInitialized()
             end
         elseif command == "watcher" then
             local state = (arg or ""):lower()
-            if state == "on" then
-                GameWatcher:SetEnabled(true)
-                WowSync:Print(L["Live tracking is on."])
+            if state == "lazy" then
+                GameWatcher:SetMode("lazy")
+                WowSync:Print(L["Live tracking is on demand."])
             elseif state == "off" then
-                GameWatcher:SetEnabled(false)
+                GameWatcher:SetMode("off")
                 WowSync:Print(L["Live tracking is off."])
             else
-                WowSync:Print(L["Usage: X"]:format("/ws watcher on|off"))
+                WowSync:Print(L["Usage: X"]:format("/ws watcher off|lazy"))
             end
         elseif command == "reset" then
             local target = (arg or ""):lower()
@@ -207,7 +207,7 @@ function Commands:OnInitialized()
             WowSync:Print(L["  X - Y"]:format("/ws undo", L["Undo the last apply"]))
             WowSync:Print(L["  X - Y"]:format("/ws delete <character>[@hash[#index]]", L["Delete a character's profile or one of its snapshots"]))
             WowSync:Print(L["  X - Y"]:format("/ws list [character]", L["List profiles, or a character's snapshots"]))
-            WowSync:Print(L["  X - Y"]:format("/ws watcher on|off", L["Mirror your changes live"]))
+            WowSync:Print(L["  X - Y"]:format("/ws watcher off|lazy", L["Mirror your changes live on demand"]))
             WowSync:Print(L["  X - Y"]:format("/ws reset database|db", L["Delete all saved profiles and snapshots"]))
         else
             WowSync:Print(L["Unknown command. Type X."]:format("/ws help"))

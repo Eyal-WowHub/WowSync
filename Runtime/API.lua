@@ -3,6 +3,7 @@ WowSync = addon:NewObject(addon:GetName())
 local ProfileManager = addon:GetObject("ProfileManager")
 local SnapshotView = addon:GetObject("SnapshotView")
 local SnapshotHandleCache = addon:GetObject("SnapshotHandleCache")
+local GameWatcher = addon:GetObject("GameWatcher")
 
 local L = addon.L
 
@@ -26,6 +27,22 @@ end
 -- saved, pending eviction, full timeline).
 function WowSync:GetSnapshotHandleCache()
     return SnapshotHandleCache
+end
+
+-- Registers interest in live tracking under an id; while any attachment is
+-- present, lazy mode keeps the current setup mirrored.
+function WowSync:Attach(id)
+    GameWatcher:Attach(id)
+end
+
+-- Drops an attachment's interest; tracking stops once the last one leaves.
+function WowSync:Detach(id)
+    GameWatcher:Detach(id)
+end
+
+-- True while at least one consumer is attached.
+function WowSync:HasAttachments()
+    return GameWatcher:HasAttachments()
 end
 
 --[[ Addon entry points ]]
