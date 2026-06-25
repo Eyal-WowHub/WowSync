@@ -56,7 +56,6 @@ Modules\Macros.lua
 Modules\Keybindings.lua
 Modules\Chat.lua
 Modules\CombatLog.lua
-Modules\EditMode.lua
 Modules\Addons.lua
 Modules\Settings.lua
 

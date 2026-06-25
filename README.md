@@ -14,7 +14,6 @@ Each profile stores the following, and you choose which parts to apply per chara
 * **Talents** — talent loadouts for the matching specialization.
 * **Macros** — account-wide and character-specific macros.
 * **Key Bindings** — your key binding setup.
-* **Edit Mode** — your Edit Mode HUD layout.
 * **Chat** — chat windows and tabs.
 * **Combat Log** — combat log filters.
 * **Settings** — interface and console (CVar) settings.

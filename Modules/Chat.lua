@@ -84,7 +84,7 @@ local function CaptureMessageGroups(chatFrame)
     return groups
 end
 
-local function ConfigureTab(chatFrame, tab, frameIndex)
+local function ConfigureTab(chatFrame, tab)
     FCF_SetWindowName(chatFrame, tab.Name)
 
     if tab.FontSize then
@@ -109,14 +109,6 @@ local function ConfigureTab(chatFrame, tab, frameIndex)
     end
     if tab.FadeTime then
         chatFrame:SetTimeVisible(tab.FadeTime)
-    end
-
-    -- Position and dimensions
-    if tab.Position then
-        SetChatWindowSavedPosition(frameIndex, tab.Position.Point, tab.Position.XOffset, tab.Position.YOffset)
-    end
-    if tab.Width and tab.Height then
-        SetChatWindowSavedDimensions(frameIndex, tab.Width, tab.Height)
     end
 
     ChatFrame_RemoveAllMessageGroups(chatFrame)
@@ -145,10 +137,6 @@ function Chat:Capture()
             -- docked is the dock order index (1, 2, ...) or nil if floating
             local name, fontSize, r, g, b, alpha, shown, locked, docked = GetChatWindowInfo(i)
             if name and name ~= "" and (shown or docked) then
-                -- Frame position and dimensions
-                local point, xOffset, yOffset = GetChatWindowSavedPosition(i)
-                local width, height = GetChatWindowSavedDimensions(i)
-
                 tinsert(tabs, {
                     Name = name,
                     FontSize = fontSize,
@@ -158,9 +146,6 @@ function Chat:Capture()
                     Locked = locked,
                     Docked = docked ~= nil,
                     DockOrder = docked,
-                    Position = point and { Point = point, XOffset = xOffset, YOffset = yOffset } or nil,
-                    Width = width,
-                    Height = height,
                     Fading = chatFrame.GetFading and chatFrame:GetFading() or nil,
                     FadeTime = chatFrame.GetTimeVisible and chatFrame:GetTimeVisible() or nil,
                     Channels = CaptureChannels(chatFrame),
@@ -236,7 +221,7 @@ function Chat:Apply(capturedData, sourceMetadata, applyOptions)
                 frameIndex = chatFrame:GetID()
             end
 
-            ConfigureTab(chatFrame, tab, frameIndex)
+            ConfigureTab(chatFrame, tab)
 
             -- Handle docking (cannot undock the primary General tab)
             if tabIndex > 1 then
@@ -247,7 +232,7 @@ function Chat:Apply(capturedData, sourceMetadata, applyOptions)
                 end
             end
 
-            -- Refresh the frame to apply position/dimension changes
+            -- Refresh the frame to apply the configuration changes
             FloatingChatFrame_Update(frameIndex)
         end
 
