@@ -66,16 +66,16 @@ Anything that could interfere during combat (such as action bars) waits until yo
 `/ws` and `/wowsync` are interchangeable — every command below works with either prefix.
 
 | Command | Description |
-| --- | --- |
+|---|---|
 | `/ws` | Open or close the WowSync window. |
-| `/ws save [note]` | Snapshot your current setup, optionally with a short note. |
-| `/ws apply <name>[@hash[#index]] [--merge\|--exact]` | Apply a profile's latest snapshot, or a specific one by hash (Merge by default). |
-| `/ws undo` | Undo the last apply. |
-| `/ws delete <name>[@hash[#index]]` | Delete a profile, or a single snapshot by hash. |
-| `/ws list [name]` | List all saved profiles, or one profile's snapshots. |
+| `/ws save [note]` | Save a snapshot of your current setup, optionally with a short note. |
+| `/ws apply <name>[@hash[#index]] [--merge\|--exact]` | Apply a profile's latest snapshot, or a specific snapshot by hash (merge by default). |
+| `/ws undo` | Undo the last applied snapshot. |
+| `/ws delete <name>[@hash[#index]]` | Delete a profile, or delete a specific snapshot by hash. |
+| `/ws list [name]` | List all saved profiles, or list one profile's snapshots. |
 | `/ws watcher off\|lazy` | Track your setup live on demand, or turn tracking off entirely (lazy by default). |
-| `/ws reset database\|db` | Delete all saved profiles and snapshots (your settings are kept). |
-| `/ws help` | Show the list of commands. |
+| `/ws reset database\|db` | Delete all saved profiles and snapshots, while keeping your settings. |
+| `/ws help` | Show the command list. |
 
 When targeting a specific snapshot, `@hash` accepts the short hash shown by `/ws list <name>`. As with Git, any unambiguous prefix works; if two snapshots share the same hash, add `#index` (for example `@a1b2#3`) to pick exactly one.
 
