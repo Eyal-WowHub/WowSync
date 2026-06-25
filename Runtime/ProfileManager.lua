@@ -54,6 +54,22 @@ local function MetaOf(snapshot)
     return { ClassID = snapshot.Source and snapshot.Source.ClassID }
 end
 
+-- A realm name lowercased and stripped of spaces, dashes and apostrophes, so a
+-- typed shorthand ("ArgentDawn") matches a stored display realm ("Argent Dawn").
+local function NormalizeRealm(realm)
+    return (realm:gsub("[%s%-']", "")):lower()
+end
+
+-- Split a "Name - Realm" key on its first dash (a character name never contains
+-- one). Returns the trimmed name and realm; realm is empty when no dash present.
+local function SplitNameRealm(text)
+    local name, realm = text:match("^(.-)%s*%-%s*(.*)$")
+    if name then
+        return strtrim(name), strtrim(realm)
+    end
+    return strtrim(text), ""
+end
+
 -- The chosen module subset (intersected with what was actually captured), or
 -- the whole capture when no subset is given.
 local function SubsetOf(modules, moduleSet)
@@ -410,6 +426,52 @@ end
 
 function ProfileManager:GetProfiles()
     return profileStore:GetProfiles()
+end
+
+-- Resolve a user-typed character token to a stored profile key. Accepted forms:
+--   "Name"          the character with that name on the current realm
+--   "Name*"         that name on any other realm
+--   "Name-Realm"    that name on a realm matched by (partial) realm name
+-- Candidates are considered in the character-list order. Returns the matched
+-- key, or nil plus a reason ("notfound"|"ambiguous") and the matching keys.
+function ProfileManager:ResolveCharacter(token)
+    C:IsString(token, 2)
+
+    local otherRealm = token:match("%*%s*$") ~= nil
+    if otherRealm then
+        token = (token:gsub("%*%s*$", ""))
+    end
+
+    local name, realmText = SplitNameRealm(token)
+    local wantName = name:lower()
+    local wantRealm = NormalizeRealm(realmText)
+    local myRealm = NormalizeRealm(CharacterInfo:GetRealm())
+
+    local matches = {}
+    for _, entry in ipairs(self:ListCharacters()) do
+        local charName, charRealm = SplitNameRealm(entry.Key)
+        if charName:lower() == wantName then
+            local realm = NormalizeRealm(charRealm)
+            local ok
+            if wantRealm ~= "" then
+                ok = realm:find(wantRealm, 1, true) == 1
+            elseif otherRealm then
+                ok = realm ~= myRealm
+            else
+                ok = realm == myRealm
+            end
+            if ok then
+                tinsert(matches, entry.Key)
+            end
+        end
+    end
+
+    if #matches == 0 then
+        return nil, "notfound"
+    elseif #matches > 1 then
+        return nil, "ambiguous", matches
+    end
+    return matches[1]
 end
 
 function ProfileManager:DeleteProfile(profileName)

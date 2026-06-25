@@ -36,6 +36,25 @@ local function PrintSnapshotError(selector, reason, candidates)
     end
 end
 
+-- Resolves a user-typed character token to a stored profile key, printing the
+-- not-found or ambiguous-match feedback itself. Returns the key, or nil.
+local function GetResolvedCharacter(token)
+    local key, reason, candidates = ProfileManager:ResolveCharacter(token)
+
+    if key then
+        return key
+    end
+
+    if reason == "ambiguous" then
+        WowSync:Print(L["Multiple characters match 'X'. Add a realm to disambiguate (e.g. Name-Realm):"]:format(token))
+        for _, candidate in ipairs(candidates or {}) do
+            WowSync:Print(L["  X"]:format(candidate))
+        end
+    else
+        WowSync:Print(L["No character matches 'X'."]:format(token))
+    end
+end
+
 function Commands:OnInitialized()
     SLASH_WOWSYNC1 = "/wowsync"
     SLASH_WOWSYNC2 = "/ws"
@@ -80,10 +99,13 @@ function Commands:OnInitialized()
                 return
             end
 
-            if not ProfileManager:GetProfile(profileName) then
-                WowSync:Print(L["Profile 'X' not found."]:format(profileName))
+            local key = GetResolvedCharacter(profileName)
+
+            if not key then
                 return
             end
+
+            profileName = key
 
             if selector then
                 local snapshot, reason, candidates = ProfileManager:GetSnapshot(profileName, selector)
@@ -121,12 +143,15 @@ function Commands:OnInitialized()
         elseif command == "delete" and arg and arg ~= "" then
             local profileName, selector = ParseSelector(arg)
 
-            if selector then
-                if not ProfileManager:GetProfile(profileName) then
-                    WowSync:Print(L["Profile 'X' not found."]:format(profileName))
-                    return
-                end
+            local key = GetResolvedCharacter(profileName)
 
+            if not key then
+                return
+            end
+
+            profileName = key
+
+            if selector then
                 local snapshot, reason, candidates = ProfileManager:GetSnapshot(profileName, selector)
                 if not snapshot then
                     PrintSnapshotError(selector, reason, candidates)
@@ -139,24 +164,23 @@ function Commands:OnInitialized()
                 end
             elseif ProfileManager:DeleteProfile(profileName) then
                 WowSync:Print(L["Profile 'X' deleted."]:format(profileName))
-            else
-                WowSync:Print(L["Profile 'X' not found."]:format(profileName))
             end
         elseif command == "list" then
             if arg and arg ~= "" then
-                local profile = ProfileManager:GetProfile(arg)
-                if not profile then
-                    WowSync:Print(L["Profile 'X' not found."]:format(arg))
+                local key = GetResolvedCharacter(arg)
+
+                if not key then
                     return
                 end
 
+                local profile = ProfileManager:GetProfile(key)
                 local snapshots = profile.Snapshots
-                if #snapshots == 0 then
-                    WowSync:Print(L["Profile 'X' has no snapshots."]:format(arg))
+                if not snapshots or #snapshots == 0 then
+                    WowSync:Print(L["Profile 'X' has no snapshots."]:format(key))
                     return
                 end
 
-                WowSync:Print(L["Snapshots for 'X':"]:format(arg))
+                WowSync:Print(L["Snapshots for 'X':"]:format(key))
                 for index = #snapshots, 1, -1 do
                     local snapshot = snapshots[index]
                     local selector = ("%s#%s"):format(snapshot.Hash:sub(1, 7), snapshot.Index)
