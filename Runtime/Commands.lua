@@ -71,14 +71,19 @@ function Commands:OnInitialized()
         if command == "save" then
             local note = (arg and arg ~= "") and arg or nil
             local evicted = ProfileManager:PreviewSave(nil)
-            local _, snapshot = ProfileManager:Save(note)
-            if snapshot then
-                WowSync:Print(L["Snapshot saved."])
-                if evicted then
-                    WowSync:Print(L["Reached the snapshot limit — removed the oldest (X)."]:format(
-                        Snapshot:GetSubject(evicted)))
+            ProfileManager:Save(note, nil, function(snapshot, reason)
+                if snapshot then
+                    WowSync:Print(L["Snapshot saved."])
+                    if evicted then
+                        WowSync:Print(L["Reached the snapshot limit — removed the oldest (X)."]:format(
+                            Snapshot:GetSubject(evicted)))
+                    end
+                elseif reason == "busy" then
+                    WowSync:Print(L["A save is already in progress."])
+                else
+                    WowSync:Print(L["Could not save. Try again."])
                 end
-            end
+            end)
         elseif command == "apply" and arg and arg ~= "" then
             local profileName, mode = arg, nil
             local trailing = arg:match("%s(%-%-%S+)$")

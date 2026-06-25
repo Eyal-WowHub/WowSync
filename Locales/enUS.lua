@@ -5,6 +5,8 @@ addon.L = L
 -- Slash command feedback
 L["WowSync_UI addon not found."] = "WowSync_UI addon not found."
 L["Snapshot saved."] = "Snapshot saved."
+L["Could not save. Try again."] = "Could not save. Try again."
+L["A save is already in progress."] = "A save is already in progress."
 L["Reached the snapshot limit — removed the oldest (X)."] = "Reached the snapshot limit — removed the oldest (%s)."
 L["Profile 'X' deleted."] = "Profile '%s' deleted."
 L["Profile 'X' not found."] = "Profile '%s' not found."

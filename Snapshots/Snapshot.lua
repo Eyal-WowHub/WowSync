@@ -66,21 +66,24 @@ end
 -- Build an independent snapshot from a captured module set, compressing the
 -- captured data into Data and keeping only the module-name set in Modules.
 function Snapshot:New(modules, source)
-    local copied = DeepCopy(modules) or {}
+    modules = modules or {}
     local snapshot = {
-        Hash = Hash:Create(copied),
+        Hash = Hash:Create(modules),
         Timestamp = Time:Now(),
         Pinned = false,
         Source = source,
     }
 
-    local encoded = Codec:Encode(copied)
+    local encoded = Codec:Encode(modules)
     if encoded then
-        snapshot.Modules = NameSet(copied)
+        -- Hash, Encode and NameSet only read the source, so the compressed Data
+        -- and the name set are already independent of the live Current table.
+        snapshot.Modules = NameSet(modules)
         snapshot.Data = encoded
     else
-        -- Compression unavailable; keep the raw data so the snapshot stays usable.
-        snapshot.Modules = copied
+        -- Compression unavailable; keep an independent copy of the raw data so
+        -- the snapshot stays detached from the live Current table and usable.
+        snapshot.Modules = DeepCopy(modules)
     end
     return snapshot
 end

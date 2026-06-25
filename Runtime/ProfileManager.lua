@@ -49,6 +49,40 @@ local function CurrentSource()
     }
 end
 
+-- True while a deferred save is mid-flight, so a second request is rejected
+-- rather than queueing a duplicate snapshot.
+local saving = false
+
+-- Run a save body one frame later so the UI can paint a "saving" state before
+-- the capture/compress hitch, bracketed by WOWSYNC_SAVE_STARTED/FINISHED. The
+-- body returns the stored snapshot (or nil + reason); the result is forwarded to
+-- the finish event and the optional onComplete, which always runs exactly once.
+-- A request made while a save is already in flight is rejected with "busy" and a
+-- body that errors is reported as "error" -- neither is left silent.
+local function RunDeferredSave(body, onComplete)
+    if saving then
+        if onComplete then
+            onComplete(nil, "busy")
+        end
+        return
+    end
+    saving = true
+    WowSync:TriggerEvent("WOWSYNC_SAVE_STARTED")
+
+    C_Timer.After(0, function()
+        local ok, stored, reason = pcall(body)
+        saving = false
+        if not ok then
+            -- The body errored; report a failed save instead of a silent one.
+            stored, reason = nil, "error"
+        end
+        WowSync:TriggerEvent("WOWSYNC_SAVE_FINISHED", stored, reason)
+        if onComplete then
+            onComplete(stored, reason)
+        end
+    end)
+end
+
 -- The meta passed to a module's CanApply/Apply, derived from a snapshot's source.
 local function MetaOf(snapshot)
     return { ClassID = snapshot.Source and snapshot.Source.ClassID }
@@ -188,19 +222,21 @@ end
 --[[ Save ]]
 
 -- Capture Current (optionally a subset) and append it as a snapshot to the
--- logged-in character's profile, tagging it with the given optional note.
--- Always appends a snapshot. Returns the profile id and the stored snapshot.
-function ProfileManager:Save(note, moduleSet)
-    local modules = SubsetOf(currentStore:Refresh(), moduleSet)
+-- logged-in character's profile, tagging it with the given optional note. The
+-- capture runs one frame later, bracketed by WOWSYNC_SAVE_STARTED/FINISHED so
+-- the UI can show progress; the stored snapshot is handed to onComplete.
+function ProfileManager:Save(note, moduleSet, onComplete)
+    RunDeferredSave(function()
+        local modules = SubsetOf(currentStore:Refresh(), moduleSet)
 
-    local id = CharacterInfo:GetFullName()
-    profileStore:CreateProfile(id)
+        local id = CharacterInfo:GetFullName()
+        profileStore:CreateProfile(id)
 
-    local snapshot = snapshots:New(modules, CurrentSource())
-    snapshot.Notes = note
+        local snapshot = snapshots:New(modules, CurrentSource())
+        snapshot.Notes = note
 
-    local stored, reason = profileStore:AddSnapshot(id, snapshot)
-    return id, stored, reason
+        return profileStore:AddSnapshot(id, snapshot)
+    end, onComplete)
 end
 
 -- True when the logged-in character has anything captured to save.
@@ -575,27 +611,29 @@ function ProfileManager:ListCharacters()
 end
 
 -- Append a snapshot built from another character's captured Current to that
--- character's profile, tagging it with the given optional note. Like Save, but
--- sources a stored character instead of a live capture. Returns the stored
+-- character's profile, tagging it with the given optional note. Like Save, it
+-- runs a frame later with start/finish events; onComplete receives the stored
 -- snapshot, or nil + a reason ("unknown-character").
-function ProfileManager:SaveFromCharacter(charKey, moduleSet, note)
+function ProfileManager:SaveFromCharacter(charKey, moduleSet, note, onComplete)
     C:IsString(charKey, 2)
 
-    local source = currentStore:Get(charKey)
-    if not source then
-        return nil, "unknown-character"
-    end
+    RunDeferredSave(function()
+        local source = currentStore:Get(charKey)
+        if not source then
+            return nil, "unknown-character"
+        end
 
-    local modules = SubsetOf(source, moduleSet)
+        local modules = SubsetOf(source, moduleSet)
 
-    local meta = currentStore:GetMeta(charKey)
-    profileStore:CreateProfile(charKey)
+        local meta = currentStore:GetMeta(charKey)
+        profileStore:CreateProfile(charKey)
 
-    local snapshot = snapshots:New(modules, {
-        Character = charKey,
-        ClassID = meta and meta.ClassID,
-    })
-    snapshot.Notes = note
+        local snapshot = snapshots:New(modules, {
+            Character = charKey,
+            ClassID = meta and meta.ClassID,
+        })
+        snapshot.Notes = note
 
-    return profileStore:AddSnapshot(charKey, snapshot)
+        return profileStore:AddSnapshot(charKey, snapshot)
+    end, onComplete)
 end
