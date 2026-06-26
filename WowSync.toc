@@ -7,7 +7,7 @@
 ## Author: Eyal Alon
 ## AddonCompartmentFunc: WowSync_OnAddonCompartmentClick
 
-## SavedVariables: WowSyncDB
+## SavedVariables: WowSyncDB, WowSyncDebugDB
 
 Libs\LibStub\LibStub.lua
 
@@ -28,6 +28,7 @@ Core\BoundedList.lua
 Core\FrameTask.lua
 Core\Modules\ModuleInterface.lua
 Core\Modules\ModuleRegistry.lua
+Core\Development\Debugger.lua
 
 Locales\enUS.lua
 

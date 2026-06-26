@@ -103,6 +103,15 @@ function Keybindings:GetWatchedEvents()
     return { "UPDATE_BINDINGS" }
 end
 
+-- The live bindings and which binding set is active, so the debug log can show
+-- exactly which keys were bound before and after a sync.
+function Keybindings:GetDebugState()
+    return {
+        BindingSet = GetCurrentBindingSet(),
+        Bindings = self:Capture(),
+    }
+end
+
 --[[ Registration ]]
 
 function Keybindings:OnInitialized()

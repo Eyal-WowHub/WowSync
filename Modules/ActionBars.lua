@@ -329,6 +329,94 @@ function ActionBars:GetWatchedEvents()
     return { "ACTIONBAR_SLOT_CHANGED", "PLAYER_SPECIALIZATION_CHANGED" }
 end
 
+-- Order slots by real slot ID, then by spec, so a live render and a stored
+-- render line up entry for entry.
+local function SortSlots(slots)
+    table.sort(slots, function(a, b)
+        if a.Slot ~= b.Slot then
+            return a.Slot < b.Slot
+        end
+        return (a.Spec or 0) < (b.Spec or 0)
+    end)
+    return slots
+end
+
+-- The live action-slot layout as a flat, ordered list with each slot's real ID,
+-- plus the spec and paging context that decide which slots are showing. Reading
+-- it raw exposes any mismatch between what a snapshot stored and what landed.
+function ActionBars:GetDebugState()
+    local specID = GetSpecializationInfo(GetSpecialization())
+    local slots = {}
+
+    local function record(slotID, slotSpecID)
+        local slotInfo = GetSlotInfo(slotID)
+        if slotInfo then
+            tinsert(slots, {
+                Slot = slotID,
+                Spec = slotSpecID,
+                Type = slotInfo.type,
+                Id = slotInfo.id,
+                SubType = slotInfo.subType,
+                Name = ActionLabel({ info = slotInfo }),
+            })
+        end
+    end
+
+    for _, range in ipairs(SHARED_SLOT_RANGES) do
+        for slotID = range[1], range[2] do
+            record(slotID)
+        end
+    end
+    for slotID = SPEC_SLOTS[1], SPEC_SLOTS[2] do
+        record(slotID, specID)
+    end
+
+    SortSlots(slots)
+
+    return {
+        Slots = slots,
+        SpecID = specID,
+        ShapeshiftForm = GetShapeshiftForm(),
+        BonusBarOffset = GetBonusBarOffset(),
+        ActionBarPage = GetActionBarPage(),
+    }
+end
+
+-- Render a stored capture payload into the same flat, ordered shape as GetDebugState(),
+-- so a saved or applied payload compares slot for slot against live state. A
+-- sparse-key shift from serialization shows up here as wrong slot IDs.
+function ActionBars:RenderDebugPayload(capturedData)
+    local slots = {}
+
+    local function record(slotID, slotInfo, specID)
+        tinsert(slots, {
+            Slot = slotID,
+            Spec = specID,
+            Type = slotInfo.type,
+            Id = slotInfo.id,
+            SubType = slotInfo.subType,
+            Name = ActionLabel({ info = slotInfo }),
+        })
+    end
+
+    if capturedData and capturedData.Shared then
+        for slotID, slotInfo in pairs(capturedData.Shared) do
+            record(slotID, slotInfo)
+        end
+    end
+    if capturedData and capturedData.Specs then
+        for specID, specSlots in pairs(capturedData.Specs) do
+            for slotID, slotInfo in pairs(specSlots) do
+                record(slotID, slotInfo, specID)
+            end
+        end
+    end
+
+    SortSlots(slots)
+
+    return { Slots = slots }
+end
+
 --[[ Registration ]]
 
 function ActionBars:OnInitialized()

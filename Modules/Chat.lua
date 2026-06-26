@@ -270,6 +270,27 @@ function Chat:GetWatchedEvents()
     return { "UPDATE_CHAT_WINDOWS", "UPDATE_FLOATING_CHAT_WINDOWS", "UPDATE_CHAT_COLOR" }
 end
 
+-- The live chat-window layout (name, size, visibility, dock state) per frame,
+-- so the debug log shows how the chat tabs looked before and after a sync.
+function Chat:GetDebugState()
+    local windows = {}
+    for i = 1, NUM_CHAT_WINDOWS do
+        local name, fontSize, _, _, _, _, shown, locked, docked = GetChatWindowInfo(i)
+        if name and name ~= "" then
+            tinsert(windows, {
+                Index = i,
+                Name = name,
+                FontSize = fontSize,
+                Shown = shown,
+                Locked = locked,
+                Docked = docked ~= nil,
+                DockOrder = docked,
+            })
+        end
+    end
+    return { Windows = windows }
+end
+
 --[[ Registration ]]
 
 function Chat:OnInitialized()

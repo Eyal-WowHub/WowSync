@@ -431,6 +431,29 @@ function Talents:GetWatchedEvents()
     return { "TRAIT_CONFIG_UPDATED", "PLAYER_SPECIALIZATION_CHANGED" }
 end
 
+-- The current spec's live loadouts (name + config ID) and which one is active,
+-- so the debug log shows exactly which loadouts existed before and after a sync.
+function Talents:GetDebugState()
+    local specID = GetSpecializationInfo(GetSpecialization())
+
+    local loadouts = {}
+    local configIDs = specID and C_ClassTalents.GetConfigIDsBySpecID(specID)
+    if configIDs then
+        for _, configID in ipairs(configIDs) do
+            local configInfo = C_Traits.GetConfigInfo(configID)
+            tinsert(loadouts, { ConfigID = configID, Name = configInfo and configInfo.name })
+        end
+    end
+
+    return {
+        SpecID = specID,
+        ActiveConfigID = C_ClassTalents.GetActiveConfigID(),
+        LastSelectedConfigID = specID and C_ClassTalents.GetLastSelectedSavedConfigID(specID) or nil,
+        StarterBuildActive = C_ClassTalents.GetHasStarterBuild() and C_ClassTalents.GetStarterBuildActive() or false,
+        Loadouts = loadouts,
+    }
+end
+
 --[[ Registration ]]
 
 function Talents:OnInitialized()

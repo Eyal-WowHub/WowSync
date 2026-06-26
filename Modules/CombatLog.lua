@@ -139,6 +139,16 @@ function CombatLog:CanApply(sourceMetadata)
     return true
 end
 
+-- Whether the load-on-demand combat-log addon is loaded and how many filters it
+-- holds, so the debug log shows the filter state before and after a sync.
+function CombatLog:GetDebugState()
+    local loaded = IsBlizzardCombatLogLoaded()
+    return {
+        Loaded = loaded,
+        FilterCount = (loaded and Blizzard_CombatLog_Filters) and #Blizzard_CombatLog_Filters or 0,
+    }
+end
+
 --[[ Registration ]]
 
 function CombatLog:OnInitialized()

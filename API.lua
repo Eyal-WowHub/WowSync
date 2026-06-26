@@ -7,6 +7,7 @@ local ModuleRegistry = addon:GetObject("ModuleRegistry")
 local SnapshotView = addon:GetObject("SnapshotView")
 local SnapshotHandleCache = addon:GetObject("SnapshotHandleCache")
 local GameWatcher = addon:GetObject("GameWatcher")
+local Debugger = addon:GetObject("Debugger")
 
 local L = addon.L
 
@@ -61,6 +62,12 @@ end
 -- True while at least one consumer is attached.
 function WowSync:HasAttachments()
     return GameWatcher:HasAttachments()
+end
+
+-- The opt-in debug recorder, for tagging an action's source and logging UI
+-- interactions into WowSyncDebugDB.
+function WowSync:GetDebugger()
+    return Debugger
 end
 
 --[[ Addon entry points ]]

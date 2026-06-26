@@ -160,6 +160,28 @@ function Macros:GetWatchedEvents()
     return { "UPDATE_MACROS" }
 end
 
+-- The live macro names per scope, so the debug log shows which macros existed
+-- before and after a sync without dumping every macro body.
+function Macros:GetDebugState()
+    local function names(startIndex, endIndex)
+        local list = {}
+        for i = startIndex, endIndex do
+            local name = GetMacroInfo(i)
+            if name then
+                tinsert(list, { Index = i, Name = name })
+            end
+        end
+        return list
+    end
+
+    local numAccount, numCharacter = GetNumMacros()
+    return {
+        Counts = { Account = numAccount, Character = numCharacter },
+        Account = names(1, MAX_ACCOUNT_MACROS),
+        Character = names(MAX_ACCOUNT_MACROS + 1, MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS),
+    }
+end
+
 --[[ Registration ]]
 
 function Macros:OnInitialized()

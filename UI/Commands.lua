@@ -5,6 +5,7 @@ local SnapshotManager = addon:GetObject("SnapshotManager")
 local CharacterManager = addon:GetObject("CharacterManager")
 local GameWatcher = addon:GetObject("GameWatcher")
 local Snapshot = addon:GetObject("Snapshot")
+local Debugger = addon:GetObject("Debugger")
 
 local L = addon.L
 
@@ -68,6 +69,12 @@ function Commands:OnInitialized()
         if command == "" then
             WowSync:ToggleUI()
             return
+        end
+
+        -- Trace every command except the debug toggle itself, and attribute any
+        -- apply/undo it triggers to the command line.
+        if command ~= "debug" and Debugger:IsEnabled() then
+            Debugger:RecordCommand({ Command = strtrim(input or "") })
         end
 
         if command == "save" then
@@ -230,6 +237,23 @@ function Commands:OnInitialized()
             else
                 WowSync:Print(L["Usage: X"]:format("/ws reset database|db"))
             end
+        elseif command == "debug" then
+            local debugMode = (arg or ""):lower()
+            if debugMode == "on" then
+                Debugger:SetEnabled(true)
+                WowSync:Print(L["Debug logging is on. It persists across sessions until you turn it off."])
+            elseif debugMode == "off" then
+                Debugger:SetEnabled(false)
+                WowSync:Print(L["Debug logging is off. The debug log has been cleared."])
+            elseif debugMode == "" or debugMode == "status" then
+                if Debugger:IsEnabled() then
+                    WowSync:Print(L["Debug logging is on (X events recorded)."]:format(Debugger:GetEventCount()))
+                else
+                    WowSync:Print(L["Debug logging is off."])
+                end
+            else
+                WowSync:Print(L["Usage: X"]:format("/ws debug on|off"))
+            end
         elseif command == "help" then
             WowSync:Print(L["Usage: (X and Y are interchangeable)"]:format("/ws", "/wowsync"))
             WowSync:Print(L["  X - Y"]:format("/ws", L["Open or close the WowSync UI window"]))
@@ -240,6 +264,7 @@ function Commands:OnInitialized()
             WowSync:Print(L["  X - Y"]:format("/ws list [name]", L["List all saved profiles, or list one profile's snapshots"]))
             WowSync:Print(L["  X - Y"]:format("/ws watcher off|lazy", L["Track your setup live on demand, or turn tracking off entirely (lazy by default)"]))
             WowSync:Print(L["  X - Y"]:format("/ws reset database|db", L["Delete all saved profiles and snapshots, while keeping your settings"]))
+            WowSync:Print(L["  X - Y"]:format("/ws debug on|off", L["Record detailed debug data to WowSyncDebugDB (off clears it)"]))
             WowSync:Print(L["  X - Y"]:format("/ws help", L["Show the command list"]))
         else
             WowSync:Print(L["Unknown command. Type X."]:format("/ws help"))

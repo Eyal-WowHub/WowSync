@@ -133,6 +133,14 @@ function Addons:CanApply(sourceMetadata)
     return true
 end
 
+-- The user addons currently enabled for this character, so the debug log shows
+-- which addons were on before and after a sync.
+function Addons:GetDebugState()
+    return {
+        Enabled = self:Capture().Enabled,
+    }
+end
+
 --[[ Registration ]]
 
 function Addons:OnInitialized()

@@ -30,6 +30,7 @@ local Snapshot = addon:GetObject("Snapshot")
 local Differ = addon:GetObject("Differ")
 local GameWatcher = addon:GetObject("GameWatcher")
 local SaveTask = addon:GetObject("SaveTask")
+local Debugger = addon:GetObject("Debugger")
 
 function SnapshotManager:OnInitialized()
     -- Finish any in-flight sliced save before SavedVariables is written, so an
@@ -98,7 +99,7 @@ end
 -- rolled back), then apply the given module set with the per-module strategy.
 -- The rollback snapshot is only pushed to the undo stack when an apply actually
 -- happens. Returns an ApplyResult.
-local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet)
+local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, info)
     -- Finish any in-flight save first so it cannot capture a half-applied setup.
     SaveTask:Drain()
 
@@ -111,6 +112,12 @@ local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet)
     local moduleNames = ResolveModuleNames(sourceModules, moduleSet)
     local applyResults = {}
     local applied = false
+
+    local debugHandle = Debugger:IsEnabled() and Debugger:BeginOperation("apply", {
+        Profile = info and info.Profile,
+        Selector = info and info.Selector,
+        Strategy = strategy,
+    }, moduleNames)
 
     -- Don't let our own writes echo back in as if the player made them.
     GameWatcher:SuspendTracking()
@@ -142,6 +149,9 @@ local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet)
     end
 
     GameWatcher:ResumeTracking()
+    if Debugger:IsEnabled() then
+        Debugger:EndOperation(debugHandle, sourceModules, applyResults)
+    end
 
     return ApplyResult:New(applyResults)
 end
@@ -219,7 +229,15 @@ function SnapshotManager:SaveCurrentSnapshot(note, moduleSet, onComplete)
         local snapshot = Snapshot:New(snapshotModules, BuildCurrentSource())
         snapshot.Notes = note
 
-        return ProfileStore:AddSnapshot(profileName, snapshot)
+        local stored = ProfileStore:AddSnapshot(profileName, snapshot)
+        if Debugger:IsEnabled() then
+            Debugger:RecordSave({
+                Profile = profileName,
+                Hash = snapshot.Hash,
+                Selector = stored and stored.Index,
+            }, snapshotModules)
+        end
+        return stored
     end, onComplete)
 end
 
@@ -257,7 +275,15 @@ function SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, onCompl
         })
         snapshot.Notes = note
 
-        return ProfileStore:AddSnapshot(charKey, snapshot)
+        local stored = ProfileStore:AddSnapshot(charKey, snapshot)
+        if Debugger:IsEnabled() then
+            Debugger:RecordSave({
+                Profile = charKey,
+                Hash = snapshot.Hash,
+                Selector = stored and stored.Index,
+            }, snapshotModules)
+        end
+        return stored
     end, onComplete)
 end
 
@@ -312,7 +338,10 @@ function SnapshotManager:ApplySnapshot(profileName, selector, strategy, moduleSe
     end
     C:Ensures(snapshot, "ApplySnapshot: profile '%s' has no snapshot to apply", profileName)
 
-    return ApplyCapturedModules(Snapshot:GetModules(snapshot), BuildApplyMeta(snapshot), strategy, moduleSet)
+    return ApplyCapturedModules(Snapshot:GetModules(snapshot), BuildApplyMeta(snapshot), strategy, moduleSet, {
+        Profile = profileName,
+        Selector = selector,
+    })
 end
 
 -- Apply a character's current setup (its head) to the logged-in character. Like
@@ -326,7 +355,7 @@ function SnapshotManager:ApplyHeadByCharKey(charKey, strategy, moduleSet)
 
     local characterMetadata = CurrentStore:GetMetadata(charKey)
     local applyMeta = { ClassID = characterMetadata and characterMetadata.ClassID }
-    return ApplyCapturedModules(sourceModules, applyMeta, strategy, moduleSet)
+    return ApplyCapturedModules(sourceModules, applyMeta, strategy, moduleSet, { Profile = charKey })
 end
 
 --[[ Undo ]]
@@ -388,6 +417,10 @@ function SnapshotManager:UndoLastApply(moduleSet)
     local moduleNames = ResolveModuleNames(rollbackModules, moduleSet)
     local applyResults = {}
 
+    local debugHandle = Debugger:IsEnabled() and Debugger:BeginOperation("undo", {
+        Subject = Snapshot:GetSubject(rollbackSnapshot),
+    }, moduleNames)
+
     GameWatcher:SuspendTracking()
 
     for name in pairs(moduleNames) do
@@ -407,6 +440,9 @@ function SnapshotManager:UndoLastApply(moduleSet)
     UndoStore:Pop()
     CurrentStore:Capture()
     GameWatcher:ResumeTracking()
+    if Debugger:IsEnabled() then
+        Debugger:EndOperation(debugHandle, rollbackModules, applyResults)
+    end
     return ApplyResult:New(applyResults)
 end
 

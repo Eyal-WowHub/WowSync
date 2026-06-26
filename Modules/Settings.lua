@@ -110,6 +110,16 @@ function Settings:GetWatchedEvents()
     return { "CVAR_UPDATE" }
 end
 
+-- The current value of each tracked CVar, so the debug log shows which settings
+-- changed before and after a sync.
+function Settings:GetDebugState()
+    local values = {}
+    for _, cvar in ipairs(TRACKED_CVARS) do
+        values[cvar] = C_CVar.GetCVar(cvar)
+    end
+    return { CVars = values }
+end
+
 --[[ Registration ]]
 
 function Settings:OnInitialized()

@@ -61,6 +61,22 @@ local ModuleInterface = addon:NewObject("ModuleInterface")
         when one fires. Modules with no live trigger omit it. Called by
         GameWatcher.
 
+    GetDebugState() -> table
+        Read this module's live state into a plain, readable table for the debug
+        log. No side effects. Debugger calls it right before and right after an
+        apply or undo, capturing a "before" and "after" picture of the live game
+        so a developer can see exactly what the operation changed. Omit it on
+        modules not worth tracing.
+
+    RenderDebugPayload(capturedData) -> table
+        Re-express a captured payload (this module's own Capture() output, as
+        stored in a snapshot or passed to Apply) into the same table shape
+        GetDebugState() returns. Capture() may keep data in a compact or
+        reordered form that doesn't read cleanly on its own; this renders it the
+        way the live state reads, so the saved/applied data lines up beside the
+        live before/after in the log and can be compared field for field. Omit
+        it when the captured payload already reads clearly. 
+
     ── Optional fields ───────────────────────────────────────────────────────
 
     Config = { SnapshotApplyMode = <flags> }
@@ -86,6 +102,8 @@ ModuleInterface.OptionalMethods = {
     "Diff",
     "ShouldCapture",
     "GetWatchedEvents",
+    "GetDebugState",
+    "RenderDebugPayload",
 }
 
 -- Non-method members, validated to be of the given type only when present.
