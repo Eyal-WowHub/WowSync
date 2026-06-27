@@ -4,6 +4,7 @@ local ProfileManager = addon:GetObject("ProfileManager")
 local SnapshotManager = addon:GetObject("SnapshotManager")
 local CharacterManager = addon:GetObject("CharacterManager")
 local GameWatcher = addon:GetObject("GameWatcher")
+local SaveTask = addon:GetObject("SaveTask")
 local Snapshot = addon:GetObject("Snapshot")
 local Debugger = addon:GetObject("Debugger")
 
@@ -55,6 +56,83 @@ local function GetResolvedCharacter(token)
         end
     else
         WowSync:Print(L["No character matches 'X'."]:format(token))
+    end
+end
+
+--[[ Status helpers ]]
+
+-- Identity stanza: addon version, database schema revision, and the active
+-- character key.
+local function PrintAddonStatus()
+    local version = C_AddOns.GetAddOnMetadata(addon:GetName(), "Version") or L["unknown"]
+    local schema = (addon.DB and addon.DB.SchemaVersion) or L["unknown"]
+    WowSync:Print(L["[Addon]"])
+    WowSync:Print(L["  Version: X"]:format(tostring(version)))
+    WowSync:Print(L["  Database schema: X"]:format(tostring(schema)))
+    WowSync:Print(L["  Character: X"]:format(SnapshotManager:GetCurrentCharKey()))
+end
+
+-- Profile stanza: stored snapshot count, latest snapshot summary, in-sync flag
+-- against the live head, and the undo stack depth. Fingerprints the live head
+-- to compute the in-sync flag, so this is the heaviest status stanza.
+local function PrintProfileStatus()
+    local charKey = SnapshotManager:GetCurrentCharKey()
+    local profile = ProfileManager:GetProfile(charKey)
+    local snapshots = (profile and profile.Snapshots) or {}
+    local latestSnapshot = snapshots[#snapshots]
+    local headInfo = SnapshotManager:GetCharInfo(charKey)
+
+    WowSync:Print(L["[Profile]"])
+    WowSync:Print(L["  Snapshots: X / Y"]:format(#snapshots, SnapshotManager:GetSnapshotLimit()))
+
+    if latestSnapshot then
+        local shortSelector = ("%s#%s"):format(latestSnapshot.Hash:sub(1, 7), latestSnapshot.Index)
+        WowSync:Print(L["  Latest: X - Y"]:format(shortSelector, Snapshot:GetSubject(latestSnapshot)))
+    else
+        WowSync:Print(L["  Latest: none"])
+    end
+
+    if not headInfo then
+        WowSync:Print(L["  In sync: no captured state"])
+    elseif latestSnapshot and headInfo.Hash == latestSnapshot.Hash then
+        WowSync:Print(L["  In sync: yes"])
+    else
+        WowSync:Print(L["  In sync: no"])
+    end
+
+    local undoPoints = SnapshotManager:GetUndoPoints()
+    if #undoPoints == 0 then
+        WowSync:Print(L["  Undo points: 0"])
+    else
+        WowSync:Print(L["  Undo points: X (top: Y)"]:format(#undoPoints, undoPoints[1].Subject or L["Unknown"]))
+    end
+end
+
+-- Watcher stanza: configured tracking mode (qualified active/idle for lazy)
+-- and the save task's current state.
+local function PrintWatcherStatus()
+    local mode = GameWatcher:GetTrackingMode()
+    local modeText
+    if mode == "off" then
+        modeText = L["off"]
+    elseif GameWatcher:HasAttachments() then
+        modeText = L["lazy (active)"]
+    else
+        modeText = L["lazy (idle)"]
+    end
+
+    WowSync:Print(L["[Watcher]"])
+    WowSync:Print(L["  Mode: X"]:format(modeText))
+    WowSync:Print(L["  Save task: X"]:format(SaveTask:IsRunning() and L["running"] or L["idle"]))
+end
+
+-- Debug stanza: logging on/off and recorded event count.
+local function PrintDebugStatus()
+    WowSync:Print(L["[Debug]"])
+    if Debugger:IsEnabled() then
+        WowSync:Print(L["  Logging: on (X events)"]:format(Debugger:GetEventCount()))
+    else
+        WowSync:Print(L["  Logging: off"])
     end
 end
 
@@ -237,6 +315,24 @@ function Commands:OnInitialized()
             else
                 WowSync:Print(L["Usage: X"]:format("/ws reset database|db"))
             end
+        elseif command == "status" then
+            local group = (arg or ""):lower()
+            if group == "" then
+                PrintAddonStatus()
+                PrintProfileStatus()
+                PrintWatcherStatus()
+                PrintDebugStatus()
+            elseif group == "addon" then
+                PrintAddonStatus()
+            elseif group == "profile" then
+                PrintProfileStatus()
+            elseif group == "watcher" then
+                PrintWatcherStatus()
+            elseif group == "debug" then
+                PrintDebugStatus()
+            else
+                WowSync:Print(L["Usage: X"]:format("/ws status [addon|profile|watcher|debug]"))
+            end
         elseif command == "debug" then
             local debugMode = (arg or ""):lower()
             if debugMode == "on" then
@@ -262,6 +358,7 @@ function Commands:OnInitialized()
             WowSync:Print(L["  X - Y"]:format("/ws undo", L["Undo the last applied snapshot"]))
             WowSync:Print(L["  X - Y"]:format("/ws delete <name>[@hash[#index]]", L["Delete a profile, or delete a specific snapshot by hash"]))
             WowSync:Print(L["  X - Y"]:format("/ws list [name]", L["List all saved profiles, or list one profile's snapshots"]))
+            WowSync:Print(L["  X - Y"]:format("/ws status [addon|profile|watcher|debug]", L["Show what WowSync is currently doing"]))
             WowSync:Print(L["  X - Y"]:format("/ws watcher off|lazy", L["Track your setup live on demand, or turn tracking off entirely (lazy by default)"]))
             WowSync:Print(L["  X - Y"]:format("/ws reset database|db", L["Delete all saved profiles and snapshots, while keeping your settings"]))
             WowSync:Print(L["  X - Y"]:format("/ws debug on|off", L["Record detailed debug data to WowSyncDebugDB (off clears it)"]))
