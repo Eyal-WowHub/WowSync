@@ -159,10 +159,11 @@ end
 --[[ Operations ]]
 
 -- Preview applying the snapshot (optionally a module subset) over the logged-in
--- character's current setup.
+-- character's current setup. For the head this previews the unsaved changes
+-- against the profile's latest snapshot, matching the "unsaved changes" badge.
 function SnapshotView:Preview(handle, moduleSet)
     if handle.isHead then
-        return SnapshotManager:PreviewApplyHeadByCharKey(handle.charKey, moduleSet)
+        return SnapshotManager:PreviewApplySnapshot(handle.charKey, nil, moduleSet)
     end
     return SnapshotManager:PreviewApplySnapshot(handle.charKey, Snapshot:GetSelector(handle.raw), moduleSet)
 end
