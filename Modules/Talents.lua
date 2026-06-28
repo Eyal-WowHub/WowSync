@@ -73,31 +73,6 @@ local function GetLoadoutData(configID, specID)
     }
 end
 
-local function GetPvpTalentsForSpec(specIndex)
-    -- Must be the active spec to query PvP talents
-    if specIndex ~= GetSpecialization() then
-        return nil
-    end
-
-    local talentIDs = C_SpecializationInfo.GetAllSelectedPvpTalentIDs()
-    if not talentIDs or #talentIDs == 0 then
-        return nil
-    end
-
-    local pvpTalents = {}
-    for _, talentID in ipairs(talentIDs) do
-        if talentID and talentID > 0 then
-            local _, name = GetPvpTalentInfoByID(talentID)
-            tinsert(pvpTalents, {
-                TalentID = talentID,
-                Name = name,
-            })
-        end
-    end
-
-    return #pvpTalents > 0 and pvpTalents or nil
-end
-
 --[[ Import Helpers ]]
 
 local function ReadLoadoutHeader(importStream)
@@ -289,7 +264,6 @@ function Talents:Capture()
         local specEntry = {
             Loadouts = {},
             ActiveLoadoutConfigID = C_ClassTalents.GetLastSelectedSavedConfigID(specID),
-            PvpTalents = GetPvpTalentsForSpec(specIndex),
         }
 
         local configIDs = C_ClassTalents.GetConfigIDsBySpecID(specID)
@@ -307,7 +281,7 @@ function Talents:Capture()
             end
         end
 
-        if #specEntry.Loadouts > 0 or specEntry.PvpTalents then
+        if #specEntry.Loadouts > 0 then
             capturedData.Specs[specID] = specEntry
         end
     end
@@ -377,15 +351,6 @@ function Talents:Apply(capturedData, sourceMetadata)
 
     if importedCount > 0 then
         addon:Print(L["Loadouts created. Open the Talent UI to activate your desired loadout."])
-    end
-
-    -- PvP talents (informational — must be selected manually in the Talent UI)
-    if specEntry.PvpTalents then
-        local pvpTalentNames = {}
-        for _, pvp in ipairs(specEntry.PvpTalents) do
-            tinsert(pvpTalentNames, pvp.Name)
-        end
-        addon:Print(L["PvP Talents to restore: X"]:format(table.concat(pvpTalentNames, ", ")))
     end
 end
 

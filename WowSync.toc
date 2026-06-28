@@ -53,6 +53,7 @@ UI\Commands.lua
 
 Modules\ActionBars.lua
 Modules\Talents.lua
+Modules\PvpTalents.lua
 Modules\Macros.lua
 Modules\Keybindings.lua
 Modules\Chat.lua

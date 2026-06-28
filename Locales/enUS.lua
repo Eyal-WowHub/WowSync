@@ -57,11 +57,13 @@ L["Skipped talent loadout 'X' (a loadout with that name already exists)."] = "Sk
 L[" (was active)"] = " (was active)"
 L["Unknown error"] = "Unknown error"
 L["Loadouts created. Open the Talent UI to activate your desired loadout."] = "Loadouts created. Open the Talent UI to activate your desired loadout."
-L["PvP Talents to restore: X"] = "PvP Talents to restore: %s"
 L["Invalid import string"] = "Invalid import string"
 L["Serialization version mismatch (talent tree format has changed)"] = "Serialization version mismatch (talent tree format has changed)"
 L["Wrong specialization"] = "Wrong specialization"
 L["Talent tree has changed since this profile was saved"] = "Talent tree has changed since this profile was saved"
+
+-- PvP Talents module
+L["PvP talents are class-specific"] = "PvP talents are class-specific"
 
 -- Macros module
 L["X (character)"] = "%s (character)"
