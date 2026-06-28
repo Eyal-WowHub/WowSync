@@ -48,6 +48,15 @@ local function Identity(value)
     return value
 end
 
+-- The addon's author-provided Notes line, shown beneath its name.
+local function AddonNotes(name)
+    local notes = C_AddOns.GetAddOnMetadata(name, "Notes")
+    if notes and notes ~= "" then
+        return notes
+    end
+    return nil
+end
+
 --[[ Module API ]]
 
 function Addons:Capture()
@@ -119,8 +128,8 @@ end
 
 -- Preview of which addons applying this snapshot would enable or disable.
 function Addons:Diff(currentData, snapshotData)
-    local currentSet = HashSet:From(currentData and currentData.Enabled, Identity, Identity)
-    local snapshotSet = HashSet:From(snapshotData and snapshotData.Enabled, Identity, Identity)
+    local currentSet = HashSet:From(currentData and currentData.Enabled, Identity, Identity, nil, AddonNotes)
+    local snapshotSet = HashSet:From(snapshotData and snapshotData.Enabled, Identity, Identity, nil, AddonNotes)
 
     return {
         added = currentSet:Added(snapshotSet),

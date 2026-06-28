@@ -10,7 +10,13 @@ Settings.Config = {
     DefaultIcon = "Interface\\Icons\\Trade_Engineering",
 }
 
-local TRACKED_CVARS = addon.TRACKED_CVARS
+local SETTINGS_CVARS = addon.SETTINGS_CVARS
+
+-- The curated description of each tracked CVar, keyed by name for diff lookup.
+local CVAR_DESCRIPTIONS = {}
+for _, entry in ipairs(SETTINGS_CVARS) do
+    CVAR_DESCRIPTIONS[entry.cvar] = entry.desc
+end
 
 --[[ Helpers ]]
 
@@ -32,7 +38,8 @@ end
 function Settings:Capture()
     local account, character = {}, {}
 
-    for _, cvar in ipairs(TRACKED_CVARS) do
+    for _, entry in ipairs(SETTINGS_CVARS) do
+        local cvar = entry.cvar
         local value = C_CVar.GetCVar(cvar)
         if value then
             -- GetCVarInfo returns: value, defaultValue, isStoredServerAccount,
@@ -88,10 +95,15 @@ local function CVarKey(entry)
     return entry.Name
 end
 
+-- The curated human description of a tracked CVar, or nil when uncurated.
+local function CVarDescription(entry)
+    return CVAR_DESCRIPTIONS[entry.Name]
+end
+
 -- Preview of which CVars applying this snapshot would change.
 function Settings:Diff(currentData, snapshotData)
-    local currentSet = HashSet:From(CVarEntries(currentData), CVarKey, CVarKey)
-    local snapshotSet = HashSet:From(CVarEntries(snapshotData), CVarKey, CVarKey)
+    local currentSet = HashSet:From(CVarEntries(currentData), CVarKey, CVarKey, nil, CVarDescription)
+    local snapshotSet = HashSet:From(CVarEntries(snapshotData), CVarKey, CVarKey, nil, CVarDescription)
 
     return {
         added = currentSet:Added(snapshotSet),
@@ -115,7 +127,8 @@ end
 -- changed before and after a sync.
 function Settings:GetDebugState()
     local values = {}
-    for _, cvar in ipairs(TRACKED_CVARS) do
+    for _, entry in ipairs(SETTINGS_CVARS) do
+        local cvar = entry.cvar
         values[cvar] = C_CVar.GetCVar(cvar)
     end
     return { CVars = values }

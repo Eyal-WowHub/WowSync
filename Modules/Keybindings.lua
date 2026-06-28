@@ -30,6 +30,15 @@ local function BindingLabel(binding)
     return _G["BINDING_NAME_" .. binding.Command] or binding.Command
 end
 
+-- The key(s) currently assigned to a binding, shown beneath its name.
+local function BindingDescription(binding)
+    local keys = {}
+    if binding.Key1 then tinsert(keys, binding.Key1) end
+    if binding.Key2 then tinsert(keys, binding.Key2) end
+    if #keys == 0 then return nil end
+    return table.concat(keys, ", ")
+end
+
 --[[ Module API ]]
 
 function Keybindings:Capture()
@@ -85,8 +94,8 @@ end
 
 -- Preview of what applying these bindings would change.
 function Keybindings:Diff(currentData, snapshotData)
-    local currentSet = HashSet:From(BindingEntries(currentData), BindingKey, BindingLabel)
-    local snapshotSet = HashSet:From(BindingEntries(snapshotData), BindingKey, BindingLabel)
+    local currentSet = HashSet:From(BindingEntries(currentData), BindingKey, BindingLabel, nil, BindingDescription)
+    local snapshotSet = HashSet:From(BindingEntries(snapshotData), BindingKey, BindingLabel, nil, BindingDescription)
 
     return {
         added = currentSet:Added(snapshotSet),

@@ -18,6 +18,7 @@ Libs\CharacterInfo\CharacterInfo.lua
 Main.lua
 
 Core\Constants.lua
+Core\SettingsCVars.lua
 Core\Colorizer.lua
 Core\Hash.lua
 Core\Codec.lua

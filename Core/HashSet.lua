@@ -32,15 +32,17 @@ local function SortByLabel(a, b)
     return a.label < b.label
 end
 
--- A preview entry handed to consumers: the human label plus an optional icon.
+-- A preview entry handed to consumers: the human label plus an optional icon
+-- and an optional one-line description.
 local function PreviewEntry(setEntry)
-    return { label = setEntry.label, icon = setEntry.icon }
+    return { label = setEntry.label, icon = setEntry.icon, description = setEntry.description }
 end
 
 -- Build a set from an entry list. keyOf(entry) -> unique key (nil entries skipped);
 -- labelOf(entry) -> human label (defaults to the key); iconOf(entry) -> optional
--- icon texture, or nil when the entry has none.
-function HashSet:From(entryList, keyOf, labelOf, iconOf)
+-- icon texture, or nil when the entry has none; descriptionOf(entry) -> optional
+-- one-line description shown beneath the label, or nil when the entry has none.
+function HashSet:From(entryList, keyOf, labelOf, iconOf, descriptionOf)
     local entries = {}
 
     for _, entry in ipairs(entryList or {}) do
@@ -50,6 +52,7 @@ function HashSet:From(entryList, keyOf, labelOf, iconOf)
                 hash = Hash:Create(entry),
                 label = labelOf and labelOf(entry) or tostring(key),
                 icon = iconOf and iconOf(entry) or nil,
+                description = descriptionOf and descriptionOf(entry) or nil,
             }
         end
     end

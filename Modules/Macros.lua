@@ -76,6 +76,18 @@ local function MacroIcon(macro)
     return macro.Icon
 end
 
+-- The first non-empty line of a macro's body, shown beneath its name.
+local function MacroDescription(macro)
+    if not macro.Body then return nil end
+    for line in macro.Body:gmatch("[^\r\n]+") do
+        local trimmed = line:match("^%s*(.-)%s*$")
+        if trimmed ~= "" then
+            return trimmed
+        end
+    end
+    return nil
+end
+
 --[[ Module API ]]
 
 function Macros:Capture()
@@ -146,8 +158,8 @@ function Macros:Diff(currentData, snapshotData)
     }
 
     for _, scope in ipairs(scopes) do
-        local currentSet = HashSet:From(currentData[scope.field], MacroKey, scope.labelOf, MacroIcon)
-        local snapshotSet = HashSet:From(snapshotData[scope.field], MacroKey, scope.labelOf, MacroIcon)
+        local currentSet = HashSet:From(currentData[scope.field], MacroKey, scope.labelOf, MacroIcon, MacroDescription)
+        local snapshotSet = HashSet:From(snapshotData[scope.field], MacroKey, scope.labelOf, MacroIcon, MacroDescription)
         AppendEntries(added, currentSet:Added(snapshotSet))
         AppendEntries(changed, currentSet:Changed(snapshotSet))
         AppendEntries(removed, currentSet:Removed(snapshotSet))
