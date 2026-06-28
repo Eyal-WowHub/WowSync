@@ -8,6 +8,7 @@ local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Chat.Config = {
     SnapshotApplyMode = SnapshotApplyMode.All,
+    DefaultIcon = "Interface\\Icons\\UI_Chat",
 }
 
 local NUM_CHAT_WINDOWS = NUM_CHAT_WINDOWS or 10

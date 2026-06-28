@@ -7,6 +7,7 @@ local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Settings.Config = {
     SnapshotApplyMode = SnapshotApplyMode.Merge,
+    DefaultIcon = "Interface\\Icons\\Trade_Engineering",
 }
 
 local TRACKED_CVARS = addon.TRACKED_CVARS

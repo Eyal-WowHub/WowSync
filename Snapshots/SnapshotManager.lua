@@ -182,6 +182,14 @@ function SnapshotManager:GetModuleApplyMode(name)
     return module and module.Config and module.Config.SnapshotApplyMode or SnapshotApplyMode.None
 end
 
+-- The fallback icon a module supplies for entries that carry none of their own,
+-- giving each module a visual identity in the diff preview. Nil when unset.
+function SnapshotManager:GetModuleDefaultIcon(name)
+    C:IsString(name, 2)
+    local module = ModuleRegistry:Get(name)
+    return module and module.Config and module.Config.DefaultIcon or nil
+end
+
 --[[ Current ]]
 
 -- Re-capture the logged-in character's live setup; returns the captured modules.

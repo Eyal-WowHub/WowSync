@@ -80,7 +80,8 @@ local ModuleInterface = addon:NewObject("ModuleInterface")
 
     ── Optional fields ───────────────────────────────────────────────────────
 
-    Config = { SnapshotApplyMode = <flags>, ApplyPriority = <number> }
+    Config = { SnapshotApplyMode = <flags>, ApplyPriority = <number>,
+               DefaultIcon = <texture> }
         Static, declarative settings for the module. A table field, not a method.
 
         SnapshotApplyMode declares supported apply modes (Merge, or All =
@@ -91,6 +92,10 @@ local ModuleInterface = addon:NewObject("ModuleInterface")
         so modules others reference (Macros, Talents) precede the modules
         pointing at them (ActionBars, Keybindings). Modules that omit it apply
         after the explicitly-ordered ones, in stable name order.
+
+        DefaultIcon is the fallback icon shown in the diff preview for entries
+        that carry no icon of their own, giving the module a visual identity.
+        Omit it to leave such entries without an icon.
 
     Lifecycle note: OnInitialized() is an Addon-1.0 hook, not part of this
     contract; every module uses it to call ModuleRegistry:Register(self).
