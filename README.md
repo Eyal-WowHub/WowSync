@@ -72,11 +72,16 @@ Anything that could interfere during combat (such as action bars) waits until yo
 | `/ws undo` | Undo the last applied snapshot. |
 | `/ws delete <name>[@hash[#index]]` | Delete a profile, or delete a specific snapshot by hash. |
 | `/ws list [name]` | List all saved profiles, or list one profile's snapshots. |
+| `/ws status [addon\|profile\|watcher\|debug]` | Show what WowSync is currently doing. |
 | `/ws watcher off\|lazy` | Track your setup live on demand, or turn tracking off entirely (lazy by default). |
 | `/ws reset database\|db` | Delete all saved profiles and snapshots, while keeping your settings. |
+| `/ws debug on\|off` | Record detailed debug data to WowSyncDebugDB (off clears it). |
 | `/ws help` | Show the command list. |
 
 When targeting a specific snapshot, `@hash` accepts the short hash shown by `/ws list <name>`. As with Git, any unambiguous prefix works; if two snapshots share the same hash, add `#index` (for example `@a1b2#3`) to pick exactly one.
+
+`/ws debug` is a diagnostic aid for bug reports, not part of everyday use. **What** it does: while on, WowSync records detailed internal events (commands, saves, and UI actions) to its `WowSyncDebugDB` saved-variables file. **Why** you'd use it: if something misbehaves, turning it on captures exactly what the addon did so the log can be shared when reporting an issue. **How** to use it: run `/ws debug on`, reproduce the problem, then reload or log out so the events are written to `WowSyncDebugDB.lua` in your account's `SavedVariables` folder — that file is what you attach to a bug report. Use `/ws status debug` to confirm recording is on and how many events have been captured. Logging persists across sessions until you run `/ws debug off`, which stops recording and clears the log.
+
 
 ## Undo
 
