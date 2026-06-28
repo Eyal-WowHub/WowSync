@@ -398,7 +398,7 @@ local function FlattenLoadouts(capturedData)
     local specEntry = specID and capturedData and capturedData.Specs and capturedData.Specs[specID]
     if specEntry then
         for _, loadout in ipairs(specEntry.Loadouts or {}) do
-            tinsert(loadoutEntries, { Name = loadout.Name, ExportString = loadout.ExportString })
+            tinsert(loadoutEntries, { Name = loadout.Name, ExportString = loadout.ExportString, SpecID = specID })
         end
     end
     return loadoutEntries
@@ -408,10 +408,15 @@ local function LoadoutKey(loadout)
     return loadout.Name
 end
 
+-- The icon of the specialization a loadout belongs to, for diff previews.
+local function LoadoutIcon(loadout)
+    return select(4, GetSpecializationInfoByID(loadout.SpecID))
+end
+
 -- Preview of which talent loadouts applying this snapshot would change.
 function Talents:Diff(currentData, snapshotData)
-    local currentSet = HashSet:From(FlattenLoadouts(currentData), LoadoutKey, LoadoutKey)
-    local snapshotSet = HashSet:From(FlattenLoadouts(snapshotData), LoadoutKey, LoadoutKey)
+    local currentSet = HashSet:From(FlattenLoadouts(currentData), LoadoutKey, LoadoutKey, LoadoutIcon)
+    local snapshotSet = HashSet:From(FlattenLoadouts(snapshotData), LoadoutKey, LoadoutKey, LoadoutIcon)
 
     return {
         added = currentSet:Added(snapshotSet),
