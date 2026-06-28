@@ -27,3 +27,9 @@ function addon:Print(msg)
     local prefix = addon.Colorizer:ToAccent(addon:GetName()) .. ": "
     DEFAULT_CHAT_FRAME:AddMessage(prefix .. msg)
 end
+
+-- Prints a chat message with no addon-name prefix, for continuation lines that
+-- belong under a preceding prefixed line.
+function addon:PrintLine(msg)
+    DEFAULT_CHAT_FRAME:AddMessage(msg)
+end

@@ -75,6 +75,9 @@ end
 -- Public alias for addon:Print.
 WowSync.Print = addon.Print
 
+-- Public alias for addon:PrintLine.
+WowSync.PrintLine = addon.PrintLine
+
 -- Loads the companion UI addon on demand, then fires WOWSYNC_UI_TOGGLED so the
 -- UI can open or toggle its window.
 function WowSync:ToggleUI()

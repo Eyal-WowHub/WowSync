@@ -67,9 +67,9 @@ local function PrintAddonStatus()
     local version = C_AddOns.GetAddOnMetadata(addon:GetName(), "Version") or L["unknown"]
     local schema = (addon.DB and addon.DB.SchemaVersion) or L["unknown"]
     WowSync:Print(L["[Addon]"])
-    WowSync:Print(L["  Version: X"]:format(tostring(version)))
-    WowSync:Print(L["  Database schema: X"]:format(tostring(schema)))
-    WowSync:Print(L["  Character: X"]:format(SnapshotManager:GetCurrentCharKey()))
+    WowSync:PrintLine(L["  Version: X"]:format(tostring(version)))
+    WowSync:PrintLine(L["  Database schema: X"]:format(tostring(schema)))
+    WowSync:PrintLine(L["  Character: X"]:format(SnapshotManager:GetCurrentCharKey()))
 end
 
 -- Profile stanza: stored snapshot count, latest snapshot summary, in-sync flag
@@ -83,28 +83,28 @@ local function PrintProfileStatus()
     local headInfo = SnapshotManager:GetCharInfo(charKey)
 
     WowSync:Print(L["[Profile]"])
-    WowSync:Print(L["  Snapshots: X / Y"]:format(#snapshots, SnapshotManager:GetSnapshotLimit()))
+    WowSync:PrintLine(L["  Snapshots: X / Y"]:format(#snapshots, SnapshotManager:GetSnapshotLimit()))
 
     if latestSnapshot then
         local shortSelector = ("%s#%s"):format(latestSnapshot.Hash:sub(1, 7), latestSnapshot.Index)
-        WowSync:Print(L["  Latest: X - Y"]:format(shortSelector, Snapshot:GetSubject(latestSnapshot)))
+        WowSync:PrintLine(L["  Latest: X - Y"]:format(shortSelector, Snapshot:GetSubject(latestSnapshot)))
     else
-        WowSync:Print(L["  Latest: none"])
+        WowSync:PrintLine(L["  Latest: none"])
     end
 
     if not headInfo then
-        WowSync:Print(L["  In sync: no captured state"])
+        WowSync:PrintLine(L["  In sync: no captured state"])
     elseif latestSnapshot and headInfo.Hash == latestSnapshot.Hash then
-        WowSync:Print(L["  In sync: yes"])
+        WowSync:PrintLine(L["  In sync: yes"])
     else
-        WowSync:Print(L["  In sync: no"])
+        WowSync:PrintLine(L["  In sync: no"])
     end
 
     local undoPoints = SnapshotManager:GetUndoPoints()
     if #undoPoints == 0 then
-        WowSync:Print(L["  Undo points: 0"])
+        WowSync:PrintLine(L["  Undo points: 0"])
     else
-        WowSync:Print(L["  Undo points: X (top: Y)"]:format(#undoPoints, undoPoints[1].Subject or L["Unknown"]))
+        WowSync:PrintLine(L["  Undo points: X (top: Y)"]:format(#undoPoints, undoPoints[1].Subject or L["Unknown"]))
     end
 end
 
@@ -122,17 +122,17 @@ local function PrintWatcherStatus()
     end
 
     WowSync:Print(L["[Watcher]"])
-    WowSync:Print(L["  Mode: X"]:format(modeText))
-    WowSync:Print(L["  Save task: X"]:format(SaveTask:IsRunning() and L["running"] or L["idle"]))
+    WowSync:PrintLine(L["  Mode: X"]:format(modeText))
+    WowSync:PrintLine(L["  Save task: X"]:format(SaveTask:IsRunning() and L["running"] or L["idle"]))
 end
 
 -- Debug stanza: logging on/off and recorded event count.
 local function PrintDebugStatus()
     WowSync:Print(L["[Debug]"])
     if Debugger:IsEnabled() then
-        WowSync:Print(L["  Logging: on (X events)"]:format(Debugger:GetEventCount()))
+        WowSync:PrintLine(L["  Logging: on (X events)"]:format(Debugger:GetEventCount()))
     else
-        WowSync:Print(L["  Logging: off"])
+        WowSync:PrintLine(L["  Logging: off"])
     end
 end
 
