@@ -261,7 +261,9 @@ local function ActionLabel(entry)
     elseif slotInfo.type == "item" then
         return (C_Item.GetItemNameByID and C_Item.GetItemNameByID(slotInfo.id)) or ("Item " .. tostring(slotInfo.id))
     elseif slotInfo.type == "macro" then
-        return slotInfo.macroName or ("Macro " .. tostring(slotInfo.id))
+        -- No captured name: id is the shown spell/item id for dynamic macros,
+        -- not a macro index, so don't render it as one.
+        return slotInfo.macroName or "Unnamed macro"
     elseif slotInfo.type == "equipmentset" then
         return slotInfo.setName or "Equipment set"
     elseif slotInfo.type == "summonpet" then
