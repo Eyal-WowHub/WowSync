@@ -79,11 +79,17 @@ local ModuleInterface = addon:NewObject("ModuleInterface")
 
     ── Optional fields ───────────────────────────────────────────────────────
 
-    Config = { SnapshotApplyMode = <flags> }
-        Static declaration of supported apply modes (Merge, or All = Merge+Exact).
-        Read by SnapshotManager:GetModuleApplyMode to drive the UI's
-        merge/exact toggle and the `opts.mode` passed to Apply. A table field,
-        not a method.
+    Config = { SnapshotApplyMode = <flags>, ApplyPriority = <number> }
+        Static, declarative settings for the module. A table field, not a method.
+
+        SnapshotApplyMode declares supported apply modes (Merge, or All =
+        Merge+Exact). Read by SnapshotManager:GetModuleApplyMode to drive the
+        UI's merge/exact toggle and the `opts.mode` passed to Apply.
+
+        ApplyPriority orders modules during an apply: lower numbers apply first,
+        so modules others reference (Macros, Talents) precede the modules
+        pointing at them (ActionBars, Keybindings). Omitted modules apply at a
+        default mid priority in stable name order.
 
     Lifecycle note: OnInitialized() is an Addon-1.0 hook, not part of this
     contract; every module uses it to call ModuleRegistry:Register(self).

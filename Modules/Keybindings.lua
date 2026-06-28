@@ -6,6 +6,8 @@ local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Keybindings.Config = {
+    -- Runs after macros so bindings to named macros resolve.
+    ApplyPriority = 60,
     SnapshotApplyMode = SnapshotApplyMode.All,
 }
 

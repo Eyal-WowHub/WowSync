@@ -122,8 +122,9 @@ local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, in
     -- Don't let our own writes echo back in as if the player made them.
     GameWatcher:SuspendTracking()
 
-    for name in pairs(moduleNames) do
-        local module = ModuleRegistry:Get(name)
+    -- Apply in module priority order so dependencies (e.g. Macros) land before
+    -- the modules that reference them (e.g. ActionBars).
+    for name, module in ModuleRegistry:IterableModulesByPriority(moduleNames) do
         local capturedData = sourceModules[name]
 
         if module and capturedData ~= nil then

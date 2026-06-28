@@ -7,6 +7,8 @@ local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Macros.Config = {
+    -- Runs early: bars and bindings resolve macros by name, so they must exist first.
+    ApplyPriority = 10,
     SnapshotApplyMode = SnapshotApplyMode.All,
 }
 

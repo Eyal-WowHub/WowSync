@@ -6,6 +6,9 @@ local C = LibStub("Contracts-1.0")
 
 local registeredModules = {}
 
+-- Apply priority used for modules that don't declare an ApplyPriority.
+local DEFAULT_APPLY_PRIORITY = 100
+
 function ModuleRegistry:Register(module)
     C:IsTable(module, 2)
 
@@ -40,4 +43,43 @@ end
 
 function ModuleRegistry:Iterate()
     return pairs(registeredModules)
+end
+
+-- A module's apply priority (lower applies first), or the default when unset.
+local function ApplyPriorityOf(moduleName)
+    local module = registeredModules[moduleName]
+    return module and module.Config and module.Config.ApplyPriority or DEFAULT_APPLY_PRIORITY
+end
+
+-- The given module names as an array in apply order: ascending ApplyPriority,
+-- ties broken by name so the order is deterministic.
+local function SortByApplyPriority(moduleNames)
+    local ordered = {}
+    for name in pairs(moduleNames) do
+        ordered[#ordered + 1] = name
+    end
+    table.sort(ordered, function(a, b)
+        local priorityA = ApplyPriorityOf(a)
+        local priorityB = ApplyPriorityOf(b)
+        if priorityA ~= priorityB then
+            return priorityA < priorityB
+        end
+        return a < b
+    end)
+    return ordered
+end
+
+-- Iterates the given module names in apply order (ascending ApplyPriority, ties
+-- broken by name), yielding each name and its module.
+function ModuleRegistry:IterableModulesByPriority(moduleNames)
+    local ordered = SortByApplyPriority(moduleNames)
+    local i = 0
+    local n = #ordered
+    return function()
+        i = i + 1
+        if i <= n then
+            local name = ordered[i]
+            return name, registeredModules[name]
+        end
+    end
 end

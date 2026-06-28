@@ -7,6 +7,8 @@ local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Talents.Config = {
+    -- Runs early: bar slots holding talent spells need the talents applied first.
+    ApplyPriority = 20,
     SnapshotApplyMode = SnapshotApplyMode.Merge,
 }
 
