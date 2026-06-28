@@ -1,7 +1,7 @@
 ## Interface: 120007
 
 ## Title: Wow|cff40a5f7Sync|r
-## Notes: Sync your action bars, talents, macros and settings across characters with a single click.
+## Notes: Provides profile sync system for sharing action bars, talents, macros, settings and more across characters.
 ## IconTexture: Interface\AddOns\WowSync\Logo
 ## Version: @project-version@
 ## Author: Eyal Alon
