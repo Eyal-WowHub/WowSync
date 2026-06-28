@@ -88,8 +88,8 @@ local ModuleInterface = addon:NewObject("ModuleInterface")
 
         ApplyPriority orders modules during an apply: lower numbers apply first,
         so modules others reference (Macros, Talents) precede the modules
-        pointing at them (ActionBars, Keybindings). Omitted modules apply at a
-        default mid priority in stable name order.
+        pointing at them (ActionBars, Keybindings). Modules that omit it apply
+        after the explicitly-ordered ones, in stable name order.
 
     Lifecycle note: OnInitialized() is an Addon-1.0 hook, not part of this
     contract; every module uses it to call ModuleRegistry:Register(self).
