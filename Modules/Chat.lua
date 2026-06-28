@@ -111,17 +111,17 @@ local function ConfigureTab(chatFrame, tab)
         chatFrame:SetTimeVisible(tab.FadeTime)
     end
 
-    ChatFrame_RemoveAllMessageGroups(chatFrame)
+    chatFrame:RemoveAllMessageGroups()
     if tab.MessageGroups then
         for _, msgType in ipairs(tab.MessageGroups) do
-            ChatFrame_AddMessageGroup(chatFrame, msgType)
+            chatFrame:AddMessageGroup(msgType)
         end
     end
 
-    ChatFrame_RemoveAllChannels(chatFrame)
+    chatFrame:RemoveAllChannels()
     if tab.Channels then
         for _, channelName in ipairs(tab.Channels) do
-            ChatFrame_AddChannel(chatFrame, channelName)
+            chatFrame:AddChannel(channelName)
         end
     end
 end
