@@ -392,6 +392,23 @@ function SnapshotManager:ApplyHeadByCharKey(charKey, strategy, moduleSet)
     return ApplyCapturedModules(sourceModules, applyMeta, strategy, moduleSet, { Profile = charKey })
 end
 
+-- Apply an imported snapshot to the logged-in character. Like ApplySnapshot, but
+-- the snapshot comes from an import container instead of a profile. A full
+-- rollback snapshot of Current is pushed first.
+function SnapshotManager:ApplyImportSnapshot(snapshot, strategy, moduleSet)
+    C:IsTable(snapshot, 2)
+    return ApplyCapturedModules(Snapshot:GetModules(snapshot), BuildApplyMeta(snapshot), strategy, moduleSet, {
+        Profile = "import",
+    })
+end
+
+-- Preview applying an imported snapshot over the logged-in character's Current.
+function SnapshotManager:PreviewApplyImportSnapshot(snapshot, moduleSet)
+    C:IsTable(snapshot, 2)
+    local currentModules = CurrentStore:Capture()
+    return Differ:Preview(currentModules, Snapshot:GetModules(snapshot), moduleSet)
+end
+
 --[[ Undo ]]
 
 function SnapshotManager:CanUndo()

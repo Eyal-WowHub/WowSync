@@ -50,6 +50,9 @@ Snapshots\SnapshotManager.lua
 Snapshots\SnapshotView.lua
 Snapshots\SnapshotHandleCache.lua
 
+Imports\ImportStore.lua
+Imports\ImportManager.lua
+
 UI\StaticPopupDialogs.lua
 UI\Commands.lua
 

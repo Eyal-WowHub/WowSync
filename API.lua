@@ -2,6 +2,7 @@ local _, addon = ...
 WowSync = addon:NewObject(addon:GetName())
 local ProfileManager = addon:GetObject("ProfileManager")
 local SnapshotManager = addon:GetObject("SnapshotManager")
+local ImportManager = addon:GetObject("ImportManager")
 local CharacterManager = addon:GetObject("CharacterManager")
 local ModuleRegistry = addon:GetObject("ModuleRegistry")
 local SnapshotView = addon:GetObject("SnapshotView")
@@ -24,6 +25,12 @@ end
 -- character's current head.
 function WowSync:GetSnapshotManager()
     return SnapshotManager
+end
+
+-- Exports profile snapshots and heads to portable strings, imports them back
+-- into class-locked containers, and applies imported snapshots.
+function WowSync:GetImportManager()
+    return ImportManager
 end
 
 -- The roster of characters that have a profile or a captured current setup, and
@@ -87,6 +94,18 @@ function WowSync:ToggleUI()
     end
 
     WowSync:TriggerEvent("WOWSYNC_UI_TOGGLED")
+end
+
+-- Loads the companion UI addon on demand, then fires WOWSYNC_UI_OPEN_SHARE_DIALOG
+-- so the UI can open its share dialog; action is "import" or "export". Prints a
+-- notice and does nothing when the UI addon is disabled or missing.
+function WowSync:OpenShareDialog(action)
+    if not C_AddOns.IsAddOnLoaded("WowSync_UI") and not C_AddOns.LoadAddOn("WowSync_UI") then
+        self:Print(L["WowSync_UI is required to import and export. Enable it in your AddOns list."])
+        return
+    end
+
+    WowSync:TriggerEvent("WOWSYNC_UI_OPEN_SHARE_DIALOG", action)
 end
 
 function WowSync_OnAddonCompartmentClick()

@@ -310,6 +310,10 @@ function Commands:OnInitialized()
                     WowSync:Print(L["No saved profiles."])
                 end
             end
+        elseif command == "export" then
+            WowSync:OpenShareDialog("export")
+        elseif command == "import" then
+            WowSync:OpenShareDialog("import")
         elseif command == "watcher" then
             local watcherMode = (arg or ""):lower()
             if watcherMode == "lazy" then
@@ -371,6 +375,8 @@ function Commands:OnInitialized()
             WowSync:Print(L["  X - Y"]:format("/ws undo", L["Undo the last applied snapshot"]))
             WowSync:Print(L["  X - Y"]:format("/ws delete <name>[@hash[#index]]", L["Delete a profile, or delete a specific snapshot by hash"]))
             WowSync:Print(L["  X - Y"]:format("/ws list [name]", L["List all saved profiles, or list one profile's snapshots"]))
+            WowSync:Print(L["  X - Y"]:format("/ws export", L["Open the WowSync_UI window to export a snapshot you can share"]))
+            WowSync:Print(L["  X - Y"]:format("/ws import", L["Open the WowSync_UI window to import a snapshot from a string"]))
             WowSync:Print(L["  X - Y"]:format("/ws status [addon|profile|watcher|debug]", L["Show what WowSync is currently doing"]))
             WowSync:Print(L["  X - Y"]:format("/ws watcher off|lazy", L["Track your setup live on demand, or turn tracking off entirely (lazy by default)"]))
             WowSync:Print(L["  X - Y"]:format("/ws reset database|db", L["Delete all saved profiles and snapshots, while keeping your settings"]))

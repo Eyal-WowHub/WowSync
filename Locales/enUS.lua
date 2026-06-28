@@ -4,6 +4,7 @@ addon.L = L
 
 -- Slash command feedback
 L["WowSync_UI addon not found."] = "WowSync_UI addon not found."
+L["WowSync_UI is required to import and export. Enable it in your AddOns list."] = "WowSync_UI is required to import and export. Enable it in your AddOns list."
 L["Snapshot saved."] = "Snapshot saved."
 L["Could not save. Try again."] = "Could not save. Try again."
 L["A save is already in progress."] = "A save is already in progress."
@@ -86,6 +87,8 @@ L["Apply a profile's latest snapshot, or a specific snapshot by hash (merge by d
 L["Undo the last applied snapshot"] = "Undo the last applied snapshot"
 L["Delete a profile, or delete a specific snapshot by hash"] = "Delete a profile, or delete a specific snapshot by hash"
 L["List all saved profiles, or list one profile's snapshots"] = "List all saved profiles, or list one profile's snapshots"
+L["Open the WowSync_UI window to export a snapshot you can share"] = "Open the WowSync_UI window to export a snapshot you can share"
+L["Open the WowSync_UI window to import a snapshot from a string"] = "Open the WowSync_UI window to import a snapshot from a string"
 L["Show what WowSync is currently doing"] = "Show what WowSync is currently doing"
 L["Track your setup live on demand, or turn tracking off entirely (lazy by default)"] = "Track your setup live on demand, or turn tracking off entirely (lazy by default)"
 L["Delete all saved profiles and snapshots, while keeping your settings"] = "Delete all saved profiles and snapshots, while keeping your settings"

@@ -15,6 +15,8 @@ local DB_DEFAULTS = {
         Watcher = "lazy",
     },
     Profiles = {},
+    Imports = {},
+    ImportSequence = 0,
 }
 
 function addon:OnInitialized()
