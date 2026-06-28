@@ -91,11 +91,6 @@ function PvpTalents:Capture()
 end
 
 function PvpTalents:Apply(capturedData)
-    -- PvP talent selection is locked during combat.
-    if InCombatLockdown() then
-        return
-    end
-
     local specID = GetSpecializationInfo(GetSpecialization())
     local specEntry = specID and capturedData.Specs and capturedData.Specs[specID]
     if not specEntry or not specEntry.Slots then

@@ -160,6 +160,14 @@ function Commands:OnInitialized()
             Debugger:RecordCommand({ Command = strtrim(input or "") })
         end
 
+        -- Changing any saved setup is off-limits in combat, matching the core
+        -- guards that no-op save/apply/undo while locked.
+        if (command == "save" or command == "apply" or command == "undo" or command == "delete")
+            and SnapshotManager:IsCombatLocked() then
+            WowSync:Print(L["You can't do that while in combat."])
+            return
+        end
+
         if command == "save" then
             local note = (arg and arg ~= "") and arg or nil
             local evicted = SnapshotManager:PreviewSaveSnapshotByCharKey(nil)

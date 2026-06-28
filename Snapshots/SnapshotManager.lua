@@ -44,6 +44,15 @@ function SnapshotManager:OnInitialized()
     end)
 end
 
+--[[ Combat ]]
+
+-- True while the live setup must not be touched: the protected talent and
+-- action-bar APIs an apply or undo relies on are locked during combat. Save,
+-- apply and undo all short-circuit while this holds.
+function SnapshotManager:IsCombatLocked()
+    return InCombatLockdown()
+end
+
 --[[ Internal helpers ]]
 
 local function BuildCurrentSource()
@@ -100,6 +109,12 @@ end
 -- The rollback snapshot is only pushed to the undo stack when an apply actually
 -- happens. Returns an ApplyResult.
 local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, info)
+    -- Never change the live setup during combat; the protected talent and
+    -- action-bar APIs are locked. Report nothing applied.
+    if InCombatLockdown() then
+        return ApplyResult:New({})
+    end
+
     -- Finish any in-flight save first so it cannot capture a half-applied setup.
     SaveTask:Drain()
 
@@ -221,6 +236,11 @@ end
 -- WOWSYNC_SAVE_STARTED/FINISHED so the UI can show progress; the stored
 -- snapshot is handed to onComplete.
 function SnapshotManager:SaveCurrentSnapshot(note, moduleSet, onComplete)
+    if InCombatLockdown() then
+        if onComplete then onComplete(nil, "combat") end
+        return
+    end
+
     SaveTask:Run(function()
         local snapshotModules = FilterCapturedModules(CurrentStore:Capture(), moduleSet)
 
@@ -258,6 +278,11 @@ end
 -- onComplete receives the stored snapshot, or nil + a reason ("unknown-character").
 function SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, onComplete)
     C:IsString(charKey, 2)
+
+    if InCombatLockdown() then
+        if onComplete then onComplete(nil, "combat") end
+        return
+    end
 
     SaveTask:Run(function()
         local capturedModules = CurrentStore:Get(charKey)
@@ -405,6 +430,10 @@ end
 -- Roll back the most recent apply by re-applying the top rollback snapshot in
 -- Exact mode (optionally limited to a subset), then pop it off the stack.
 function SnapshotManager:UndoLastApply(moduleSet)
+    if InCombatLockdown() then
+        return nil
+    end
+
     -- Finish any in-flight save first so it cannot capture a half-undone setup.
     SaveTask:Drain()
 
