@@ -67,11 +67,13 @@ local function GetSlotInfo(slotID)
         subType = actionSubType,
     }
 
-    -- For macros, store the name so we can find them on another character
-    -- (macro indices differ per character)
-    if actionType == "macro" and type(actionID) == "number" then
-        local name = GetMacroInfo(actionID)
-        if name then
+    -- For macros, store the slot's macro name so the action can be matched on
+    -- any character. GetActionInfo's id is unreliable here: for dynamic
+    -- #showtooltip macros it is the shown spell/item id, not the macro index,
+    -- so the name is read from the slot itself.
+    if actionType == "macro" then
+        local name = C_ActionBar.GetActionText(slotID)
+        if name and name ~= "" then
             slotInfo.macroName = name
         end
     end
@@ -188,9 +190,12 @@ function ActionBars:PlaceAction(slotID, slotInfo, isSameClass)
     elseif slotInfo.type == "item" then
         C_Item.PickupItem(slotInfo.id)
     elseif slotInfo.type == "macro" then
-        -- Use macro name for cross-character compatibility
-        local macroName = slotInfo.macroName or slotInfo.id
-        local macroIndex = GetMacroIndexByName(macroName)
+        -- Macros are matched by name (indices differ per character); without a
+        -- captured name the macro can't be resolved.
+        if not slotInfo.macroName then
+            return
+        end
+        local macroIndex = GetMacroIndexByName(slotInfo.macroName)
         if macroIndex and macroIndex > 0 then
             PickupMacro(macroIndex)
         else
