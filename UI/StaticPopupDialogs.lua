@@ -1,6 +1,7 @@
 local _, addon = ...
-local L = addon.L
 local ProfileManager = addon:GetObject("ProfileManager")
+
+local L = addon.L
 
 --[[
     Shared StaticPopup dialog definitions.
