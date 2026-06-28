@@ -306,15 +306,65 @@ local function SlotKey(entry)
     return entry.key
 end
 
--- The icon texture for the action in a slot, for diff previews.
-local function ActionIcon(entry)
-    local slotInfo = entry.info
-    if slotInfo.type == "spell" or slotInfo.type == "companion" then
-        return C_Spell.GetSpellTexture(slotInfo.id)
-    elseif slotInfo.type == "item" then
-        return C_Item.GetItemIconByID(slotInfo.id)
+-- The empty action-slot art Blizzard shows on unfilled buttons, used when an
+-- action's own icon can't be resolved so the preview keeps a steady icon column.
+local EMPTY_SLOT_ICON = "Interface\\Buttons\\UI-Quickslot2"
+
+-- The icon for a flyout: its first known slot's spell texture.
+local function FlyoutIcon(flyoutID)
+    local _, _, numSlots, isKnown = GetFlyoutInfo(flyoutID)
+    if not isKnown or not numSlots then
+        return nil
+    end
+    for slotIndex = 1, numSlots do
+        local spellID, _, isSlotKnown = GetFlyoutSlotInfo(flyoutID, slotIndex)
+        if isSlotKnown then
+            local texture = C_Spell.GetSpellTexture(spellID)
+            if texture then
+                return texture
+            end
+        end
     end
     return nil
+end
+
+-- The icon for an equipment set, resolved by its stored name so it works on any
+-- character that has a set with that name.
+local function EquipmentSetIcon(setName)
+    if not setName then
+        return nil
+    end
+    local setID = C_EquipmentSet.GetEquipmentSetID(setName)
+    if not setID then
+        return nil
+    end
+    local _, texture = C_EquipmentSet.GetEquipmentSetInfo(setID)
+    return texture
+end
+
+-- The icon texture for the action in a slot, covering every captured action
+-- type and falling back to the empty-slot placeholder when none resolves.
+local function ActionIcon(entry)
+    local slotInfo = entry.info
+    local texture
+
+    if slotInfo.type == "spell" or slotInfo.type == "companion" then
+        texture = C_Spell.GetSpellTexture(slotInfo.id)
+    elseif slotInfo.type == "item" then
+        texture = C_Item.GetItemIconByID(slotInfo.id)
+    elseif slotInfo.type == "macro" then
+        if slotInfo.macroName then
+            texture = select(2, GetMacroInfo(slotInfo.macroName))
+        end
+    elseif slotInfo.type == "equipmentset" then
+        texture = EquipmentSetIcon(slotInfo.setName)
+    elseif slotInfo.type == "summonpet" then
+        texture = select(9, C_PetJournal.GetPetInfoByPetID(slotInfo.id))
+    elseif slotInfo.type == "flyout" then
+        texture = FlyoutIcon(slotInfo.id)
+    end
+
+    return texture or EMPTY_SLOT_ICON
 end
 
 -- Preview of which action slots applying this snapshot would change.
