@@ -114,6 +114,14 @@ function SnapshotView:GetModuleNames(handle)
     return Snapshot:GetModuleNames(handle.raw)
 end
 
+-- The hash#index selector for a saved snapshot, or nil for a character's head.
+function SnapshotView:GetSelector(handle)
+    if handle.isHead then
+        return nil
+    end
+    return Snapshot:GetSelector(handle.raw)
+end
+
 -- True when the snapshot is identical to the logged-in character's current setup
 -- (so applying it would change nothing).
 function SnapshotView:IsCurrent(handle)
