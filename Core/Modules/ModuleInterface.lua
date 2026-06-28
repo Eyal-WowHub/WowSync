@@ -46,8 +46,9 @@ local ModuleInterface = addon:NewObject("ModuleInterface")
     ── Optional methods (validated only when present) ────────────────────────
 
     Diff(currentData, snapshotData) -> { added, changed, removed }
-        Pure comparison, no side effects. Returns three lists of display labels
-        describing what an apply would change. Powers the preview UI and the
+        Pure comparison, no side effects. Returns three lists of preview entries
+        describing what an apply would change; each entry is a table with a human
+        `label` and an optional `icon` texture. Powers the preview UI and the
         unsaved-changes badge. Called by Differ.
 
     ShouldCapture() -> boolean

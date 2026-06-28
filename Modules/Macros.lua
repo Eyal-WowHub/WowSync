@@ -72,6 +72,10 @@ local function MacroKey(macro)
     return macro.Name
 end
 
+local function MacroIcon(macro)
+    return macro.Icon
+end
+
 --[[ Module API ]]
 
 function Macros:Capture()
@@ -130,9 +134,9 @@ function Macros:Diff(currentData, snapshotData)
 
     local added, changed, removed = {}, {}, {}
 
-    local function AppendLabels(target, labels)
-        for _, label in ipairs(labels) do
-            tinsert(target, label)
+    local function AppendEntries(target, entries)
+        for _, entry in ipairs(entries) do
+            tinsert(target, entry)
         end
     end
 
@@ -142,11 +146,11 @@ function Macros:Diff(currentData, snapshotData)
     }
 
     for _, scope in ipairs(scopes) do
-        local currentSet = HashSet:From(currentData[scope.field], MacroKey, scope.labelOf)
-        local snapshotSet = HashSet:From(snapshotData[scope.field], MacroKey, scope.labelOf)
-        AppendLabels(added, currentSet:Added(snapshotSet))
-        AppendLabels(changed, currentSet:Changed(snapshotSet))
-        AppendLabels(removed, currentSet:Removed(snapshotSet))
+        local currentSet = HashSet:From(currentData[scope.field], MacroKey, scope.labelOf, MacroIcon)
+        local snapshotSet = HashSet:From(snapshotData[scope.field], MacroKey, scope.labelOf, MacroIcon)
+        AppendEntries(added, currentSet:Added(snapshotSet))
+        AppendEntries(changed, currentSet:Changed(snapshotSet))
+        AppendEntries(removed, currentSet:Removed(snapshotSet))
     end
 
     return { added = added, changed = changed, removed = removed }

@@ -306,10 +306,21 @@ local function SlotKey(entry)
     return entry.key
 end
 
+-- The icon texture for the action in a slot, for diff previews.
+local function ActionIcon(entry)
+    local slotInfo = entry.info
+    if slotInfo.type == "spell" or slotInfo.type == "companion" then
+        return C_Spell.GetSpellTexture(slotInfo.id)
+    elseif slotInfo.type == "item" then
+        return C_Item.GetItemIconByID(slotInfo.id)
+    end
+    return nil
+end
+
 -- Preview of which action slots applying this snapshot would change.
 function ActionBars:Diff(currentData, snapshotData)
-    local currentSet = HashSet:From(FlattenSlots(currentData), SlotKey, ActionLabel)
-    local snapshotSet = HashSet:From(FlattenSlots(snapshotData), SlotKey, ActionLabel)
+    local currentSet = HashSet:From(FlattenSlots(currentData), SlotKey, ActionLabel, ActionIcon)
+    local snapshotSet = HashSet:From(FlattenSlots(snapshotData), SlotKey, ActionLabel, ActionIcon)
 
     return {
         added = currentSet:Added(snapshotSet),
