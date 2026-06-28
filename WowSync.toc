@@ -17,19 +17,20 @@ Libs\CharacterInfo\CharacterInfo.lua
 
 Main.lua
 
-Core\Constants.lua
-Core\SettingsCVars.lua
 Core\Colorizer.lua
 Core\Hash.lua
 Core\Codec.lua
 Core\Database.lua
 Core\Time.lua
-Core\HashSet.lua
 Core\BoundedList.lua
 Core\FrameTask.lua
-Core\Modules\ModuleInterface.lua
-Core\Modules\ModuleRegistry.lua
-Core\Development\Debugger.lua
+
+Infrastructure\Constants.lua
+Infrastructure\SettingsCVars.lua
+Infrastructure\HashSet.lua
+Infrastructure\Modules\ModuleInterface.lua
+Infrastructure\Modules\ModuleRegistry.lua
+Infrastructure\Development\Debugger.lua
 
 Locales\enUS.lua
 
