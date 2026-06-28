@@ -415,6 +415,18 @@ function SnapshotManager:GetNextUndoPoint()
     return DescribeRollbackSnapshot(rollbackSnapshot)
 end
 
+-- Preview what undoing the most recent apply would change: the top rollback
+-- snapshot re-applied in Exact mode over the current setup. Nil when there is
+-- nothing to undo.
+function SnapshotManager:PreviewUndo()
+    local rollbackSnapshot = UndoStore:Peek()
+    if not rollbackSnapshot then
+        return nil
+    end
+
+    return Differ:Preview(CurrentStore:Capture(), Snapshot:GetModules(rollbackSnapshot))
+end
+
 -- The undo points newest-first, each describing one apply that can be rolled
 -- back. Index 1 is the most recent (what a single UndoLastApply reverts); undoing
 -- to a deeper index rolls back every apply above it as well.
