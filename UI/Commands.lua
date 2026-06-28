@@ -64,10 +64,15 @@ end
 -- Identity stanza: addon version, database schema revision, and the active
 -- character key.
 local function PrintAddonStatus()
-    local version = C_AddOns.GetAddOnMetadata(addon:GetName(), "Version") or L["unknown"]
+    local version = C_AddOns.GetAddOnMetadata(addon:GetName(), "Version")
+    -- The token is left unsubstituted on unpackaged (source) builds; the
+    -- packager fills it in for a real release.
+    if not version or version == "" or version == "@project-version@" then
+        version = L["Prerelease"]
+    end
     local schema = (addon.DB and addon.DB.SchemaVersion) or L["unknown"]
     WowSync:Print(L["[Addon]"])
-    WowSync:PrintLine(L["  Version: X"]:format(tostring(version)))
+    WowSync:PrintLine(L["  Version: X"]:format(version))
     WowSync:PrintLine(L["  Database schema: X"]:format(tostring(schema)))
     WowSync:PrintLine(L["  Character: X"]:format(SnapshotManager:GetCurrentCharKey()))
 end
