@@ -7,6 +7,9 @@
 ## Author: Eyal Alon
 ## AddonCompartmentFunc: WowSync_OnAddonCompartmentClick
 
+## X-Curse-Project-ID: 1592163
+## X-Wago-ID: x618gVN1
+
 ## SavedVariables: WowSyncDB, WowSyncDebugDB
 
 Libs\LibStub\LibStub.lua
