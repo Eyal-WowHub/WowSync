@@ -36,7 +36,9 @@ local function SerializeToCanonicalString(value, parts)
         end
         parts[#parts + 1] = "}"
     else
-        parts[#parts + 1] = valueType .. ":" .. tostring(value)
+        parts[#parts + 1] = valueType
+        parts[#parts + 1] = ":"
+        parts[#parts + 1] = tostring(value)
     end
 end
 
