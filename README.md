@@ -24,7 +24,7 @@ Every snapshot captures the following, and you choose which parts to apply per c
 
 ## The WowSync Window (WowSync_UI)
 
-![The WowSync window](Screenshots/Profiles.png)
+![The WowSync window](Screenshots/MainFrame.png)
 
 The window is the heart of WowSync, and it is where the addon really shines. It is a dedicated, point-and-click interface for managing every character and snapshot visually — no commands to memorise, nothing to type. Browse your characters in a list, scroll through each one's snapshot history, and read the note attached to every save. Before you apply anything, a **preview** shows you exactly what will change, module by module, so there are no surprises. You pick which parts to bring over and, for each one, whether to **Merge** or replace with an **Exact** copy — all from a few clicks.
 
