@@ -2,16 +2,19 @@
 
 > ⚠️ **Work in progress & experimental.** WowSync is under active development and should be considered experimental. Features may change or break between updates, and applying profiles can overwrite your existing setup — use it with care and back up anything important.
 
-WowSync lets you capture your character's setup as a reusable **profile** and apply it to any other character with a single click. Set up one character exactly how you like it, save it, then bring action bars, talents, macros, key bindings and more to your alts in seconds.
+WowSync lets you capture a character's setup as a **snapshot** and apply it to any other character with a single click. Set up one character exactly how you like it, save it, then bring action bars, talents, macros, key bindings and more to your alts in seconds. You can also **export** a snapshot as a portable string and **import** one someone else shared.
+
+Each character has a **profile** — its own history of snapshots — and a **Current** entry that mirrors its live setup. A snapshot is what actually stores your captured setup; a profile is just the timeline of snapshots for that character.
 
 To open the WowSync window, click the AddOn Compartment icon or type `/ws`.
 
 ## What Gets Synced
 
-Each profile stores the following, and you choose which parts to apply per character:
+Every snapshot captures the following, and you choose which parts to apply per character:
 
 * **Action Bars** — your action bar layout. When applying across classes, only shared (non class-specific) actions are copied.
 * **Talents** — talent loadouts for the matching specialization.
+* **PvP Talents** — your PvP talent selection.
 * **Macros** — account-wide and character-specific macros.
 * **Key Bindings** — your key binding setup.
 * **Chat** — chat windows and tabs.
@@ -21,7 +24,7 @@ Each profile stores the following, and you choose which parts to apply per chara
 
 ## The WowSync Window (WowSync_UI)
 
-![The WowSync window](Screenshots/MainFrame.png)
+![The WowSync window](Screenshots/Profiles.png)
 
 The window is the heart of WowSync, and it is where the addon really shines. It is a dedicated, point-and-click interface for managing every character and snapshot visually — no commands to memorise, nothing to type. Browse your characters in a list, scroll through each one's snapshot history, and read the note attached to every save. Before you apply anything, a **preview** shows you exactly what will change, module by module, so there are no surprises. You pick which parts to bring over and, for each one, whether to **Merge** or replace with an **Exact** copy — all from a few clicks.
 
@@ -44,6 +47,14 @@ Once it is open:
 * **Snapshot timeline** — each character keeps a history of snapshots beneath Current, newest first. **Pinned** snapshots float to the top of the history (just below Current) and are marked in orange; they are never pruned automatically. Select a snapshot to see its note and what changed compared to your current setup.
 * **Apply** — apply Current or any snapshot to the character you are logged in on. You can choose which modules to apply and, per module, whether to **Merge** (add to what you already have) or use **Exact** (replace it to match the snapshot).
 * **Pin / Edit note / Delete** — right-click a snapshot to pin or unpin it, edit its note, or delete it. Deleting a character's profile removes its whole history.
+
+## Sharing: Export & Import
+
+![Imported snapshots](Screenshots/Imports.png)
+
+Snapshots are not stuck on your account. **Export** turns Current or any snapshot into a portable text string you can send to anyone; **Import** turns a pasted string back into a snapshot ready to apply. Shared strings are anonymised — only the class, capture time, and note travel with the setup, never your character or realm name.
+
+Imports live in their own list, separate from your characters, and are locked to the class they were captured on, so you cannot apply a Warrior's bars onto a Mage. Apply an import exactly like any snapshot, picking modules and Merge or Exact per module. Open either flow with `/ws export` or `/ws import`.
 
 ## Moving, Resizing & Locking
 
@@ -72,6 +83,8 @@ Anything that could interfere during combat (such as action bars) waits until yo
 | `/ws undo` | Undo the last applied snapshot. |
 | `/ws delete <name>[@hash[#index]]` | Delete a profile, or delete a specific snapshot by hash. |
 | `/ws list [name]` | List all saved profiles, or list one profile's snapshots. |
+| `/ws export` | Open the window to export a snapshot you can share. |
+| `/ws import` | Open the window to import a snapshot from a string. |
 | `/ws status [addon\|profile\|watcher\|debug]` | Show what WowSync is currently doing. |
 | `/ws watcher off\|lazy` | Track your setup live on demand, or turn tracking off entirely (lazy by default). |
 | `/ws reset database\|db` | Delete all saved profiles and snapshots, while keeping your settings. |
@@ -85,12 +98,12 @@ When targeting a specific snapshot, `@hash` accepts the short hash shown by `/ws
 
 ## Undo
 
-Applying a profile is reversible. After an apply, use **Undo** (in the window or `/ws undo`) to restore your previous setup. The window keeps a history of recent changes, so you can step back through several applies in one go — pick an entry in the **Recent changes** list to undo everything back to that point.
+Applying a snapshot is reversible. After an apply, use **Undo** (in the window or `/ws undo`) to restore your previous setup. The window keeps a history of recent changes, so you can step back through several applies in one go — pick an entry in the **Recent changes** list to undo everything back to that point.
 
 Talent loadouts are an exception: undo can restore loadouts that were removed, but it will not delete talent loadouts that an apply added. Any extra loadouts can be removed manually in the talent UI.
 
 ## Side Notes
 
-* Profiles are saved per account, so they are shared across all of your characters.
-* When applying a profile from a different class, class-specific content (such as talents) is skipped — only what is compatible is applied.
+* Profiles and snapshots are saved per account, so they are shared across all of your characters.
+* When applying a snapshot from a different class, class-specific content (such as talents) is skipped — only what is compatible is applied.
 * Feedback is always welcome.
