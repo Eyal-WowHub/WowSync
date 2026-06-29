@@ -1,6 +1,8 @@
 # WowSync
 
-> ⚠️ **Work in progress & experimental.** WowSync is under active development and should be considered experimental. Features may change or break between updates, and applying profiles can overwrite your existing setup — use it with care and back up anything important.
+> ⚠️ Beta. WowSync is new and still settling in. Applying a profile replaces the selected parts of your setup — action bars, talents, macros, key bindings, and more — but each apply creates an Undo point, so changes can be rolled back from WowSync’s Undo history.
+
+> ⚠️ One caveat: Undo can restore talent loadouts that were removed, but it won’t delete new loadouts that an apply created. Those can be cleared manually in the talent UI.
 
 WowSync lets you capture a character's setup as a **snapshot** and apply it to any other character with a single click. Set up one character exactly how you like it, save it, then bring action bars, talents, macros, key bindings and more to your alts in seconds. You can also **export** a snapshot as a portable string and **import** one someone else shared.
 
