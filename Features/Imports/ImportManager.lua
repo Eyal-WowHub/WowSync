@@ -106,9 +106,28 @@ end
 
 --[[ Export ]]
 
+-- Keep only the modules named in `allowed` (a { [name] = true } set). With no
+-- set the full { [name] = data } table passes through unchanged.
+local function FilterModules(modules, allowed)
+    if not allowed then
+        return modules
+    end
+    local filtered = {}
+    for name, data in pairs(modules) do
+        if allowed[name] then
+            filtered[name] = data
+        end
+    end
+    return filtered
+end
+
 -- Anonymised share string for a profile snapshot (latest when selector is
--- nil). Returns the string, or nil + a reason.
-function ImportManager:ExportSnapshot(profileName, selector)
+-- nil). opts.modules narrows the export to a { [name] = true } subset and
+-- opts.notes sets the travelling note (falling back to the snapshot's own).
+-- Returns the string, or nil + a reason.
+function ImportManager:ExportSnapshot(profileName, selector, opts)
+    opts = opts or {}
+
     local snapshot, reason
     if selector then
         snapshot, reason = ProfileStore:GetSnapshot(profileName, selector)
@@ -119,18 +138,32 @@ function ImportManager:ExportSnapshot(profileName, selector)
         return nil, reason or "not-found"
     end
 
+    local modules = FilterModules(Snapshot:GetModules(snapshot), opts.modules)
+    if next(modules) == nil then
+        return nil, "no-modules"
+    end
+
     local classID = snapshot.Source and snapshot.Source.ClassID
-    return EncodeSharedString(Snapshot:GetModules(snapshot), classID, snapshot.Timestamp, snapshot.Notes)
+    local notes = opts.notes ~= nil and opts.notes or snapshot.Notes
+    return EncodeSharedString(modules, classID, snapshot.Timestamp, notes)
 end
 
--- Anonymised share string for a character's current head. Returns the
--- string, or nil + a reason.
-function ImportManager:ExportHead(charKey)
+-- Anonymised share string for a character's current head. opts.modules narrows
+-- the export to a { [name] = true } subset and opts.notes attaches a note.
+-- Returns the string, or nil + a reason.
+function ImportManager:ExportHead(charKey, opts)
+    opts = opts or {}
+
     local head = SnapshotManager:GetCharInfo(charKey)
     if not head then
         return nil, "not-found"
     end
-    return EncodeSharedString(head.Modules, head.ClassID, head.LastSeen)
+
+    local modules = FilterModules(head.Modules, opts.modules)
+    if next(modules) == nil then
+        return nil, "no-modules"
+    end
+    return EncodeSharedString(modules, head.ClassID, head.LastSeen, opts.notes)
 end
 
 --[[ Import ]]
