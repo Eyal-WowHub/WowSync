@@ -18,21 +18,21 @@ Libs\Contracts\Contracts.lua
 Libs\Addon\Addon.lua
 Libs\CharacterInfo\CharacterInfo.lua
 
+Libs\Internal\Colorizer.lua
+Libs\Internal\Hash.lua
+Libs\Internal\Codec.lua
+Libs\Internal\Database.lua
+Libs\Internal\Time.lua
+Libs\Internal\BoundedList.lua
+Libs\Internal\FrameTask.lua
+
 Main.lua
 
-Core\Colorizer.lua
-Core\Hash.lua
-Core\Codec.lua
-Core\Database.lua
-Core\Time.lua
-Core\BoundedList.lua
-Core\FrameTask.lua
-
-Infrastructure\Constants.lua
-Infrastructure\SettingsCVars.lua
-Infrastructure\HashSet.lua
-Infrastructure\Modules\ModuleInterface.lua
-Infrastructure\Modules\ModuleRegistry.lua
+Core\Constants.lua
+Core\SettingsCVars.lua
+Core\HashSet.lua
+Core\Modules\ModuleInterface.lua
+Core\Modules\ModuleRegistry.lua
 
 Locales\enUS.lua
 

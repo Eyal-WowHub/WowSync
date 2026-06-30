@@ -26,7 +26,7 @@ end
 
 -- Prints a chat message prefixed with the accent-coloured addon name.
 function addon:Print(msg)
-    local prefix = addon.Colorizer:ToAccent(addon:GetName()) .. ": "
+    local prefix = addon.Colorizer:Wrap(addon.ACCENT_COLOR, addon:GetName()) .. ": "
     DEFAULT_CHAT_FRAME:AddMessage(prefix .. msg)
 end
 

@@ -2,10 +2,7 @@ local _, addon = ...
 local Colorizer = {}
 addon.Colorizer = Colorizer
 
-local function WrapText(color, text)
+-- Wrap text in a color's escape codes; returns text unchanged when color is nil.
+function Colorizer:Wrap(color, text)
     return color and color:WrapTextInColorCode(text) or text
-end
-
-function Colorizer:ToAccent(text)
-    return WrapText(addon.ACCENT_COLOR, text)
 end

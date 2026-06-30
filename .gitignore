@@ -1,2 +1,3 @@
 .release/
-Libs/
+Libs/*
+!Libs/Internal/
