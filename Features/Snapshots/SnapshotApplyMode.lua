@@ -13,8 +13,8 @@ local _, addon = ...
 
     Each module declares its support via a Config table, e.g.
 
-        Macros.Config = { SnapshotApplyMode = SnapshotApplyMode.All }       -- collection module
-        ActionBars.Config = { SnapshotApplyMode = SnapshotApplyMode.Merge } -- indexed module
+        Macros.Config = { SnapshotApplyMode = SnapshotApplyMode.All }    -- collection module
+        Talents.Config = { SnapshotApplyMode = SnapshotApplyMode.Merge } -- additive-only module
 
     Consumers (apply UI, orchestrator) test support with the predicates:
 

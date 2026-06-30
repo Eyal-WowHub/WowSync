@@ -9,7 +9,7 @@ local SnapshotApplyMode = addon.SnapshotApplyMode
 ActionBars.Config = {
     -- Runs after macros and talents so the actions it places already exist.
     ApplyPriority = 50,
-    SnapshotApplyMode = SnapshotApplyMode.Merge,
+    SnapshotApplyMode = SnapshotApplyMode.All,
 }
 
 --[[ Slot Layout (see https://warcraft.wiki.gg/wiki/ActionSlot)
