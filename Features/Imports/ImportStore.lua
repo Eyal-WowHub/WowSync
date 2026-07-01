@@ -173,6 +173,60 @@ function ImportStore:DeleteImport(importID)
     return false
 end
 
+-- Move a container one step within its class group. direction is -1 (up) or +1
+-- (down). The group's effective order is "Order, else Created", so an unmoved
+-- group reads in creation order; the first move normalises the whole group to
+-- sequential orders so a single swap always changes the neighbours' places.
+-- Returns whether the container moved (false at a group boundary, for a lone
+-- container, or when the id is unknown).
+function ImportStore:MoveImport(importID, direction)
+    local record = imports[importID]
+    if not record then
+        return false
+    end
+
+    local group = {}
+    for id, entry in pairs(imports) do
+        if entry.ClassID == record.ClassID then
+            group[#group + 1] = { id = id, record = entry }
+        end
+    end
+    if #group < 2 then
+        return false
+    end
+
+    table.sort(group, function(a, b)
+        local ao = a.record.Order or a.record.Created or 0
+        local bo = b.record.Order or b.record.Created or 0
+        if ao ~= bo then
+            return ao < bo
+        end
+        return a.id < b.id
+    end)
+
+    -- Normalise to sequential orders so the swap below always moves the row.
+    for index = 1, #group do
+        group[index].record.Order = index
+    end
+
+    local pos
+    for index = 1, #group do
+        if group[index].id == importID then
+            pos = index
+            break
+        end
+    end
+
+    local target = pos + direction
+    if target < 1 or target > #group then
+        return false
+    end
+
+    group[pos].record.Order, group[target].record.Order =
+        group[target].record.Order, group[pos].record.Order
+    return true
+end
+
 --[[ Snapshot history ]]
 
 -- The container entry that carries its own payload for this hash (the owner), or

@@ -205,9 +205,11 @@ end
 
 --[[ Containers (UI) ]]
 
--- The imported profiles as flat summaries, sorted by class then name so the UI
--- can group them by class. Each entry is
--- { ID, Name, ClassID, Created, SnapshotCount, LastImported }.
+-- The imported profiles as flat summaries, sorted by class then saved order so
+-- the UI can group them by class and reorder within a group. A container's
+-- order is "Order, else Created", so a never-reordered group reads in creation
+-- order. Each entry is
+-- { ID, Name, ClassID, Created, Order, SnapshotCount, LastImported }.
 function ImportManager:GetImportedProfiles()
     local list = {}
     for importID, record in pairs(ImportStore:GetImports()) do
@@ -224,6 +226,7 @@ function ImportManager:GetImportedProfiles()
             Name = record.Name,
             ClassID = record.ClassID,
             Created = record.Created,
+            Order = record.Order or record.Created or 0,
             SnapshotCount = #snapshots,
             LastImported = lastImported,
         })
@@ -232,6 +235,9 @@ function ImportManager:GetImportedProfiles()
     table.sort(list, function(a, b)
         if a.ClassID ~= b.ClassID then
             return a.ClassID < b.ClassID
+        end
+        if a.Order ~= b.Order then
+            return a.Order < b.Order
         end
         return a.Name:lower() < b.Name:lower()
     end)
@@ -283,6 +289,16 @@ end
 -- Remove a container and its snapshots. Returns whether one was removed.
 function ImportManager:DeleteImport(importID)
     return ImportStore:DeleteImport(importID)
+end
+
+-- Move a container one step up within its class group. Returns whether it moved.
+function ImportManager:MoveImportUp(importID)
+    return ImportStore:MoveImport(importID, -1)
+end
+
+-- Move a container one step down within its class group. Returns whether it moved.
+function ImportManager:MoveImportDown(importID)
+    return ImportStore:MoveImport(importID, 1)
 end
 
 -- Remove one snapshot from a container by selector. Returns whether one was removed.
