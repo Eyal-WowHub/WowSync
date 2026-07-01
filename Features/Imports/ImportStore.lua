@@ -336,3 +336,38 @@ function ImportStore:SetSnapshotNotes(importID, selector, text)
     snapshot.Notes = text
     return true
 end
+
+-- Pin a snapshot in a container by selector, protecting it from nothing (imports
+-- never prune) but floating it to the top of the list as a marked reference.
+-- Pins the exact entry addressed, whether it owns its hash or duplicates one.
+-- Returns whether it was found.
+function ImportStore:PinSnapshot(importID, selector)
+    local record = imports[importID]
+    if not record then
+        return false
+    end
+
+    local snapshot = FindSnapshot(record, selector)
+    if not snapshot then
+        return false
+    end
+
+    snapshot.Pinned = true
+    return true
+end
+
+-- Clear a snapshot's pin by selector. Returns whether it was found.
+function ImportStore:UnpinSnapshot(importID, selector)
+    local record = imports[importID]
+    if not record then
+        return false
+    end
+
+    local snapshot = FindSnapshot(record, selector)
+    if not snapshot then
+        return false
+    end
+
+    snapshot.Pinned = false
+    return true
+end

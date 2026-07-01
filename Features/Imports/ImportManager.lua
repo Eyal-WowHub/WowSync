@@ -301,6 +301,17 @@ function ImportManager:SetSnapshotNotes(importID, selector, text)
     return ImportStore:SetSnapshotNotes(importID, selector, text)
 end
 
+-- Pin an imported snapshot, floating it to the top of the container as a marked
+-- reference. Returns whether it was found.
+function ImportManager:PinSnapshot(importID, selector)
+    return ImportStore:PinSnapshot(importID, selector)
+end
+
+-- Clear an imported snapshot's pin. Returns whether it was found.
+function ImportManager:UnpinSnapshot(importID, selector)
+    return ImportStore:UnpinSnapshot(importID, selector)
+end
+
 --[[ Apply ]]
 
 -- Preview applying an imported snapshot over the logged-in character's Current.
