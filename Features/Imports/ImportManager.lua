@@ -206,11 +206,14 @@ end
 --[[ Containers (UI) ]]
 
 -- The imported profiles as flat summaries, sorted by class then saved order so
--- the UI can group them by class and reorder within a group. A container's
--- order is "Order, else Created", so a never-reordered group reads in creation
--- order. Each entry is
+-- the UI can group them by class and reorder within a group. The logged-in
+-- character's class leads, then the remaining classes by id; a container's order
+-- is "Order, else Created", so a never-reordered group reads in creation order.
+-- Each entry is
 -- { ID, Name, ClassID, Created, Order, SnapshotCount, LastImported }.
 function ImportManager:GetImportedProfiles()
+    local currentClassID = select(3, UnitClass("player"))
+
     local list = {}
     for importID, record in pairs(ImportStore:GetImports()) do
         local snapshots = record.Snapshots
@@ -234,6 +237,12 @@ function ImportManager:GetImportedProfiles()
 
     table.sort(list, function(a, b)
         if a.ClassID ~= b.ClassID then
+            -- The logged-in character's class always comes first.
+            local aCurrent = a.ClassID == currentClassID
+            local bCurrent = b.ClassID == currentClassID
+            if aCurrent ~= bCurrent then
+                return aCurrent
+            end
             return a.ClassID < b.ClassID
         end
         if a.Order ~= b.Order then
