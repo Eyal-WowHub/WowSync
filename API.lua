@@ -3,6 +3,8 @@ WowSync = addon:NewObject(addon:GetName())
 local ProfileManager = addon:GetObject("ProfileManager")
 local SnapshotManager = addon:GetObject("SnapshotManager")
 local ImportManager = addon:GetObject("ImportManager")
+local ExportManager = addon:GetObject("ExportManager")
+local ImportedHashDictionary = addon:GetObject("ImportedHashDictionary")
 local CharacterManager = addon:GetObject("CharacterManager")
 local ModuleRegistry = addon:GetObject("ModuleRegistry")
 local SnapshotView = addon:GetObject("SnapshotView")
@@ -27,10 +29,21 @@ function WowSync:GetSnapshotManager()
     return SnapshotManager
 end
 
--- Exports profile snapshots and heads to portable strings, imports them back
--- into class-locked containers, and applies imported snapshots.
+-- Imports shared strings into class-locked containers, manages those
+-- containers, and applies imported snapshots.
 function WowSync:GetImportManager()
     return ImportManager
+end
+
+-- Exports profile snapshots and heads to portable shared strings.
+function WowSync:GetExportManager()
+    return ExportManager
+end
+
+-- Resolves, across every container, which one owns each imported snapshot hash
+-- (the earliest-imported copy).
+function WowSync:GetImportedHashDictionary()
+    return ImportedHashDictionary
 end
 
 -- The roster of characters that have a profile or a captured current setup, and

@@ -30,15 +30,9 @@ local Time = addon.Time
 local imports
 local db
 
--- Trim surrounding whitespace from a display name.
-local function Trim(text)
-    return (text:gsub("^%s+", ""):gsub("%s+$", ""))
-end
-
--- True when classID names a real player class.
-local function IsValidClassID(classID)
-    return type(classID) == "number" and C_CreatureInfo.GetClassInfo(classID) ~= nil
-end
+local ShareUtils = addon:GetObject("ShareUtils")
+local Trim = ShareUtils.Trim
+local IsValidClassID = ShareUtils.IsValidClassID
 
 -- True when a container with this name (case-insensitively) already exists,
 -- ignoring the container with skipID.

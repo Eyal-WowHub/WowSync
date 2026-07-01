@@ -54,8 +54,12 @@ Features\Snapshots\SnapshotManager.lua
 Features\Snapshots\SnapshotView.lua
 Features\Snapshots\SnapshotHandleCache.lua
 
-Features\Imports\ImportStore.lua
-Features\Imports\ImportManager.lua
+Features\Share\ShareUtils.lua
+Features\Share\ShareCodec.lua
+Features\Share\ImportStore.lua
+Features\Share\ImportedHashDictionary.lua
+Features\Share\ExportManager.lua
+Features\Share\ImportManager.lua
 
 UI\StaticPopupDialogs.lua
 UI\Commands.lua
