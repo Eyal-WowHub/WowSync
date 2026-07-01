@@ -248,6 +248,33 @@ function ImportManager:GetImportSnapshots(importID)
     return ImportStore:GetSnapshots(importID)
 end
 
+-- Map of hash -> owning container for every hash present across all imports, in
+-- a single pass. The owner is the container holding the earliest-imported copy
+-- (by ImportedAt; ties broken by the older container, then its id for
+-- determinism). Each entry is { ID = importID, Name = containerName }. Lets the
+-- UI resolve every row's owner from one scan instead of re-querying per row, and
+-- leave the first-added copy unflagged while pointing later copies back at it.
+function ImportManager:GetHashOwners()
+    local owners = {}
+    for importID, record in pairs(ImportStore:GetImports()) do
+        local created = record.Created or 0
+        for index = 1, #record.Snapshots do
+            local hash = record.Snapshots[index].Hash
+            if hash then
+                local added = record.Snapshots[index].ImportedAt or 0
+                local best = owners[hash]
+                if not best
+                    or added < best.Added
+                    or (added == best.Added and created < best.Created)
+                    or (added == best.Added and created == best.Created and importID < best.ID) then
+                    owners[hash] = { ID = importID, Name = record.Name, Added = added, Created = created }
+                end
+            end
+        end
+    end
+    return owners
+end
+
 -- Rename a container. Returns true, or false + a reason.
 function ImportManager:RenameImport(importID, name)
     return ImportStore:RenameImport(importID, name)
