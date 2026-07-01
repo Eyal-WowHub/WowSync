@@ -20,9 +20,11 @@ local Time = addon.Time
         }
 
     The ClassID is the container's invariant: snapshots from a different class are
-    rejected. A snapshot whose Hash already exists in the container is still
-    stored, but the add reports it as a duplicate so callers can warn. There is no
-    cap and no pruning; imports are user-curated.
+    rejected. A snapshot whose Hash already exists is still added as its own entry
+    but stored lean: its heavy Data is dropped and a Ref points at the first entry
+    with that Hash (the owner), which keeps the payload. Deleting an owner cascades
+    to the duplicates that reference it. There is no cap and no pruning; imports
+    are user-curated.
 ]]
 
 local imports
@@ -173,9 +175,52 @@ end
 
 --[[ Snapshot history ]]
 
--- Append a snapshot to a container, enforcing the container's class. Returns the
--- stored snapshot and a warning ("duplicate" when its Hash was already present),
--- or nil + a reason ("not-found", "class-mismatch").
+-- The container entry that carries its own payload for this hash (the owner), or
+-- nil. Duplicates drop their heavy Data and reference the owner's Index instead.
+local function FindOwner(record, hash)
+    for index = 1, #record.Snapshots do
+        local entry = record.Snapshots[index]
+        if entry.Hash == hash and entry.Ref == nil then
+            return entry
+        end
+    end
+    return nil
+end
+
+-- The container entry with this per-container Index, or nil.
+local function FindByIndex(record, snapshotIndex)
+    for index = 1, #record.Snapshots do
+        if record.Snapshots[index].Index == snapshotIndex then
+            return record.Snapshots[index]
+        end
+    end
+    return nil
+end
+
+-- A duplicate stores no payload of its own; resolve it against its owner so
+-- callers always see a snapshot with the real Data. Owners resolve to themselves.
+local function ResolvePayload(record, snapshot)
+    if snapshot.Ref == nil then
+        return snapshot
+    end
+    local owner = FindByIndex(record, snapshot.Ref)
+    if not owner then
+        return snapshot
+    end
+    local resolved = {}
+    for key, value in pairs(snapshot) do
+        resolved[key] = value
+    end
+    resolved.Data = owner.Data
+    resolved.Modules = owner.Modules
+    return resolved
+end
+
+-- Append a snapshot to a container, enforcing the container's class. A snapshot
+-- whose Hash is already present is stored lean: its heavy Data is dropped and a
+-- Ref points at the owner (the first entry with that Hash), which keeps the
+-- payload. Returns the stored snapshot and a warning ("duplicate" when its Hash
+-- was already present), or nil + a reason ("not-found", "class-mismatch").
 function ImportStore:AddSnapshot(importID, snapshot)
     local record = imports[importID]
     if not record then
@@ -188,10 +233,14 @@ function ImportStore:AddSnapshot(importID, snapshot)
     end
 
     local warning
-    for index = 1, #record.Snapshots do
-        if record.Snapshots[index].Hash == snapshot.Hash then
-            warning = "duplicate"
-            break
+    local owner = FindOwner(record, snapshot.Hash)
+    if owner then
+        warning = "duplicate"
+        -- Share the owner's payload when it is compressed; the raw-fallback case
+        -- (no Data) is rare enough to keep as an independent copy.
+        if owner.Data ~= nil then
+            snapshot.Data = nil
+            snapshot.Ref = owner.Index
         end
     end
 
@@ -207,31 +256,69 @@ function ImportStore:GetSnapshots(importID)
     return record and record.Snapshots or {}
 end
 
--- Resolve a snapshot in a container by selector. Returns snapshot, reason,
--- candidates (mirrors ProfileStore:GetSnapshot).
+-- Resolve a snapshot in a container by selector, following a duplicate's Ref to
+-- the owner so the returned snapshot always carries the real payload. Returns
+-- snapshot, reason, candidates (mirrors ProfileStore:GetSnapshot).
 function ImportStore:GetSnapshot(importID, selector)
     local record = imports[importID]
     if not record then
         return nil, "not-found"
     end
     local snapshot, _, reason, candidates = FindSnapshot(record, selector)
-    return snapshot, reason, candidates
+    if not snapshot then
+        return nil, reason, candidates
+    end
+    return ResolvePayload(record, snapshot), reason, candidates
 end
 
--- Remove a snapshot from a container by selector. Returns whether one was removed.
+-- Remove a snapshot from a container by selector. Deleting an owner (a snapshot
+-- that duplicates reference) also removes those duplicates, since they hold no
+-- payload of their own. Returns whether anything was removed.
 function ImportStore:DeleteSnapshot(importID, selector)
     local record = imports[importID]
     if not record then
         return false
     end
 
-    local _, index = FindSnapshot(record, selector)
+    local snapshot, index = FindSnapshot(record, selector)
     if not index then
         return false
     end
 
-    tremove(record.Snapshots, index)
+    if snapshot.Ref == nil then
+        local ownerIndex = snapshot.Index
+        for i = #record.Snapshots, 1, -1 do
+            local entry = record.Snapshots[i]
+            if entry == snapshot or entry.Ref == ownerIndex then
+                tremove(record.Snapshots, i)
+            end
+        end
+    else
+        tremove(record.Snapshots, index)
+    end
     return true
+end
+
+-- How many duplicates reference the snapshot addressed by selector (0 when it is
+-- itself a duplicate or has no dependents). Lets callers warn before a cascade.
+function ImportStore:CountDependentDuplicates(importID, selector)
+    local record = imports[importID]
+    if not record then
+        return 0
+    end
+
+    local snapshot = FindSnapshot(record, selector)
+    if not snapshot or snapshot.Ref ~= nil then
+        return 0
+    end
+
+    local count = 0
+    for index = 1, #record.Snapshots do
+        if record.Snapshots[index].Ref == snapshot.Index then
+            count = count + 1
+        end
+    end
+    return count
 end
 
 -- Replace a snapshot's editable note. Returns whether the snapshot was found.

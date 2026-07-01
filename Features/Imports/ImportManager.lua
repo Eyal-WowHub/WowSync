@@ -263,6 +263,12 @@ function ImportManager:DeleteSnapshot(importID, selector)
     return ImportStore:DeleteSnapshot(importID, selector)
 end
 
+-- How many duplicates would be removed alongside the snapshot at selector, so
+-- the UI can warn before deleting an owner that others reference.
+function ImportManager:CountDependentDuplicates(importID, selector)
+    return ImportStore:CountDependentDuplicates(importID, selector)
+end
+
 -- Replace an imported snapshot's editable note. Returns whether it was found.
 function ImportManager:SetSnapshotNotes(importID, selector, text)
     return ImportStore:SetSnapshotNotes(importID, selector, text)
