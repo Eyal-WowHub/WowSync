@@ -56,7 +56,11 @@ Once it is open:
 
 Snapshots are not stuck on your account. **Export** turns Current or any snapshot into a portable text string you can send to anyone; **Import** turns a pasted string back into a snapshot ready to apply. Shared strings are anonymised — only the class, capture time, and note travel with the setup, never your character or realm name.
 
-Imports live in their own list, separate from your characters, and are locked to the class they were captured on, so you cannot apply a Warrior's bars onto a Mage. Apply an import exactly like any snapshot, picking modules and Merge or Exact per module. Open either flow with `/ws export` or `/ws import`.
+Imports live in their own list, separate from your characters, and are locked to the class they were captured on, so you cannot apply a Warrior's bars onto a Mage. Each import is a named **container** that keeps its own timeline of imported snapshots, so you can gather several versions of a setup in one place. Right-click a container to **Rename** it, **Add snapshot** (paste another string into it), or **Delete** it.
+
+The import list is grouped by class, with your logged-in character's class shown first so the setups you can actually use sit right at the top. When a class holds more than one container, hover or select a row to reveal up/down arrows on its right edge; use them to reorder the containers within that class, and the order is remembered between sessions.
+
+A container's snapshots read newest first, just like a character's timeline, and can be **pinned** — right-click a snapshot to pin or unpin it. Pinned snapshots float to the top of the timeline and are marked in orange. Apply an import exactly like any snapshot, picking modules and Merge or Exact per module. Open either flow with `/ws export` or `/ws import`.
 
 ## Moving, Resizing & Locking
 
