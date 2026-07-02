@@ -52,7 +52,7 @@ Once it is open:
 
 ## Sharing: Export & Import
 
-![Imported snapshots](Screenshots/Imports.png)
+![Imported snapshots](Screenshots/ImportsTabFrame.png)
 
 Snapshots are not stuck on your account. **Export** turns Current or any snapshot into a portable text string you can send to anyone; **Import** turns a pasted string back into a snapshot ready to apply. Shared strings are anonymised — only the class, capture time, and note travel with the setup, never your character or realm name.
 
