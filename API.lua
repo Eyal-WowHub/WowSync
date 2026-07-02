@@ -13,6 +13,7 @@ local GameWatcher = addon:GetObject("GameWatcher")
 local Debugger = addon:GetObject("Debugger")
 
 local L = addon.L
+local ChangeBadge = addon.ChangeBadge
 
 -- Public value objects returned by this addon's APIs.
 WowSync.Models = {
@@ -88,6 +89,12 @@ end
 -- interactions into WowSyncDebugDB.
 function WowSync:GetDebugger()
     return Debugger
+end
+
+-- The shared formatter for coloured "+A ~C -R" diff strings, used by companion
+-- UI addons to render one consistent change figure.
+function WowSync:FormatDiffString(counts, prefix)
+    return ChangeBadge.FormatDiffString(counts, prefix)
 end
 
 --[[ Addon entry points ]]

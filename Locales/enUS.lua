@@ -33,6 +33,9 @@ L["unknown"] = "unknown"
 
 -- Apply / undo result lines
 L["X: applied"] = "%s: applied"
+L["X: Y"] = "%s:  %s"
+L["+A ~C -R"] = "|cff5fcf5f+%d|r |cffd9c84a~%d|r |cffd96b6b-%d|r"
+L["+A ~C"] = "|cff5fcf5f+%d|r |cffd9c84a~%d|r"
 L["X (Y)"] = "%s (%s)"
 L["X: skipped - Y"] = "%s: skipped - %s"
 L["  X (Y) - Z"] = "  %s (%s) - %s"
