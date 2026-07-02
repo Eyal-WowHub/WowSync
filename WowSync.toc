@@ -35,6 +35,7 @@ Core\ChangeBadge.lua
 Core\SettingsCVars.lua
 Core\HashSet.lua
 Core\Modules\ModuleInterface.lua
+Core\Modules\ModuleIds.lua
 Core\Modules\ModuleRegistry.lua
 
 Features\Development\Debugger.lua

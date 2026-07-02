@@ -1,6 +1,7 @@
 local _, addon = ...
 local ModuleRegistry = addon:NewObject("ModuleRegistry")
 local Interface = addon:GetObject("ModuleInterface")
+local ModuleIds = addon:GetObject("ModuleIds")
 
 local C = LibStub("Contracts-1.0")
 
@@ -33,6 +34,7 @@ function ModuleRegistry:Register(module)
 
     local moduleName = module:GetName()
     C:Ensures(not registeredModules[moduleName], "Register: module '%s' is already registered", moduleName)
+    C:Ensures(ModuleIds:GetId(moduleName) ~= nil, "Register: module '%s' has no id assigned in ModuleIds", moduleName)
 
     registeredModules[moduleName] = module
 end
