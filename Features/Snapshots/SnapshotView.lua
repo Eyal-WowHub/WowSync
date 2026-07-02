@@ -162,14 +162,16 @@ end
 -- character's current setup. The own head previews unsaved changes against the
 -- profile's latest snapshot; another character's head previews applying its
 -- setup over mine; a saved snapshot previews applying that snapshot over mine.
-function SnapshotView:Preview(handle, moduleSet)
+-- cached diffs against the already-captured Current instead of re-scanning the
+-- live setup, for cheap repeated previews.
+function SnapshotView:Preview(handle, moduleSet, cached)
     if handle.isHead then
         if handle.head.IsCurrent then
-            return SnapshotManager:PreviewApplySnapshot(handle.charKey, nil, moduleSet)
+            return SnapshotManager:PreviewApplySnapshot(handle.charKey, nil, moduleSet, cached)
         end
-        return SnapshotManager:PreviewApplyHeadByCharKey(handle.charKey, moduleSet)
+        return SnapshotManager:PreviewApplyHeadByCharKey(handle.charKey, moduleSet, cached)
     end
-    return SnapshotManager:PreviewApplySnapshot(handle.charKey, Snapshot:GetSelector(handle.raw), moduleSet)
+    return SnapshotManager:PreviewApplySnapshot(handle.charKey, Snapshot:GetSelector(handle.raw), moduleSet, cached)
 end
 
 -- Apply the snapshot (optionally a module subset) to the logged-in character,

@@ -324,7 +324,9 @@ end
 --[[ Preview ]]
 
 -- Preview applying a profile snapshot (latest when selector is nil) over Current.
-function SnapshotManager:PreviewApplySnapshot(profileName, selector, moduleSet)
+-- cached diffs against the already-captured Current instead of re-scanning the
+-- live setup, for cheap repeated previews (e.g. timeline change indicators).
+function SnapshotManager:PreviewApplySnapshot(profileName, selector, moduleSet, cached)
     C:IsString(profileName, 2)
 
     local snapshot
@@ -337,14 +339,14 @@ function SnapshotManager:PreviewApplySnapshot(profileName, selector, moduleSet)
         return nil
     end
 
-    local currentModules = CurrentStore:Capture()
+    local currentModules = cached and CurrentStore:Get() or CurrentStore:Capture()
     return Differ:Preview(currentModules, Snapshot:GetModules(snapshot), moduleSet)
 end
 
 -- Preview applying a character's current setup (its head) over the logged-in
 -- character's Current. Mirrors PreviewApplySnapshot but sources a character's
 -- live or last-captured modules instead of a stored snapshot.
-function SnapshotManager:PreviewApplyHeadByCharKey(charKey, moduleSet)
+function SnapshotManager:PreviewApplyHeadByCharKey(charKey, moduleSet, cached)
     C:IsString(charKey, 2)
 
     local sourceModules = CurrentStore:Get(charKey)
@@ -352,7 +354,7 @@ function SnapshotManager:PreviewApplyHeadByCharKey(charKey, moduleSet)
         return nil
     end
 
-    local currentModules = CurrentStore:Capture()
+    local currentModules = cached and CurrentStore:Get() or CurrentStore:Capture()
     return Differ:Preview(currentModules, sourceModules, moduleSet)
 end
 
