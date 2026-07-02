@@ -313,15 +313,19 @@ function Talents:Apply(capturedData, sourceMetadata)
         return
     end
 
-    -- Loadout names already on this character. ImportLoadout always creates a
-    -- new loadout and rejects a name that already exists, so we skip those.
-    local existingNames = {}
+    -- Loadouts already saved on this character, keyed by their exported content.
+    -- WoW lets several loadouts share a name and ImportLoadout never rejects a
+    -- duplicate, so the name guards nothing; the export string is a build's real
+    -- identity. A snapshot loadout whose string is already present is the very
+    -- same build (whatever it is named), so it is skipped rather than piling up
+    -- another identical copy on every apply.
+    local existingStrings = {}
     local existingConfigIDs = C_ClassTalents.GetConfigIDsBySpecID(currentSpecID)
     if existingConfigIDs then
         for _, existingConfigID in ipairs(existingConfigIDs) do
-            local existingInfo = C_Traits.GetConfigInfo(existingConfigID)
-            if existingInfo and existingInfo.name then
-                existingNames[existingInfo.name] = true
+            local existingString = C_Traits.GenerateImportString(existingConfigID)
+            if existingString and existingString ~= "" then
+                existingStrings[existingString] = true
             end
         end
     end
@@ -329,15 +333,15 @@ function Talents:Apply(capturedData, sourceMetadata)
     local importedCount = 0
     for _, loadout in ipairs(specEntry.Loadouts) do
         if loadout.ExportString then
-            if existingNames[loadout.Name] then
-                addon:Print(L["Skipped talent loadout 'X' (a loadout with that name already exists)."]:format(loadout.Name))
+            if existingStrings[loadout.ExportString] then
+                addon:Print(L["Skipped talent loadout 'X' (an identical loadout already exists)."]:format(loadout.Name))
             else
                 local importSucceeded, importResult, importError = pcall(ImportLoadoutFromString, configID, treeID, loadout.ExportString, loadout.Name)
                 if not importSucceeded then
                     addon:Print(L["Failed to import 'X': Y"]:format(loadout.Name, tostring(importResult)))
                     addon:Print(L["  Export string: X"]:format(loadout.ExportString))
                 elseif importResult then
-                    existingNames[loadout.Name] = true
+                    existingStrings[loadout.ExportString] = true
                     local activeTag = loadout.WasActive and L[" (was active)"] or ""
                     addon:Print(L["Imported talent loadout 'X'Y"]:format(loadout.Name, activeTag))
                     importedCount = importedCount + 1
