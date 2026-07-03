@@ -1,5 +1,6 @@
 local _, addon = ...
 local ShareCodec = addon:NewObject("ShareCodec")
+local ShareUtils = addon:GetObject("ShareUtils")
 
 local Time = addon.Time
 local Codec = addon.Codec
@@ -15,7 +16,6 @@ local Codec = addon.Codec
     and normalises it back into plain { Modules, ClassID, Timestamp, Notes } data.
 ]]
 
-local ShareUtils = addon:GetObject("ShareUtils")
 local Trim = ShareUtils.Trim
 local IsValidClassID = ShareUtils.IsValidClassID
 

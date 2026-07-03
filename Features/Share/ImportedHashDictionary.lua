@@ -2,6 +2,7 @@ local _, addon = ...
 local ImportedHashDictionary = addon:NewObject("ImportedHashDictionary")
 
 local ImportStore = addon:GetObject("ImportStore")
+local Snapshot = addon:GetObject("Snapshot")
 
 --[[
     ImportedHashDictionary — cross-container hash ownership for imported snapshots.
@@ -21,10 +22,30 @@ function ImportedHashDictionary:GetHashOwners()
     local owners = {}
     for importID, record in pairs(ImportStore:GetImports()) do
         local created = record.Created or 0
+        local byIndex = {}
         for index = 1, #record.Snapshots do
-            local hash = record.Snapshots[index].Hash
+            local snapshot = record.Snapshots[index]
+            byIndex[snapshot.Index] = snapshot
+        end
+
+        for index = 1, #record.Snapshots do
+            local snapshot = record.Snapshots[index]
+            local hash
+            if snapshot.Ref ~= nil and snapshot.Data == nil and snapshot.ModuleHashes == nil then
+                local owner = byIndex[snapshot.Ref]
+                hash = owner and Snapshot:HashValue(owner) or snapshot.Hash
+                if owner and owner.ModuleHashes ~= nil then
+                    snapshot.ModuleHashes = owner.ModuleHashes
+                end
+                if hash then
+                    snapshot.Hash = hash
+                end
+            else
+                hash = Snapshot:HashValue(snapshot)
+            end
+
             if hash then
-                local added = record.Snapshots[index].ImportedAt or 0
+                local added = snapshot.ImportedAt or 0
                 local best = owners[hash]
                 if not best
                     or added < best.Added

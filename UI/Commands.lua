@@ -33,7 +33,7 @@ local function PrintSnapshotError(selector, reason, candidates)
     if reason == "ambiguous" then
         WowSync:Print(L["Multiple snapshots match 'X'. Use the full snapshot selector:"]:format(selector))
         for _, snapshot in ipairs(candidates or {}) do
-            WowSync:Print(L["  X - Y"]:format(Snapshot:GetSelector(snapshot), Snapshot:GetSubject(snapshot)))
+            WowSync:Print(L["  X - Y"]:format(Snapshot:SelectorOf(snapshot), Snapshot:GetSubject(snapshot)))
         end
     else
         WowSync:Print(L["No snapshot matches 'X'."]:format(selector))
@@ -91,7 +91,8 @@ local function PrintProfileStatus()
     WowSync:PrintLine(L["  Snapshots: X / Y"]:format(#snapshots, SnapshotManager:GetSnapshotLimit()))
 
     if latestSnapshot then
-        local shortSelector = ("%s#%s"):format(latestSnapshot.Hash:sub(1, 7), latestSnapshot.Index)
+        local latestHash = Snapshot:HashValue(latestSnapshot)
+        local shortSelector = ("%s#%s"):format(latestHash:sub(1, 7), latestSnapshot.Index)
         WowSync:PrintLine(L["  Latest: X - Y"]:format(shortSelector, Snapshot:GetSubject(latestSnapshot)))
     else
         WowSync:PrintLine(L["  Latest: none"])
@@ -99,7 +100,7 @@ local function PrintProfileStatus()
 
     if not headInfo then
         WowSync:PrintLine(L["  In sync: no captured state"])
-    elseif latestSnapshot and headInfo.Hash == latestSnapshot.Hash then
+    elseif latestSnapshot and headInfo.Hash == Snapshot:HashValue(latestSnapshot) then
         WowSync:PrintLine(L["  In sync: yes"])
     else
         WowSync:PrintLine(L["  In sync: no"])
@@ -218,7 +219,7 @@ function Commands:OnInitialized()
                     PrintSnapshotError(selector, reason, candidates)
                     return
                 end
-                selector = Snapshot:GetSelector(snapshot)
+                selector = Snapshot:SelectorOf(snapshot)
             end
 
             local applyResult = SnapshotManager:ApplySnapshot(profileName, selector, { default = mode })
@@ -263,7 +264,7 @@ function Commands:OnInitialized()
                     return
                 end
 
-                selector = Snapshot:GetSelector(snapshot)
+                selector = Snapshot:SelectorOf(snapshot)
                 if SnapshotManager:DeleteSnapshot(profileName, selector) then
                     WowSync:Print(L["Snapshot 'X' deleted."]:format(selector))
                 end
@@ -288,7 +289,7 @@ function Commands:OnInitialized()
                 WowSync:Print(L["Snapshots for 'X':"]:format(profileName))
                 for index = #snapshots, 1, -1 do
                     local snapshot = snapshots[index]
-                    local selector = ("%s#%s"):format(snapshot.Hash:sub(1, 7), snapshot.Index)
+                    local selector = ("%s#%s"):format(Snapshot:HashValue(snapshot):sub(1, 7), snapshot.Index)
                     local subject = Snapshot:GetSubject(snapshot)
                     if snapshot.Pinned then
                         WowSync:Print(L["  X - Y (pinned)"]:format(selector, subject))

@@ -3,6 +3,7 @@ local SnapshotManager = addon:NewObject("SnapshotManager")
 
 local CharacterInfo = LibStub("CharacterInfo-1.0")
 local C = LibStub("Contracts-1.0")
+
 local SnapshotApplyMode = addon.SnapshotApplyMode
 local ApplyResult = addon.ApplyResult
 
@@ -122,7 +123,7 @@ local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, in
     local defaultMode = strategy.default or "merge"
     local overrides = strategy.overrides or {}
 
-    local rollbackSnapshot = Snapshot:New(CurrentStore:Capture(), BuildCurrentSource())
+    local rollbackSnapshot = Snapshot:Create(CurrentStore:Capture(), BuildCurrentSource()):ToStore()
 
     local moduleNames = ResolveModuleNames(sourceModules, moduleSet)
     local applyResults = {}
@@ -222,12 +223,14 @@ function SnapshotManager:GetCharInfo(charKey)
     end
 
     local charMeta = CurrentStore:GetMetadata(charKey)
+    local hash, moduleHashes = Snapshot:Fingerprint(capturedModules)
     return {
-        Hash = Snapshot:Fingerprint(capturedModules),
+        Hash = hash,
+        ModuleHashes = moduleHashes,
         Modules = capturedModules,
         LastSeen = charMeta and charMeta.LastSeen,
         ClassID = charMeta and charMeta.ClassID,
-        IsCurrent = charKey == CharacterInfo:GetFullName(),
+        IsConnected = charKey == CharacterInfo:GetFullName(),
     }
 end
 
@@ -255,7 +258,7 @@ function SnapshotManager:SaveCurrentSnapshot(note, moduleSet, onComplete)
         local profileName = CharacterInfo:GetFullName()
         ProfileStore:CreateProfile(profileName)
 
-        local snapshot = Snapshot:New(snapshotModules, BuildCurrentSource())
+        local snapshot = Snapshot:Create(snapshotModules, BuildCurrentSource()):ToStore()
         snapshot.Notes = note
 
         local stored = ProfileStore:AddSnapshot(profileName, snapshot)
@@ -303,10 +306,10 @@ function SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, onCompl
         local characterMetadata = CurrentStore:GetMetadata(charKey)
         ProfileStore:CreateProfile(charKey)
 
-        local snapshot = Snapshot:New(snapshotModules, {
+        local snapshot = Snapshot:Create(snapshotModules, {
             Character = charKey,
             ClassID = characterMetadata and characterMetadata.ClassID,
-        })
+        }):ToStore()
         snapshot.Notes = note
 
         local stored = ProfileStore:AddSnapshot(charKey, snapshot)

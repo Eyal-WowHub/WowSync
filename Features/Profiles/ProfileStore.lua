@@ -41,6 +41,14 @@ local function ParseSelector(selector)
     return selector:lower(), nil
 end
 
+local function SnapshotHash(snapshot)
+    local snapshotObject = addon:GetObject("Snapshot")
+    if snapshotObject and snapshotObject.HashValue then
+        return snapshotObject:HashValue(snapshot)
+    end
+    return snapshot and snapshot.Hash
+end
+
 local function EnsureMetadata(profile)
     profile.Metadata = profile.Metadata or profile.Meta or {}
     profile.Meta = nil
@@ -93,7 +101,7 @@ local function FindSnapshot(profile, selector)
         for index = 1, #snapshots do
             local snapshot = snapshots[index]
             if snapshot.Index == snapshotIndex then
-                if snapshot.Hash:sub(1, #hash) == hash then
+                if SnapshotHash(snapshot):sub(1, #hash) == hash then
                     return snapshot, index
                 end
                 return nil, nil, "not-found"
@@ -104,7 +112,7 @@ local function FindSnapshot(profile, selector)
 
     local exactMatches = {}
     for index = 1, #snapshots do
-        if snapshots[index].Hash == hash then
+        if SnapshotHash(snapshots[index]) == hash then
             tinsert(exactMatches, snapshots[index])
         end
     end
@@ -123,7 +131,7 @@ local function FindSnapshot(profile, selector)
     -- Otherwise accept a single prefix match; more than one is ambiguous.
     local prefixMatch, prefixIndex, candidates
     for index = 1, #snapshots do
-        if snapshots[index].Hash:sub(1, #hash) == hash then
+        if SnapshotHash(snapshots[index]):sub(1, #hash) == hash then
             if prefixMatch then
                 candidates = candidates or { prefixMatch }
                 tinsert(candidates, snapshots[index])

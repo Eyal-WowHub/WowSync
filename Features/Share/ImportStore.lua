@@ -1,5 +1,6 @@
 local _, addon = ...
 local ImportStore = addon:NewObject("ImportStore")
+local Snapshot = addon:GetObject("Snapshot")
 
 local Time = addon.Time
 
@@ -29,10 +30,37 @@ local Time = addon.Time
 
 local imports
 local db
+local FindByIndex
 
 local ShareUtils = addon:GetObject("ShareUtils")
 local Trim = ShareUtils.Trim
 local IsValidClassID = ShareUtils.IsValidClassID
+
+local function SnapshotHash(record, snapshot)
+    if not snapshot then
+        return nil
+    end
+    if not Snapshot or not Snapshot.HashValue then
+        return snapshot.Hash
+    end
+
+    -- Import duplicates can be payload-less shells. Align them to their owner's
+    -- normalized hash so duplicate grouping and selector matching stay stable.
+    if snapshot.Ref ~= nil and snapshot.Data == nil and snapshot.ModuleHashes == nil then
+        local owner = FindByIndex and FindByIndex(record, snapshot.Ref)
+        if owner then
+            local ownerHash = Snapshot:HashValue(owner)
+            snapshot.Hash = ownerHash
+            if owner.ModuleHashes ~= nil then
+                snapshot.ModuleHashes = owner.ModuleHashes
+            end
+            return ownerHash
+        end
+        return snapshot.Hash
+    end
+
+    return Snapshot:HashValue(snapshot)
+end
 
 -- True when a container with this name (case-insensitively) already exists,
 -- ignoring the container with skipID.
@@ -65,7 +93,7 @@ local function FindSnapshot(record, selector)
         for index = 1, #snapshots do
             local snapshot = snapshots[index]
             if snapshot.Index == snapshotIndex then
-                if snapshot.Hash:sub(1, #hash) == hash then
+                if SnapshotHash(record, snapshot):sub(1, #hash) == hash then
                     return snapshot, index
                 end
                 return nil, nil, "not-found"
@@ -76,7 +104,7 @@ local function FindSnapshot(record, selector)
 
     local match, matchIndex, candidates
     for index = 1, #snapshots do
-        if snapshots[index].Hash:sub(1, #hash) == hash then
+        if SnapshotHash(record, snapshots[index]):sub(1, #hash) == hash then
             if match then
                 candidates = candidates or { match }
                 tinsert(candidates, snapshots[index])
@@ -228,7 +256,7 @@ end
 local function FindOwner(record, hash)
     for index = 1, #record.Snapshots do
         local entry = record.Snapshots[index]
-        if entry.Hash == hash and entry.Ref == nil then
+        if entry.Ref == nil and SnapshotHash(record, entry) == hash then
             return entry
         end
     end
@@ -236,7 +264,7 @@ local function FindOwner(record, hash)
 end
 
 -- The container entry with this per-container Index, or nil.
-local function FindByIndex(record, snapshotIndex)
+FindByIndex = function(record, snapshotIndex)
     for index = 1, #record.Snapshots do
         if record.Snapshots[index].Index == snapshotIndex then
             return record.Snapshots[index]
@@ -259,8 +287,10 @@ local function ResolvePayload(record, snapshot)
     for key, value in pairs(snapshot) do
         resolved[key] = value
     end
+    resolved.Hash = SnapshotHash(record, snapshot)
     resolved.Data = owner.Data
     resolved.Modules = owner.Modules
+    resolved.ModuleHashes = owner.ModuleHashes or snapshot.ModuleHashes
     return resolved
 end
 
@@ -281,7 +311,8 @@ function ImportStore:AddSnapshot(importID, snapshot)
     end
 
     local warning
-    local owner = FindOwner(record, snapshot.Hash)
+    local snapshotHash = SnapshotHash(record, snapshot)
+    local owner = FindOwner(record, snapshotHash)
     if owner then
         warning = "duplicate"
         -- Share the owner's payload when it is compressed; the raw-fallback case
@@ -289,6 +320,9 @@ function ImportStore:AddSnapshot(importID, snapshot)
         if owner.Data ~= nil then
             snapshot.Data = nil
             snapshot.Ref = owner.Index
+            if owner.ModuleHashes ~= nil then
+                snapshot.ModuleHashes = owner.ModuleHashes
+            end
         end
     end
 
