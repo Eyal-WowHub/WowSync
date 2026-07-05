@@ -1,8 +1,8 @@
 local _, addon = ...
 local Settings = addon:NewObject("Settings")
-local ModuleRegistry = addon.ModuleRegistry
 
 local HashSet = addon.HashSet
+local ModuleRegistry = addon.ModuleRegistry
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Settings.Config = {

@@ -1,8 +1,9 @@
 local _, addon = ...
 local ImportedHashDictionary = addon:NewObject("ImportedHashDictionary")
 
-local ImportStore = addon:GetObject("ImportStore")
 local SnapshotInfo = addon.SnapshotInfo
+
+local ImportStore = addon:GetObject("ImportStore")
 
 --[[
     ImportedHashDictionary — cross-container hash ownership for imported snapshots.

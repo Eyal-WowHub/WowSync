@@ -10,8 +10,8 @@ local ExportManager = addon:NewObject("ExportManager")
     pure read.
 ]]
 
-local ShareCodec = addon:GetObject("ShareCodec")
 local ProfileManager = addon:GetObject("ProfileManager")
+local ShareCodec = addon:GetObject("ShareCodec")
 
 -- Keep only the modules named in `allowed` (a { [name] = true } set). With no
 -- set the full { [name] = data } table passes through unchanged.

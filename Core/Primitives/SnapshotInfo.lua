@@ -1,12 +1,13 @@
 local _, addon = ...
 local SnapshotInfo = {}
 addon.SnapshotInfo = SnapshotInfo
-local ModuleIds = addon.ModuleIds
 
 local C = LibStub("Contracts-1.0")
+
 local Codec = addon.Codec
 local HashedModule = addon.HashedModule
 local HashedSnapshot = addon.HashedSnapshot
+local ModuleIds = addon.ModuleIds
 local Time = addon.Time
 
 --[[

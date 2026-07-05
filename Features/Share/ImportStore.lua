@@ -1,7 +1,7 @@
 local _, addon = ...
 local ImportStore = addon:NewObject("ImportStore")
-local SnapshotInfo = addon.SnapshotInfo
 
+local SnapshotInfo = addon.SnapshotInfo
 local Time = addon.Time
 
 --[[

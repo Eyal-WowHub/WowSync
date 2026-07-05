@@ -1,8 +1,9 @@
 local _, addon = ...
 local SaveTask = addon:NewObject("SaveTask")
-local GameWatcher = addon:GetObject("GameWatcher")
 
 local FrameTask = addon.FrameTask
+
+local GameWatcher = addon:GetObject("GameWatcher")
 
 --[[
     SaveTask — runs a save body across frames without hitching the game.

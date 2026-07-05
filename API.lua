@@ -2,6 +2,7 @@ local _, addon = ...
 WowSync = addon:NewObject(addon:GetName())
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
 
 -- Loads the companion UI addon on demand, then fires WOWSYNC_UI_TOGGLED so the

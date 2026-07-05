@@ -1,8 +1,8 @@
 local _, addon = ...
 local Addons = addon:NewObject("Addons")
-local ModuleRegistry = addon.ModuleRegistry
 
 local HashSet = addon.HashSet
+local ModuleRegistry = addon.ModuleRegistry
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Addons.Config = {

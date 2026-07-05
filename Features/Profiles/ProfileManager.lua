@@ -3,7 +3,13 @@ local ProfileManager = addon:NewObject("ProfileManager")
 
 local C = LibStub("Contracts-1.0")
 local CharacterInfo = LibStub("CharacterInfo-1.0")
+
 local BoundedList = addon.BoundedList
+local Snapshot = addon.Snapshot
+local SnapshotInfo = addon.SnapshotInfo
+
+local CurrentStore = addon:GetObject("CurrentStore")
+local ProfileStore = addon:GetObject("ProfileStore")
 
 --[[
     ProfileManager — the business layer over the profile store.
@@ -16,11 +22,6 @@ local BoundedList = addon.BoundedList
     Snapshot objects; ProfileStore underneath only stores and retrieves the raw
     records, and CurrentStore holds the live setup a head wraps.
 ]]
-
-local ProfileStore = addon:GetObject("ProfileStore")
-local CurrentStore = addon:GetObject("CurrentStore")
-local SnapshotInfo = addon.SnapshotInfo
-local Snapshot = addon.Snapshot
 
 -- One stable head snapshotInfo per character, refreshed in place so a head keeps
 -- its Snapshot identity across captures.

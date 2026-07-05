@@ -4,6 +4,7 @@ addon.Snapshot = Snapshot
 Snapshot.__index = Snapshot
 
 local C = LibStub("Contracts-1.0")
+
 local SnapshotInfo = addon.SnapshotInfo
 
 -- Identity cache so exactly one wrapper exists per backing snapshotInfo (weak,

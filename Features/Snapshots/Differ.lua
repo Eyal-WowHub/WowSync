@@ -1,5 +1,6 @@
 local _, addon = ...
 local Differ = addon:NewObject("Differ")
+
 local ModuleRegistry = addon.ModuleRegistry
 
 --[[

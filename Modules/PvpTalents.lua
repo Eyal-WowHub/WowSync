@@ -1,9 +1,9 @@
 local _, addon = ...
 local PvpTalents = addon:NewObject("PvpTalents")
-local ModuleRegistry = addon.ModuleRegistry
 
 local L = addon.L
 local HashSet = addon.HashSet
+local ModuleRegistry = addon.ModuleRegistry
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
 PvpTalents.Config = {

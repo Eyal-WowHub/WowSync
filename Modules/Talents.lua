@@ -1,9 +1,9 @@
 local _, addon = ...
 local Talents = addon:NewObject("Talents")
-local ModuleRegistry = addon.ModuleRegistry
 
 local L = addon.L
 local HashSet = addon.HashSet
+local ModuleRegistry = addon.ModuleRegistry
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Talents.Config = {

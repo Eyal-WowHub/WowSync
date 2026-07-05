@@ -1,10 +1,11 @@
 local _, addon = ...
 local ModuleRegistry = {}
 addon.ModuleRegistry = ModuleRegistry
-local Interface = addon.ModuleInterface
-local ModuleIds = addon.ModuleIds
 
 local C = LibStub("Contracts-1.0")
+
+local Interface = addon.ModuleInterface
+local ModuleIds = addon.ModuleIds
 
 local registeredModules = {}
 

@@ -1,8 +1,8 @@
 local _, addon = ...
 local Keybindings = addon:NewObject("Keybindings")
-local ModuleRegistry = addon.ModuleRegistry
 
 local HashSet = addon.HashSet
+local ModuleRegistry = addon.ModuleRegistry
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Keybindings.Config = {

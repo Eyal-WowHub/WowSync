@@ -1,9 +1,11 @@
 local _, addon = ...
 local UndoStore = addon:NewObject("UndoStore")
-local ProfileStore = addon:GetObject("ProfileStore")
 
 local CharacterInfo = LibStub("CharacterInfo-1.0")
+
 local BoundedList = addon.BoundedList
+
+local ProfileStore = addon:GetObject("ProfileStore")
 
 --[[
     UndoStore — a per-character stack of rollback snapshots.

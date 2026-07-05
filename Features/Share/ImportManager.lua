@@ -1,8 +1,6 @@
 local _, addon = ...
 local ImportManager = addon:NewObject("ImportManager")
 
-local Time = addon.Time
-
 --[[
     ImportManager — the import subsystem's facade.
 
@@ -14,11 +12,13 @@ local Time = addon.Time
     SnapshotManager.
 ]]
 
-local ShareCodec = addon:GetObject("ShareCodec")
-local ImportStore = addon:GetObject("ImportStore")
-local SnapshotManager = addon:GetObject("SnapshotManager")
-local SnapshotInfo = addon.SnapshotInfo
 local Snapshot = addon.Snapshot
+local SnapshotInfo = addon.SnapshotInfo
+local Time = addon.Time
+
+local ImportStore = addon:GetObject("ImportStore")
+local ShareCodec = addon:GetObject("ShareCodec")
+local SnapshotManager = addon:GetObject("SnapshotManager")
 
 -- Build a storable snapshot from decoded shared data, keeping the original
 -- capture time and note and recording when it was imported.

@@ -1,6 +1,11 @@
 local _, addon = ...
 local GameWatcher = addon:NewObject("GameWatcher")
+
 local C = LibStub("Contracts-1.0")
+
+local ModuleRegistry = addon.ModuleRegistry
+
+local CurrentStore = addon:GetObject("CurrentStore")
 
 --[[
     GameWatcher — keeps each character's Current a *live* mirror of the game.
@@ -32,9 +37,6 @@ local C = LibStub("Contracts-1.0")
 
 local DEBOUNCE_SECONDS = 0.5
 local SETTLE_SECONDS = 0.2
-
-local ModuleRegistry = addon.ModuleRegistry
-local CurrentStore = addon:GetObject("CurrentStore")
 
 -- eventName -> array of module names that care about it.
 local watchedModules = {}

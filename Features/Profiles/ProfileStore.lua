@@ -1,6 +1,8 @@
 local _, addon = ...
 local ProfileStore = addon:NewObject("ProfileStore")
 
+local Time = addon.Time
+
 --[[
     ProfileStore — one record per character, owning that character's history.
 
@@ -23,8 +25,6 @@ local ProfileStore = addon:NewObject("ProfileStore")
     history — assigning indices, pruning to the cap, resolving selectors, and the
     pin/note/delete mutations — live in ProfileManager.
 ]]
-
-local Time = addon.Time
 
 local DEFAULT_MAX_SNAPSHOTS = 20
 

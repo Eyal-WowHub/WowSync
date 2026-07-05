@@ -3,9 +3,10 @@ local HashedModule = {}
 addon.HashedModule = HashedModule
 HashedModule.__index = HashedModule
 
+local C = LibStub("Contracts-1.0")
+
 local Hash = addon.Hash
 local ModuleIds = addon.ModuleIds
-local C = LibStub("Contracts-1.0")
 
 --[[
     HashedModule — an immutable content fingerprint of one module, tagged with

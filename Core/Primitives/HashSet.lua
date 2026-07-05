@@ -1,6 +1,9 @@
 local _, addon = ...
 local HashSet = {}
 addon.HashSet = HashSet
+HashSet.__index = HashSet
+
+local Hash = addon.Hash
 
 --[[
     HashSet — a key-addressed set of entries with content fingerprints.
@@ -22,10 +25,6 @@ addon.HashSet = HashSet
     preview entries -- a human label plus an optional icon texture -- ready for
     the apply preview.
 ]]
-
-local Hash = addon.Hash
-
-HashSet.__index = HashSet
 
 -- Order preview entries by their human label.
 local function SortByLabel(a, b)

@@ -1,11 +1,21 @@
 local _, addon = ...
 local SnapshotManager = addon:NewObject("SnapshotManager")
 
-local CharacterInfo = LibStub("CharacterInfo-1.0")
 local C = LibStub("Contracts-1.0")
+local CharacterInfo = LibStub("CharacterInfo-1.0")
 
-local SnapshotApplyMode = addon.SnapshotApplyMode
 local ApplyResult = addon.ApplyResult
+local ModuleRegistry = addon.ModuleRegistry
+local Snapshot = addon.Snapshot
+local SnapshotApplyMode = addon.SnapshotApplyMode
+
+local CurrentStore = addon:GetObject("CurrentStore")
+local Debugger = addon:GetObject("Debugger")
+local Differ = addon:GetObject("Differ")
+local GameWatcher = addon:GetObject("GameWatcher")
+local ProfileManager = addon:GetObject("ProfileManager")
+local SaveTask = addon:GetObject("SaveTask")
+local UndoStore = addon:GetObject("UndoStore")
 
 --[[
     SnapshotManager — the snapshot subsystem's orchestrator/facade.
@@ -22,16 +32,6 @@ local ApplyResult = addon.ApplyResult
                  apply the chosen snapshot's modules (per-module Merge/Exact).
       Undo    -> re-apply the top rollback snapshot in Exact mode, then pop it.
 ]]
-
-local ModuleRegistry = addon.ModuleRegistry
-local ProfileManager = addon:GetObject("ProfileManager")
-local CurrentStore = addon:GetObject("CurrentStore")
-local UndoStore = addon:GetObject("UndoStore")
-local Snapshot = addon.Snapshot
-local Differ = addon:GetObject("Differ")
-local GameWatcher = addon:GetObject("GameWatcher")
-local SaveTask = addon:GetObject("SaveTask")
-local Debugger = addon:GetObject("Debugger")
 
 function SnapshotManager:OnInitialized()
     -- Finish any in-flight sliced save before SavedVariables is written, so an

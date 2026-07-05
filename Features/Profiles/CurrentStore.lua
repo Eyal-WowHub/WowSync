@@ -1,10 +1,12 @@
 local _, addon = ...
 local CurrentStore = addon:NewObject("CurrentStore")
-local ModuleRegistry = addon.ModuleRegistry
-local ProfileStore = addon:GetObject("ProfileStore")
 
 local CharacterInfo = LibStub("CharacterInfo-1.0")
+
 local Codec = addon.Codec
+local ModuleRegistry = addon.ModuleRegistry
+
+local ProfileStore = addon:GetObject("ProfileStore")
 
 --[[
     CurrentStore — the live "Current" setup, one per character.

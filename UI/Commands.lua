@@ -1,13 +1,14 @@
 local _, addon = ...
 local Commands = addon:NewObject("Commands")
-local ProfileManager = addon:GetObject("ProfileManager")
-local SnapshotManager = addon:GetObject("SnapshotManager")
-local CharacterManager = addon:GetObject("CharacterManager")
-local GameWatcher = addon:GetObject("GameWatcher")
-local SaveTask = addon:GetObject("SaveTask")
-local Debugger = addon:GetObject("Debugger")
 
 local L = addon.L
+
+local CharacterManager = addon:GetObject("CharacterManager")
+local Debugger = addon:GetObject("Debugger")
+local GameWatcher = addon:GetObject("GameWatcher")
+local ProfileManager = addon:GetObject("ProfileManager")
+local SaveTask = addon:GetObject("SaveTask")
+local SnapshotManager = addon:GetObject("SnapshotManager")
 
 --[[
     Slash command interface ("/wowsync", "/ws").

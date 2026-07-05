@@ -1,8 +1,8 @@
 local _, addon = ...
 local CombatLog = addon:NewObject("CombatLog")
-local ModuleRegistry = addon.ModuleRegistry
 
 local HashSet = addon.HashSet
+local ModuleRegistry = addon.ModuleRegistry
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
 CombatLog.Config = {

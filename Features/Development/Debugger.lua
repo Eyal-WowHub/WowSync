@@ -1,11 +1,12 @@
 local _, addon = ...
 local Debugger = addon:NewObject("Debugger")
 
-local ModuleRegistry = addon.ModuleRegistry
 local CharacterInfo = LibStub("CharacterInfo-1.0")
+
+local ModuleRegistry = addon.ModuleRegistry
 local Time = addon.Time
 
-local tinsert, tremove = table.insert, table.remove
+local tremove = table.remove
 
 --[[
     Debugger — an opt-in recorder that mirrors what WowSync does into a separate,

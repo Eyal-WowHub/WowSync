@@ -1,9 +1,9 @@
 local _, addon = ...
 local Macros = addon:NewObject("Macros")
-local ModuleRegistry = addon.ModuleRegistry
 
 local L = addon.L
 local HashSet = addon.HashSet
+local ModuleRegistry = addon.ModuleRegistry
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
 Macros.Config = {

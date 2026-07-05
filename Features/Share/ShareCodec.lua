@@ -1,9 +1,10 @@
 local _, addon = ...
 local ShareCodec = addon:NewObject("ShareCodec")
-local ShareUtils = addon:GetObject("ShareUtils")
 
-local Time = addon.Time
 local Codec = addon.Codec
+local Time = addon.Time
+
+local ShareUtils = addon:GetObject("ShareUtils")
 
 --[[
     ShareCodec — the wire format for a shared string.

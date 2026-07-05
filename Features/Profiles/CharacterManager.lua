@@ -1,9 +1,10 @@
 local _, addon = ...
 local CharacterManager = addon:NewObject("CharacterManager")
-local ProfileStore = addon:GetObject("ProfileStore")
 
-local CharacterInfo = LibStub("CharacterInfo-1.0")
 local C = LibStub("Contracts-1.0")
+local CharacterInfo = LibStub("CharacterInfo-1.0")
+
+local ProfileStore = addon:GetObject("ProfileStore")
 
 --[[
     CharacterManager — the merged roster of known characters.
