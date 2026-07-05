@@ -103,6 +103,11 @@ function Snapshot:GetSelector()
     return SnapshotInfo:Selector(self.info)
 end
 
+-- The profile-local index assigned to a saved snapshot, or nil for a head.
+function Snapshot:GetIndex()
+    return self.info.Index
+end
+
 -- The combined content-hash string this snapshot stands for.
 function Snapshot:HashValue()
     return SnapshotInfo:HashValue(self.info)

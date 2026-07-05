@@ -1,6 +1,10 @@
 local _, addon = ...
 local ProfileStore = addon:NewObject("ProfileStore")
 
+local C = LibStub("Contracts-1.0")
+
+local BoundedList = addon.BoundedList
+local Snapshot = addon.Snapshot
 local Time = addon.Time
 
 --[[
@@ -18,12 +22,15 @@ local Time = addon.Time
 
     ProfileStore owns the record's shell (it creates the canonical shape) and the
     Snapshots history; CurrentStore and UndoStore fill in Current and Undo on the
-    same record. Every save appends a snapshot; notes belong to the snapshot (its
-    Notes), not the record. Snapshots are ordered oldest-first (newest appended at
-    the end); each entry has the snapshotInfo shape (Hash + Timestamp + Modules + ...).
-    ProfileStore only stores and retrieves these records; the rules over the
-    history — assigning indices, pruning to the cap, resolving selectors, and the
-    pin/note/delete mutations — live in ProfileManager.
+    same record. Notes belong to the snapshot (its Notes), not the record.
+    Snapshots are ordered oldest-first (newest appended at the end); each entry
+    has the snapshotInfo shape (Hash + Timestamp + Modules + ...).
+
+    ProfileStore takes and returns Snapshot objects, persisting their plain
+    backing tables (via :ToStore()) and owning the storage mechanics over the
+    history: appending a save, assigning its index, capping to the soft limit
+    (protecting pinned entries), and removing an entry. The higher-level rules —
+    resolving a selector and the pin/note policy — live in ProfileManager.
 ]]
 
 local DEFAULT_MAX_SNAPSHOTS = 20
@@ -135,15 +142,70 @@ function ProfileStore:GetLatestSnapshot(profileName)
         return nil
     end
     EnsureMetadata(profile)
-    return profile.Snapshots[#profile.Snapshots]
+    local snapshotInfo = profile.Snapshots[#profile.Snapshots]
+    if not snapshotInfo then
+        return nil
+    end
+    return Snapshot:From(profileName, snapshotInfo)
 end
 
--- The profile's saved snapshot history, oldest-first (empty when none).
+-- The profile's saved snapshot history as Snapshot objects, oldest-first (empty
+-- when none).
 function ProfileStore:GetSnapshots(profileName)
     local profile = profiles[profileName]
     if not profile then
         return {}
     end
     EnsureMetadata(profile)
-    return profile.Snapshots
+
+    local snapshots = {}
+    for index = 1, #profile.Snapshots do
+        snapshots[index] = Snapshot:From(profileName, profile.Snapshots[index])
+    end
+    return snapshots
+end
+
+-- Append a snapshot to its character's saved history: persist its backing data,
+-- tag the optional note, assign the next index, and prune the oldest un-pinned
+-- entries down to the soft cap. Returns the same Snapshot.
+function ProfileStore:AppendSnapshot(snapshot, note)
+    Snapshot.Validate(snapshot, 2)
+    -- A head is a live view of Current, not a history entry; a save mints a fresh
+    -- snapshot from its content, so the head object itself is never appended.
+    C:Ensures(not snapshot:IsHead(), "cannot append a head to the history")
+
+    local snapshotInfo = snapshot:ToStore()
+    if note ~= nil then
+        snapshotInfo.Notes = note
+    end
+
+    local profile = self:CreateProfile(snapshot:GetCharacterInfo().Key)
+    snapshotInfo.Index = profile.Metadata.NextIndex
+    profile.Metadata.NextIndex = profile.Metadata.NextIndex + 1
+
+    BoundedList:Wrap(profile.Snapshots, {
+        max = function() return GetMaxSnapshotsSetting() end,
+        isProtected = function(entry) return entry.Pinned end,
+    }):Push(snapshotInfo)
+    return snapshot
+end
+
+-- Remove a snapshot from its character's saved history by identity. Returns
+-- whether it was found and removed.
+function ProfileStore:RemoveSnapshot(snapshot)
+    Snapshot.Validate(snapshot, 2)
+
+    local profile = profiles[snapshot:GetCharacterInfo().Key]
+    if not profile then
+        return false
+    end
+
+    local snapshotInfo = snapshot:ToStore()
+    for index = 1, #profile.Snapshots do
+        if profile.Snapshots[index] == snapshotInfo then
+            tremove(profile.Snapshots, index)
+            return true
+        end
+    end
+    return false
 end

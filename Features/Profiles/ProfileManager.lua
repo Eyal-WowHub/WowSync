@@ -4,7 +4,6 @@ local ProfileManager = addon:NewObject("ProfileManager")
 local C = LibStub("Contracts-1.0")
 local CharacterInfo = LibStub("CharacterInfo-1.0")
 
-local BoundedList = addon.BoundedList
 local Snapshot = addon.Snapshot
 local SnapshotInfo = addon.SnapshotInfo
 
@@ -57,54 +56,28 @@ function ProfileManager:GetMaxSnapshots()
     return ProfileStore:GetMaxSnapshots()
 end
 
--- Append a snapshot to its character's history: assign its index, tag the
--- optional note, and prune the oldest un-pinned entries to the cap. A save
--- always appends, even when nothing changed. Returns the stored Snapshot.
+-- Append a snapshot to its character's history: a save always appends, even when
+-- nothing changed. Returns the stored Snapshot.
 function ProfileManager:AddSnapshot(snapshot, note)
-    Snapshot.Validate(snapshot, 2)
-
-    local charKey = snapshot:GetCharacterInfo().Character
-    local snapshotInfo = snapshot:ToStore()
-    if note ~= nil then
-        snapshotInfo.Notes = note
-    end
-
-    local record = ProfileStore:CreateProfile(charKey)
-    snapshotInfo.Index = record.Metadata.NextIndex
-    record.Metadata.NextIndex = record.Metadata.NextIndex + 1
-
-    BoundedList:Wrap(record.Snapshots, {
-        max = function() return ProfileStore:GetMaxSnapshots() end,
-        isProtected = function(entry) return entry.Pinned end,
-    }):Push(snapshotInfo)
-    return snapshot
+    return ProfileStore:AppendSnapshot(snapshot, note)
 end
 
 -- A character's most recent saved snapshot as a Snapshot, or nil when none exist.
 function ProfileManager:Latest(charKey)
-    local snapshotInfo = ProfileStore:GetLatestSnapshot(charKey)
-    if not snapshotInfo then
-        return nil
-    end
-    return Snapshot:From(charKey, snapshotInfo)
+    return ProfileStore:GetLatestSnapshot(charKey)
 end
 
 -- The snapshot a save would prune to stay within the cap (the oldest un-pinned
 -- once the history is at/over the cap) as a Snapshot, or nil when a save would
 -- evict nothing (under the cap, or every snapshot is pinned).
 function ProfileManager:PendingEviction(charKey)
-    local record = ProfileStore:GetProfile(charKey)
-    if not record then
-        return nil
-    end
-
-    local snapshots = record.Snapshots
+    local snapshots = ProfileStore:GetSnapshots(charKey)
     if #snapshots < ProfileStore:GetMaxSnapshots() then
         return nil
     end
     for index = 1, #snapshots do
-        if not snapshots[index].Pinned then
-            return Snapshot:From(charKey, snapshots[index])
+        if not snapshots[index]:IsPinned() then
+            return snapshots[index]
         end
     end
     return nil
@@ -112,37 +85,32 @@ end
 
 -- Order saved snapshots newest-first: a later timestamp wins, index breaks ties.
 local function NewerFirst(left, right)
-    if left.Timestamp ~= right.Timestamp then
-        return left.Timestamp > right.Timestamp
+    if left:GetTimestamp() ~= right:GetTimestamp() then
+        return left:GetTimestamp() > right:GetTimestamp()
     end
-    return (left.Index or 0) > (right.Index or 0)
+    return (left:GetIndex() or 0) > (right:GetIndex() or 0)
 end
 
 -- A character's saved history as Snapshot objects, pinned entries first and
 -- newest-first within each group (the order a timeline shows them under the head).
 function ProfileManager:GetHistory(charKey)
-    local record = ProfileStore:GetProfile(charKey)
-    if not record then
-        return {}
-    end
-
     local pinned, unpinned = {}, {}
-    for _, snapshotInfo in ipairs(record.Snapshots) do
-        if snapshotInfo.Pinned then
-            tinsert(pinned, snapshotInfo)
+    for _, snapshot in ipairs(ProfileStore:GetSnapshots(charKey)) do
+        if snapshot:IsPinned() then
+            tinsert(pinned, snapshot)
         else
-            tinsert(unpinned, snapshotInfo)
+            tinsert(unpinned, snapshot)
         end
     end
     table.sort(pinned, NewerFirst)
     table.sort(unpinned, NewerFirst)
 
     local history = {}
-    for _, snapshotInfo in ipairs(pinned) do
-        tinsert(history, Snapshot:From(charKey, snapshotInfo))
+    for _, snapshot in ipairs(pinned) do
+        tinsert(history, snapshot)
     end
-    for _, snapshotInfo in ipairs(unpinned) do
-        tinsert(history, Snapshot:From(charKey, snapshotInfo))
+    for _, snapshot in ipairs(unpinned) do
+        tinsert(history, snapshot)
     end
     return history
 end
@@ -207,23 +175,15 @@ function ProfileManager:FindSnapshot(charKey, selector)
     C:IsString(charKey, 2)
     C:IsString(selector, 3)
 
-    local record = ProfileStore:GetProfile(charKey)
-    if not record then
-        return nil, "not-found"
-    end
-
-    local snapshots = record.Snapshots
+    local snapshots = ProfileStore:GetSnapshots(charKey)
     local hash, wantedIndex = SnapshotInfo.ParseSelector(selector)
-
-    local function wrap(info) return Snapshot:From(charKey, info) end
-    local function hashOf(info) return SnapshotInfo:HashValue(info) end
 
     if wantedIndex then
         for index = 1, #snapshots do
-            local info = snapshots[index]
-            if info.Index == wantedIndex then
-                if hashOf(info):sub(1, #hash) == hash then
-                    return wrap(info)
+            local snapshot = snapshots[index]
+            if snapshot:GetIndex() == wantedIndex then
+                if snapshot:HashValue():sub(1, #hash) == hash then
+                    return snapshot
                 end
                 return nil, "not-found"
             end
@@ -233,26 +193,22 @@ function ProfileManager:FindSnapshot(charKey, selector)
 
     local exactMatches = {}
     for index = 1, #snapshots do
-        if hashOf(snapshots[index]) == hash then
+        if snapshots[index]:HashValue() == hash then
             tinsert(exactMatches, snapshots[index])
         end
     end
     if #exactMatches > 1 then
-        local candidates = {}
-        for i = 1, #exactMatches do
-            candidates[i] = wrap(exactMatches[i])
-        end
-        return nil, "ambiguous", candidates
+        return nil, "ambiguous", exactMatches
     elseif #exactMatches == 1 then
-        return wrap(exactMatches[1])
+        return exactMatches[1]
     end
 
     local prefixMatch, candidates
     for index = 1, #snapshots do
-        if hashOf(snapshots[index]):sub(1, #hash) == hash then
+        if snapshots[index]:HashValue():sub(1, #hash) == hash then
             if prefixMatch then
-                candidates = candidates or { wrap(prefixMatch) }
-                tinsert(candidates, wrap(snapshots[index]))
+                candidates = candidates or { prefixMatch }
+                tinsert(candidates, snapshots[index])
             else
                 prefixMatch = snapshots[index]
             end
@@ -262,7 +218,7 @@ function ProfileManager:FindSnapshot(charKey, selector)
         return nil, "ambiguous", candidates
     end
     if prefixMatch then
-        return wrap(prefixMatch)
+        return prefixMatch
     end
     return nil, "not-found"
 end
@@ -291,20 +247,5 @@ end
 -- Permanently remove a snapshot from its character's history. Returns whether it
 -- was found and removed.
 function ProfileManager:Remove(snapshot)
-    Snapshot.Validate(snapshot, 2)
-
-    local charKey = snapshot:GetCharacterInfo().Key
-    local record = ProfileStore:GetProfile(charKey)
-    if not record then
-        return false
-    end
-
-    local snapshotInfo = snapshot:ToStore()
-    for index = 1, #record.Snapshots do
-        if record.Snapshots[index] == snapshotInfo then
-            tremove(record.Snapshots, index)
-            return true
-        end
-    end
-    return false
+    return ProfileStore:RemoveSnapshot(snapshot)
 end
