@@ -1,7 +1,7 @@
 local _, addon = ...
 local Debugger = addon:NewObject("Debugger")
 
-local ModuleRegistry = addon:GetObject("ModuleRegistry")
+local ModuleRegistry = addon.ModuleRegistry
 local CharacterInfo = LibStub("CharacterInfo-1.0")
 local Time = addon.Time
 

@@ -1,6 +1,6 @@
 local _, addon = ...
 local Chat = addon:NewObject("Chat")
-local ModuleRegistry = addon:GetObject("ModuleRegistry")
+local ModuleRegistry = addon.ModuleRegistry
 
 local L = addon.L
 local HashSet = addon.HashSet

@@ -1,6 +1,6 @@
 local _, addon = ...
 local Differ = addon:NewObject("Differ")
-local ModuleRegistry = addon:GetObject("ModuleRegistry")
+local ModuleRegistry = addon.ModuleRegistry
 
 --[[
     Differ — preview what applying a snapshot would change.

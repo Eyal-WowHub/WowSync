@@ -2,7 +2,7 @@ local _, addon = ...
 local ImportedHashDictionary = addon:NewObject("ImportedHashDictionary")
 
 local ImportStore = addon:GetObject("ImportStore")
-local Snapshot = addon:GetObject("Snapshot")
+local SnapshotInfo = addon.SnapshotInfo
 
 --[[
     ImportedHashDictionary — cross-container hash ownership for imported snapshots.
@@ -33,7 +33,7 @@ function ImportedHashDictionary:GetHashOwners()
             local hash
             if snapshot.Ref ~= nil and snapshot.Data == nil and snapshot.ModuleHashes == nil then
                 local owner = byIndex[snapshot.Ref]
-                hash = owner and Snapshot:HashValue(owner) or snapshot.Hash
+                hash = owner and SnapshotInfo:HashValue(owner) or snapshot.Hash
                 if owner and owner.ModuleHashes ~= nil then
                     snapshot.ModuleHashes = owner.ModuleHashes
                 end
@@ -41,7 +41,7 @@ function ImportedHashDictionary:GetHashOwners()
                     snapshot.Hash = hash
                 end
             else
-                hash = Snapshot:HashValue(snapshot)
+                hash = SnapshotInfo:HashValue(snapshot)
             end
 
             if hash then

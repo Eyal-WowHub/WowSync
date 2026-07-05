@@ -33,7 +33,7 @@ local C = LibStub("Contracts-1.0")
 local DEBOUNCE_SECONDS = 0.5
 local SETTLE_SECONDS = 0.2
 
-local ModuleRegistry = addon:GetObject("ModuleRegistry")
+local ModuleRegistry = addon.ModuleRegistry
 local CurrentStore = addon:GetObject("CurrentStore")
 
 -- eventName -> array of module names that care about it.

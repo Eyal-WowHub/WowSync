@@ -1,133 +1,120 @@
 local _, addon = ...
 WowSync = addon:NewObject(addon:GetName())
-local ProfileManager = addon:GetObject("ProfileManager")
-local SnapshotManager = addon:GetObject("SnapshotManager")
-local ImportManager = addon:GetObject("ImportManager")
-local ExportManager = addon:GetObject("ExportManager")
-local ImportedHashDictionary = addon:GetObject("ImportedHashDictionary")
-local CharacterManager = addon:GetObject("CharacterManager")
-local ModuleRegistry = addon:GetObject("ModuleRegistry")
-local SnapshotView = addon:GetObject("SnapshotView")
-local SnapshotHandleCache = addon:GetObject("SnapshotHandleCache")
-local GameWatcher = addon:GetObject("GameWatcher")
-local Debugger = addon:GetObject("Debugger")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
-local ChangeBadge = addon.ChangeBadge
+
+-- Loads the companion UI addon on demand, then fires WOWSYNC_UI_TOGGLED so the
+-- UI can open or toggle its window.
+local function ToggleUI()
+    if not C_AddOns.IsAddOnLoaded("WowSync_UI") and not C_AddOns.LoadAddOn("WowSync_UI") then
+        addon:Print(L["WowSync_UI addon not found."])
+        return
+    end
+    WowSync:TriggerEvent("WOWSYNC_UI_TOGGLED")
+end
+
+-- Loads the companion UI addon on demand, then fires WOWSYNC_UI_OPEN_SHARE_DIALOG
+-- so the UI can open its share dialog; action is "import" or "export".
+local function OpenShareDialog(action)
+    if not C_AddOns.IsAddOnLoaded("WowSync_UI") and not C_AddOns.LoadAddOn("WowSync_UI") then
+        addon:Print(L["WowSync_UI is required to import and export. Enable it in your AddOns list."])
+        return
+    end
+    WowSync:TriggerEvent("WOWSYNC_UI_OPEN_SHARE_DIALOG", action)
+end
+
+-- The public export surface, resolved through WowSync:Import(name). A `true`
+-- entry exports the whole object or table; a table of members exports a cached
+-- proxy carrying only those — `member = true` forwards a method of the backing
+-- addon object, `member = <function>` exposes that function directly. Only names
+-- listed here can be imported.
+local Imports = {
+    -- Shared formatter/value tables.
+    ChangeBadge = true,
+
+    -- Namespaced helper surfaces.
+    Console = {
+        Print = function(...) addon:Print(...) end,
+        PrintLine = function(...) addon:PrintLine(...) end,
+    },
+    UI = {
+        ToggleUI = ToggleUI,
+        OpenShareDialog = OpenShareDialog,
+    },
+
+    -- Domain objects.
+    ProfileManager = true,
+    SnapshotManager = true,
+    ImportManager = true,
+    ExportManager = true,
+    ImportedHashDictionary = true,
+    CharacterManager = true,
+    ModuleRegistry = true,
+    Debugger = true,
+    GameWatcher = {
+        Attach = true,
+        Detach = true,
+        HasAttachments = true,
+    },
+}
+
+-- Built proxies, keyed by name, so repeated imports of a partially-exported
+-- surface hand back the same proxy. Fully-exported entries need no cache.
+local proxies = {}
+
+-- A proxy exposing only the whitelisted members of an export. A `true` member is
+-- forwarded to the method of that name on the backing addon object (which stays
+-- the receiver). A function member is forwarded with the proxy receiver dropped,
+-- so it is written as a plain function.
+local function BuildProxy(name, members)
+    local proxy = {}
+    local object  -- the backing addon object, resolved only when a `true` member needs it
+    for key, member in pairs(members) do
+        if member == true then
+            object = object or addon:GetObject(name)
+            local method = object[key]
+            C:Ensures(type(method) == "function", "Import: '%s' has no method '%s'", name, key)
+            proxy[key] = function(_, ...)
+                return method(object, ...)
+            end
+        elseif type(member) == "function" then
+            proxy[key] = function(_, ...)
+                return member(...)
+            end
+        else
+            C:Ensures(false, "Import: '%s.%s' must be true or a function", name, key)
+        end
+    end
+    return proxy
+end
 
 -- Public value objects returned by this addon's APIs.
 WowSync.Models = {
     SnapshotApplyMode = addon.SnapshotApplyMode,
 }
 
-function WowSync:GetProfileManager()
-    return ProfileManager
-end
+-- Resolve a public object by name: the whole object when fully exported, or a
+-- cached proxy carrying only its whitelisted methods. Only names in the Imports
+-- whitelist can be imported; anything else is a programming error.
+function WowSync:Import(name)
+    local allowed = Imports[name]
+    C:Ensures(allowed ~= nil, "Import: '%s' is not an exported object", tostring(name))
 
--- Captures, saves, applies, previews and undoes snapshots, and reports a
--- character's current head.
-function WowSync:GetSnapshotManager()
-    return SnapshotManager
-end
+    if allowed == true then
+        return addon:GetObject(name, true) or addon[name]
+    end
 
--- Imports shared strings into class-locked containers, manages those
--- containers, and applies imported snapshots.
-function WowSync:GetImportManager()
-    return ImportManager
-end
-
--- Exports profile snapshots and heads to portable shared strings.
-function WowSync:GetExportManager()
-    return ExportManager
-end
-
--- Resolves, across every container, which one owns each imported snapshot hash
--- (the earliest-imported copy).
-function WowSync:GetImportedHashDictionary()
-    return ImportedHashDictionary
-end
-
--- The roster of characters that have a profile or a captured current setup, and
--- token-to-character resolution.
-function WowSync:GetCharacterManager()
-    return CharacterManager
-end
-
--- The registry of installed modules (lookup by name and iteration).
-function WowSync:GetModuleRegistry()
-    return ModuleRegistry
-end
-
--- The accessor/mutator interface onto an individual snapshot handle.
-function WowSync:GetSnapshotView()
-    return SnapshotView
-end
-
--- The source of stable snapshot handles, keyed by character (head, latest
--- saved, pending eviction, full timeline).
-function WowSync:GetSnapshotHandleCache()
-    return SnapshotHandleCache
-end
-
--- Registers interest in live tracking under a consumer id; while any attachment is
--- present, lazy mode keeps the current setup mirrored.
-function WowSync:Attach(consumerId)
-    GameWatcher:Attach(consumerId)
-end
-
--- Drops an attachment's interest; tracking stops once the last one leaves.
-function WowSync:Detach(consumerId)
-    GameWatcher:Detach(consumerId)
-end
-
--- True while at least one consumer is attached.
-function WowSync:HasAttachments()
-    return GameWatcher:HasAttachments()
-end
-
--- The opt-in debug recorder, for tagging an action's source and logging UI
--- interactions into WowSyncDebugDB.
-function WowSync:GetDebugger()
-    return Debugger
-end
-
--- The shared formatter for coloured "+A ~C -R" diff strings, used by companion
--- UI addons to render one consistent change figure.
-function WowSync:FormatDiffString(counts, prefix)
-    return ChangeBadge.FormatDiffString(counts, prefix)
+    local proxy = proxies[name]
+    if not proxy then
+        proxy = BuildProxy(name, allowed)
+        proxies[name] = proxy
+    end
+    return proxy
 end
 
 --[[ Addon entry points ]]
 
--- Public alias for addon:Print.
-WowSync.Print = addon.Print
-
--- Public alias for addon:PrintLine.
-WowSync.PrintLine = addon.PrintLine
-
--- Loads the companion UI addon on demand, then fires WOWSYNC_UI_TOGGLED so the
--- UI can open or toggle its window.
-function WowSync:ToggleUI()
-    if not C_AddOns.IsAddOnLoaded("WowSync_UI") and not C_AddOns.LoadAddOn("WowSync_UI") then
-        self:Print(L["WowSync_UI addon not found."])
-        return
-    end
-
-    WowSync:TriggerEvent("WOWSYNC_UI_TOGGLED")
-end
-
--- Loads the companion UI addon on demand, then fires WOWSYNC_UI_OPEN_SHARE_DIALOG
--- so the UI can open its share dialog; action is "import" or "export". Prints a
--- notice and does nothing when the UI addon is disabled or missing.
-function WowSync:OpenShareDialog(action)
-    if not C_AddOns.IsAddOnLoaded("WowSync_UI") and not C_AddOns.LoadAddOn("WowSync_UI") then
-        self:Print(L["WowSync_UI is required to import and export. Enable it in your AddOns list."])
-        return
-    end
-
-    WowSync:TriggerEvent("WOWSYNC_UI_OPEN_SHARE_DIALOG", action)
-end
-
 function WowSync_OnAddonCompartmentClick()
-    WowSync:ToggleUI()
+    ToggleUI()
 end

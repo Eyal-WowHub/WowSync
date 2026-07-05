@@ -1,5 +1,6 @@
 local _, addon = ...
-local ModuleInterface = addon:NewObject("ModuleInterface")
+local ModuleInterface = {}
+addon.ModuleInterface = ModuleInterface
 
 --[[
     ModuleInterface — the contract every sync module fulfils.

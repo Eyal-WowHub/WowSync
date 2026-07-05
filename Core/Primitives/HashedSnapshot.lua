@@ -5,7 +5,7 @@ HashedSnapshot.__index = HashedSnapshot
 
 local Hash = addon.Hash
 local HashedModule = addon.HashedModule
-local ModuleIds = addon:GetObject("ModuleIds")
+local ModuleIds = addon.ModuleIds
 local C = LibStub("Contracts-1.0")
 
 --[[

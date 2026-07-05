@@ -1,6 +1,6 @@
 local _, addon = ...
 local ImportStore = addon:NewObject("ImportStore")
-local Snapshot = addon:GetObject("Snapshot")
+local SnapshotInfo = addon.SnapshotInfo
 
 local Time = addon.Time
 
@@ -40,16 +40,13 @@ local function SnapshotHash(record, snapshot)
     if not snapshot then
         return nil
     end
-    if not Snapshot or not Snapshot.HashValue then
-        return snapshot.Hash
-    end
 
     -- Import duplicates can be payload-less shells. Align them to their owner's
     -- normalized hash so duplicate grouping and selector matching stay stable.
     if snapshot.Ref ~= nil and snapshot.Data == nil and snapshot.ModuleHashes == nil then
         local owner = FindByIndex and FindByIndex(record, snapshot.Ref)
         if owner then
-            local ownerHash = Snapshot:HashValue(owner)
+            local ownerHash = SnapshotInfo:HashValue(owner)
             snapshot.Hash = ownerHash
             if owner.ModuleHashes ~= nil then
                 snapshot.ModuleHashes = owner.ModuleHashes
@@ -59,7 +56,7 @@ local function SnapshotHash(record, snapshot)
         return snapshot.Hash
     end
 
-    return Snapshot:HashValue(snapshot)
+    return SnapshotInfo:HashValue(snapshot)
 end
 
 -- True when a container with this name (case-insensitively) already exists,
@@ -340,7 +337,7 @@ end
 
 -- Resolve a snapshot in a container by selector, following a duplicate's Ref to
 -- the owner so the returned snapshot always carries the real payload. Returns
--- snapshot, reason, candidates (mirrors ProfileStore:GetSnapshot).
+-- snapshotInfo, reason, candidates.
 function ImportStore:GetSnapshot(importID, selector)
     local record = imports[importID]
     if not record then

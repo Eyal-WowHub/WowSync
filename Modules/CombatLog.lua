@@ -1,6 +1,6 @@
 local _, addon = ...
 local CombatLog = addon:NewObject("CombatLog")
-local ModuleRegistry = addon:GetObject("ModuleRegistry")
+local ModuleRegistry = addon.ModuleRegistry
 
 local HashSet = addon.HashSet
 local SnapshotApplyMode = addon.SnapshotApplyMode

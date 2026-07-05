@@ -1,5 +1,6 @@
 local _, addon = ...
-local ModuleIds = addon:NewObject("ModuleIds")
+local ModuleIds = {}
+addon.ModuleIds = ModuleIds
 
 --[[
     ModuleIds — the append-only registry of permanent module identities.

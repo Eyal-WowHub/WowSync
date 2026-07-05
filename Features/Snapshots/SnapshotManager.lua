@@ -11,7 +11,7 @@ local ApplyResult = addon.ApplyResult
     SnapshotManager — the snapshot subsystem's orchestrator/facade.
 
     It owns no state of its own; it coordinates the registry, the profile
-    history (ProfileStore), the per-character live setup (CurrentStore), the
+    history (ProfileManager), the per-character live setup (CurrentStore), the
     rollback snapshot stack (UndoStore), the snapshot value-object (Snapshot), and
     the apply preview (Differ).
 
@@ -23,11 +23,11 @@ local ApplyResult = addon.ApplyResult
       Undo    -> re-apply the top rollback snapshot in Exact mode, then pop it.
 ]]
 
-local ModuleRegistry = addon:GetObject("ModuleRegistry")
-local ProfileStore = addon:GetObject("ProfileStore")
+local ModuleRegistry = addon.ModuleRegistry
+local ProfileManager = addon:GetObject("ProfileManager")
 local CurrentStore = addon:GetObject("CurrentStore")
 local UndoStore = addon:GetObject("UndoStore")
-local Snapshot = addon:GetObject("Snapshot")
+local Snapshot = addon.Snapshot
 local Differ = addon:GetObject("Differ")
 local GameWatcher = addon:GetObject("GameWatcher")
 local SaveTask = addon:GetObject("SaveTask")
@@ -63,9 +63,9 @@ local function BuildCurrentSource()
     }
 end
 
--- The meta passed to a module's CanApply/Apply, derived from a snapshot's source.
+-- The meta passed to a module's CanApply/Apply, derived from a Snapshot.
 local function BuildApplyMeta(snapshot)
-    return { ClassID = snapshot.Source and snapshot.Source.ClassID }
+    return { ClassID = snapshot:GetCharacterInfo().ClassID }
 end
 
 -- The chosen module subset (intersected with what was actually captured), or
@@ -209,34 +209,9 @@ function SnapshotManager:GetCurrentCharKey()
     return CharacterInfo:GetFullName()
 end
 
--- A derived "head" describing a character's current setup (live for the
--- logged-in character, last-captured for an alt), or nil when nothing is
--- captured. Not a stored snapshot: it carries a content Hash but no Index. The
--- companion UI floats it above the saved history as the always-current top of
--- the timeline.
-function SnapshotManager:GetCharInfo(charKey)
-    charKey = charKey or CharacterInfo:GetFullName()
-
-    local capturedModules = CurrentStore:Get(charKey)
-    if not capturedModules or not next(capturedModules) then
-        return nil
-    end
-
-    local charMeta = CurrentStore:GetMetadata(charKey)
-    local hash, moduleHashes = Snapshot:Fingerprint(capturedModules)
-    return {
-        Hash = hash,
-        ModuleHashes = moduleHashes,
-        Modules = capturedModules,
-        LastSeen = charMeta and charMeta.LastSeen,
-        ClassID = charMeta and charMeta.ClassID,
-        IsConnected = charKey == CharacterInfo:GetFullName(),
-    }
-end
-
 -- The soft cap on snapshots kept per character profile.
 function SnapshotManager:GetSnapshotLimit()
-    return ProfileStore:GetMaxSnapshots()
+    return ProfileManager:GetMaxSnapshots()
 end
 
 --[[ Save ]]
@@ -254,19 +229,14 @@ function SnapshotManager:SaveCurrentSnapshot(note, moduleSet, onComplete)
 
     SaveTask:Run(function()
         local snapshotModules = FilterCapturedModules(CurrentStore:Capture(), moduleSet)
+        local snapshot = Snapshot:Create(snapshotModules, BuildCurrentSource())
 
-        local profileName = CharacterInfo:GetFullName()
-        ProfileStore:CreateProfile(profileName)
-
-        local snapshot = Snapshot:Create(snapshotModules, BuildCurrentSource()):ToStore()
-        snapshot.Notes = note
-
-        local stored = ProfileStore:AddSnapshot(profileName, snapshot)
+        local stored = ProfileManager:AddSnapshot(snapshot, note)
         if Debugger:IsEnabled() then
             Debugger:RecordSave({
-                Profile = profileName,
-                Hash = snapshot.Hash,
-                Selector = stored and stored.Index,
+                Profile = snapshot:GetCharacterInfo().Character,
+                Hash = snapshot:HashValue(),
+                Selector = stored and stored:GetSelector(),
             }, snapshotModules)
         end
         return stored
@@ -280,7 +250,7 @@ end
 --             nil when nothing would be removed (under the cap, or all pinned).
 function SnapshotManager:PreviewSaveSnapshotByCharKey(moduleSet, charKey)
     charKey = charKey or CharacterInfo:GetFullName()
-    return ProfileStore:PendingEviction(charKey)
+    return ProfileManager:PendingEviction(charKey)
 end
 
 -- Append a snapshot built from another character's captured Current to that
@@ -302,116 +272,45 @@ function SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, onCompl
         end
 
         local snapshotModules = FilterCapturedModules(capturedModules, moduleSet)
-
         local characterMetadata = CurrentStore:GetMetadata(charKey)
-        ProfileStore:CreateProfile(charKey)
-
         local snapshot = Snapshot:Create(snapshotModules, {
             Character = charKey,
             ClassID = characterMetadata and characterMetadata.ClassID,
-        }):ToStore()
-        snapshot.Notes = note
+        })
 
-        local stored = ProfileStore:AddSnapshot(charKey, snapshot)
+        local stored = ProfileManager:AddSnapshot(snapshot, note)
         if Debugger:IsEnabled() then
             Debugger:RecordSave({
                 Profile = charKey,
-                Hash = snapshot.Hash,
-                Selector = stored and stored.Index,
+                Hash = snapshot:HashValue(),
+                Selector = stored and stored:GetSelector(),
             }, snapshotModules)
         end
         return stored
     end, onComplete)
 end
 
---[[ Preview ]]
+--[[ Preview / Apply ]]
 
--- Preview applying a profile snapshot (latest when selector is nil) over Current.
--- cached diffs against the already-captured Current instead of re-scanning the
--- live setup, for cheap repeated previews (e.g. timeline change indicators).
-function SnapshotManager:PreviewApplySnapshot(profileName, selector, moduleSet, cached)
-    C:IsString(profileName, 2)
-
-    local snapshot
-    if selector then
-        snapshot = ProfileStore:GetSnapshot(profileName, selector)
-    else
-        snapshot = ProfileStore:GetLatestSnapshot(profileName)
-    end
-    if not snapshot then
-        return nil
-    end
-
+-- Preview applying a snapshot (a stored entry, a head, or an import) over the
+-- connected character's current setup. cached diffs against the already-captured
+-- Current instead of re-scanning the live setup, for cheap repeated previews.
+function SnapshotManager:Preview(snapshot, moduleSet, cached)
+    Snapshot.Validate(snapshot, 2)
     local currentModules = cached and CurrentStore:Get() or CurrentStore:Capture()
-    return Differ:Preview(currentModules, Snapshot:GetModules(snapshot), moduleSet)
-end
-
--- Preview applying a character's current setup (its head) over the logged-in
--- character's Current. Mirrors PreviewApplySnapshot but sources a character's
--- live or last-captured modules instead of a stored snapshot.
-function SnapshotManager:PreviewApplyHeadByCharKey(charKey, moduleSet, cached)
-    C:IsString(charKey, 2)
-
-    local sourceModules = CurrentStore:Get(charKey)
-    if not sourceModules then
-        return nil
-    end
-
-    local currentModules = cached and CurrentStore:Get() or CurrentStore:Capture()
-    return Differ:Preview(currentModules, sourceModules, moduleSet)
+    return Differ:Preview(currentModules, snapshot:Modules(), moduleSet)
 end
 
 --[[ Apply ]]
 
--- Apply a profile snapshot (latest when selector is nil) to the current character.
--- strategy = { default = "merge"|"exact", overrides = { [name] = mode } }.
+-- Apply a snapshot (a stored entry, a head, or an import) to the connected
+-- character. strategy = { default = "merge"|"exact", overrides = { [name]=mode } }.
 -- A full rollback snapshot of Current is pushed to the undo stack first.
-function SnapshotManager:ApplySnapshot(profileName, selector, strategy, moduleSet)
-    C:IsString(profileName, 2)
-
-    local snapshot
-    if selector then
-        snapshot = ProfileStore:GetSnapshot(profileName, selector)
-    else
-        snapshot = ProfileStore:GetLatestSnapshot(profileName)
-    end
-    C:Ensures(snapshot, "ApplySnapshot: profile '%s' has no snapshot to apply", profileName)
-
-    return ApplyCapturedModules(Snapshot:GetModules(snapshot), BuildApplyMeta(snapshot), strategy, moduleSet, {
-        Profile = profileName,
-        Selector = selector,
+function SnapshotManager:Apply(snapshot, strategy, moduleSet)
+    Snapshot.Validate(snapshot, 2)
+    return ApplyCapturedModules(snapshot:Modules(), BuildApplyMeta(snapshot), strategy, moduleSet, {
+        Profile = snapshot:GetCharacterInfo().Key,
     })
-end
-
--- Apply a character's current setup (its head) to the logged-in character. Like
--- ApplySnapshot, but sources a character's live or last-captured modules instead
--- of a stored snapshot. A full rollback snapshot of Current is pushed first.
-function SnapshotManager:ApplyHeadByCharKey(charKey, strategy, moduleSet)
-    C:IsString(charKey, 2)
-
-    local sourceModules = CurrentStore:Get(charKey)
-    C:Ensures(sourceModules, "ApplyHeadByCharKey: character '%s' has nothing captured", charKey)
-
-    local characterMetadata = CurrentStore:GetMetadata(charKey)
-    local applyMeta = { ClassID = characterMetadata and characterMetadata.ClassID }
-    return ApplyCapturedModules(sourceModules, applyMeta, strategy, moduleSet, { Profile = charKey })
-end
-
--- Apply an imported snapshot to the logged-in character. Like ApplySnapshot, but
--- the snapshot comes from an import container instead of a profile. A full
--- rollback snapshot of Current is pushed first.
-function SnapshotManager:ApplyImportSnapshot(snapshot, strategy, moduleSet)
-    C:IsTable(snapshot, 2)
-    return ApplyCapturedModules(Snapshot:GetModules(snapshot), BuildApplyMeta(snapshot), strategy, moduleSet, {
-        Profile = "import",
-    })
-end
-
--- Preview applying an imported snapshot over the logged-in character's Current.
-function SnapshotManager:PreviewApplyImportSnapshot(snapshot, moduleSet)
-    C:IsTable(snapshot, 2)
-    local currentModules = CurrentStore:Capture()
-    return Differ:Preview(currentModules, Snapshot:GetModules(snapshot), moduleSet)
 end
 
 --[[ Undo ]]
@@ -421,17 +320,12 @@ function SnapshotManager:CanUndo()
 end
 
 -- Subject + sorted module names describing a single rollback snapshot.
-local function DescribeRollbackSnapshot(rollbackSnapshot)
-    local moduleNames = {}
-    for name in pairs(rollbackSnapshot.Modules) do
-        tinsert(moduleNames, name)
-    end
-    table.sort(moduleNames)
-
+local function DescribeRollbackSnapshot(rollbackInfo)
+    local snapshot = Snapshot:From(rollbackInfo.Source and rollbackInfo.Source.Character, rollbackInfo)
     return {
-        Subject = Snapshot:GetSubject(rollbackSnapshot),
-        Timestamp = rollbackSnapshot.Timestamp,
-        ModuleNames = moduleNames,
+        Subject = snapshot:GetSubject(),
+        Timestamp = snapshot:GetTimestamp(),
+        ModuleNames = snapshot:GetModuleNames(),
     }
 end
 
@@ -449,12 +343,12 @@ end
 -- snapshot re-applied in Exact mode over the current setup. Nil when there is
 -- nothing to undo.
 function SnapshotManager:PreviewUndo()
-    local rollbackSnapshot = UndoStore:Peek()
-    if not rollbackSnapshot then
+    local rollbackInfo = UndoStore:Peek()
+    if not rollbackInfo then
         return nil
     end
-
-    return Differ:Preview(CurrentStore:Capture(), Snapshot:GetModules(rollbackSnapshot))
+    local snapshot = Snapshot:From(rollbackInfo.Source and rollbackInfo.Source.Character, rollbackInfo)
+    return self:Preview(snapshot)
 end
 
 -- The undo points newest-first, each describing one apply that can be rolled
@@ -479,18 +373,19 @@ function SnapshotManager:UndoLastApply(moduleSet)
     -- Finish any in-flight save first so it cannot capture a half-undone setup.
     SaveTask:Drain()
 
-    local rollbackSnapshot = UndoStore:Peek()
-    if not rollbackSnapshot then
+    local rollbackInfo = UndoStore:Peek()
+    if not rollbackInfo then
         return nil
     end
+    local snapshot = Snapshot:From(rollbackInfo.Source and rollbackInfo.Source.Character, rollbackInfo)
 
-    local applyMeta = BuildApplyMeta(rollbackSnapshot)
-    local rollbackModules = Snapshot:GetModules(rollbackSnapshot)
+    local applyMeta = BuildApplyMeta(snapshot)
+    local rollbackModules = snapshot:Modules()
     local moduleNames = ResolveModuleNames(rollbackModules, moduleSet)
     local applyResults = {}
 
     local debugHandle = Debugger:IsEnabled() and Debugger:BeginOperation("undo", {
-        Subject = Snapshot:GetSubject(rollbackSnapshot),
+        Subject = snapshot:GetSubject(),
     }, moduleNames)
 
     GameWatcher:SuspendTracking()
@@ -538,37 +433,3 @@ function SnapshotManager:UndoApplies(count)
     return aggregate
 end
 
---[[ Snapshot read/management ]]
-
--- Resolve a snapshot within a profile by exact hash, unambiguous prefix, or
--- <hash>#<index>. Returns snapshot, or nil + reason + candidates.
-function SnapshotManager:GetSnapshot(profileName, selector)
-    C:IsString(profileName, 2)
-    C:IsString(selector, 3)
-    return ProfileStore:GetSnapshot(profileName, selector)
-end
-
-function SnapshotManager:DeleteSnapshot(profileName, selector)
-    C:IsString(profileName, 2)
-    C:IsString(selector, 3)
-    return ProfileStore:DeleteSnapshot(profileName, selector)
-end
-
-function SnapshotManager:SetSnapshotNotes(profileName, selector, text)
-    C:IsString(profileName, 2)
-    C:IsString(selector, 3)
-    C:IsString(text, 4)
-    return ProfileStore:SetSnapshotNotes(profileName, selector, text)
-end
-
-function SnapshotManager:PinSnapshot(profileName, selector)
-    C:IsString(profileName, 2)
-    C:IsString(selector, 3)
-    return ProfileStore:PinSnapshot(profileName, selector)
-end
-
-function SnapshotManager:UnpinSnapshot(profileName, selector)
-    C:IsString(profileName, 2)
-    C:IsString(selector, 3)
-    return ProfileStore:UnpinSnapshot(profileName, selector)
-end

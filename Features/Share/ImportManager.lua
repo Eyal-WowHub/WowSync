@@ -17,16 +17,17 @@ local Time = addon.Time
 local ShareCodec = addon:GetObject("ShareCodec")
 local ImportStore = addon:GetObject("ImportStore")
 local SnapshotManager = addon:GetObject("SnapshotManager")
-local Snapshot = addon:GetObject("Snapshot")
+local SnapshotInfo = addon.SnapshotInfo
+local Snapshot = addon.Snapshot
 
 -- Build a storable snapshot from decoded shared data, keeping the original
 -- capture time and note and recording when it was imported.
 local function BuildImportSnapshot(sharedData)
-    local snapshot = Snapshot:Create(sharedData.Modules, { ClassID = sharedData.ClassID }):ToStore()
-    snapshot.Timestamp = sharedData.Timestamp
-    snapshot.Notes = sharedData.Notes
-    snapshot.ImportedAt = Time:Now()
-    return snapshot
+    local snapshotInfo = SnapshotInfo:Create(sharedData.Modules, { ClassID = sharedData.ClassID })
+    snapshotInfo.Timestamp = sharedData.Timestamp
+    snapshotInfo.Notes = sharedData.Notes
+    snapshotInfo.ImportedAt = Time:Now()
+    return snapshotInfo
 end
 
 --[[ Import ]]
@@ -121,9 +122,23 @@ function ImportManager:GetImport(importID)
     return ImportStore:GetImport(importID)
 end
 
--- A container's snapshots, oldest-first (empty when the id is unknown).
+-- A container's snapshots, oldest-first (empty when the id is unknown). These
+-- are the raw stored records: the import list is a curated storage view (its
+-- dedup/origin flags and per-row chrome read import-only fields), so it works
+-- with them directly rather than through Snapshot.
 function ImportManager:GetSnapshots(importID)
     return ImportStore:GetSnapshots(importID)
+end
+
+-- Resolve one imported snapshot by selector as a Snapshot object (its payload
+-- followed to the owner), for the shared apply/preview UI. Nil + a reason when
+-- it cannot be resolved.
+function ImportManager:GetSnapshot(importID, selector)
+    local snapshotInfo, reason = ImportStore:GetSnapshot(importID, selector)
+    if not snapshotInfo then
+        return nil, reason or "not-found"
+    end
+    return Snapshot:From(nil, snapshotInfo)
 end
 
 -- Rename a container. Returns true, or false + a reason.
@@ -178,19 +193,19 @@ end
 -- Preview applying an imported snapshot over the logged-in character's Current.
 -- Returns the preview, or nil + a reason.
 function ImportManager:PreviewApplySnapshot(importID, selector, moduleSet)
-    local snapshot, reason = ImportStore:GetSnapshot(importID, selector)
-    if not snapshot then
+    local snapshotInfo, reason = ImportStore:GetSnapshot(importID, selector)
+    if not snapshotInfo then
         return nil, reason or "not-found"
     end
-    return SnapshotManager:PreviewApplyImportSnapshot(snapshot, moduleSet)
+    return SnapshotManager:Preview(Snapshot:From(nil, snapshotInfo), moduleSet)
 end
 
 -- Apply an imported snapshot to the logged-in character, pushing a rollback
 -- snapshot first. Returns the apply results, or nil + a reason.
 function ImportManager:ApplySnapshot(importID, selector, strategy, moduleSet)
-    local snapshot, reason = ImportStore:GetSnapshot(importID, selector)
-    if not snapshot then
+    local snapshotInfo, reason = ImportStore:GetSnapshot(importID, selector)
+    if not snapshotInfo then
         return nil, reason or "not-found"
     end
-    return SnapshotManager:ApplyImportSnapshot(snapshot, strategy, moduleSet)
+    return SnapshotManager:Apply(Snapshot:From(nil, snapshotInfo), strategy, moduleSet)
 end

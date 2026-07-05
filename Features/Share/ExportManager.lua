@@ -11,9 +11,7 @@ local ExportManager = addon:NewObject("ExportManager")
 ]]
 
 local ShareCodec = addon:GetObject("ShareCodec")
-local ProfileStore = addon:GetObject("ProfileStore")
-local SnapshotManager = addon:GetObject("SnapshotManager")
-local Snapshot = addon:GetObject("Snapshot")
+local ProfileManager = addon:GetObject("ProfileManager")
 
 -- Keep only the modules named in `allowed` (a { [name] = true } set). With no
 -- set the full { [name] = data } table passes through unchanged.
@@ -39,22 +37,22 @@ function ExportManager:ExportSnapshot(profileName, selector, opts)
 
     local snapshot, reason
     if selector then
-        snapshot, reason = ProfileStore:GetSnapshot(profileName, selector)
+        snapshot, reason = ProfileManager:FindSnapshot(profileName, selector)
     else
-        snapshot = ProfileStore:GetLatestSnapshot(profileName)
+        snapshot = ProfileManager:Latest(profileName)
     end
     if not snapshot then
         return nil, reason or "not-found"
     end
 
-    local modules = FilterModules(Snapshot:GetModules(snapshot), opts.modules)
+    local modules = FilterModules(snapshot:Modules(), opts.modules)
     if next(modules) == nil then
         return nil, "no-modules"
     end
 
-    local classID = snapshot.Source and snapshot.Source.ClassID
-    local notes = opts.notes ~= nil and opts.notes or snapshot.Notes
-    return ShareCodec:Encode(modules, classID, snapshot.Timestamp, notes)
+    local classID = snapshot:GetCharacterInfo().ClassID
+    local notes = opts.notes ~= nil and opts.notes or snapshot:GetNotes()
+    return ShareCodec:Encode(modules, classID, snapshot:GetTimestamp(), notes)
 end
 
 -- Anonymised shared string for a character's current head. opts.modules narrows
@@ -63,14 +61,14 @@ end
 function ExportManager:ExportHead(charKey, opts)
     opts = opts or {}
 
-    local head = SnapshotManager:GetCharInfo(charKey)
+    local head = ProfileManager:GetHead(charKey)
     if not head then
         return nil, "not-found"
     end
 
-    local modules = FilterModules(head.Modules, opts.modules)
+    local modules = FilterModules(head:Modules(), opts.modules)
     if next(modules) == nil then
         return nil, "no-modules"
     end
-    return ShareCodec:Encode(modules, head.ClassID, head.LastSeen, opts.notes)
+    return ShareCodec:Encode(modules, head:GetCharacterInfo().ClassID, head:GetTimestamp(), opts.notes)
 end

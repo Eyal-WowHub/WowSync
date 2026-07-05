@@ -1,6 +1,6 @@
 local _, addon = ...
 local PvpTalents = addon:NewObject("PvpTalents")
-local ModuleRegistry = addon:GetObject("ModuleRegistry")
+local ModuleRegistry = addon.ModuleRegistry
 
 local L = addon.L
 local HashSet = addon.HashSet

@@ -1,6 +1,6 @@
 local _, addon = ...
 local Macros = addon:NewObject("Macros")
-local ModuleRegistry = addon:GetObject("ModuleRegistry")
+local ModuleRegistry = addon.ModuleRegistry
 
 local L = addon.L
 local HashSet = addon.HashSet

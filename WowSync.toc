@@ -40,6 +40,8 @@ Core\Modules\ModuleRegistry.lua
 Core\Primitives\HashSet.lua
 Core\Primitives\HashedModule.lua
 Core\Primitives\HashedSnapshot.lua
+Core\Primitives\SnapshotInfo.lua
+Core\Primitives\Snapshot.lua
 
 Features\Development\Debugger.lua
 
@@ -52,12 +54,9 @@ Features\Profiles\SaveTask.lua
 Features\Profiles\ProfileManager.lua
 
 Features\Snapshots\SnapshotApplyMode.lua
-Features\Snapshots\Snapshot.lua
 Features\Snapshots\ApplyResult.lua
 Features\Snapshots\Differ.lua
 Features\Snapshots\SnapshotManager.lua
-Features\Snapshots\SnapshotView.lua
-Features\Snapshots\SnapshotHandleCache.lua
 
 Features\Share\ShareUtils.lua
 Features\Share\ShareCodec.lua

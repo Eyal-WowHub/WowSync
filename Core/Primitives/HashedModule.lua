@@ -4,7 +4,7 @@ addon.HashedModule = HashedModule
 HashedModule.__index = HashedModule
 
 local Hash = addon.Hash
-local ModuleIds = addon:GetObject("ModuleIds")
+local ModuleIds = addon.ModuleIds
 local C = LibStub("Contracts-1.0")
 
 --[[
