@@ -99,47 +99,17 @@ local function ResolveModuleNames(capturedModules, moduleSet)
     return moduleNames
 end
 
--- Shared apply core: capture a FULL rollback snapshot of Current before touching
--- anything (so any change, including Exact deletions and per-module undo, can be
--- rolled back), then apply the given module set with the per-module strategy.
--- The rollback snapshot is only pushed to the undo stack when an apply actually
--- happens. Returns an ApplyResult.
-local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, info)
-    -- Never change the live setup during combat; the protected talent and
-    -- action-bar APIs are locked. Report nothing applied.
-    if InCombatLockdown() then
-        return ApplyResult:New({})
-    end
-
-    -- Finish any in-flight save first so it cannot capture a half-applied setup.
-    SaveTask:Drain()
-
-    strategy = strategy or {}
+-- Write captured module payloads into the live game in module priority order
+-- (so dependencies like Macros land before the modules that reference them),
+-- honoring each module's CanApply gate and apply mode. Returns the per-module
+-- results and whether anything was actually applied.
+local function ApplyModules(sourceModules, meta, moduleNames, strategy)
     local defaultMode = strategy.default or "merge"
     local overrides = strategy.overrides or {}
-
-    local liveSnapshot = ProfileManager:RefreshLiveSnapshot()
-    C:Ensures(liveSnapshot ~= nil, "expected a live snapshot to roll back to, but the logged-in character captured nothing")
-    local rollbackSnapshot = Snapshot:Create(liveSnapshot:Modules(), BuildCurrentSource())
-
-    local moduleNames = ResolveModuleNames(sourceModules, moduleSet)
     local applyResults = {}
     local applied = false
-
-    local debugHandle = Debugger:IsEnabled() and Debugger:BeginOperation("apply", {
-        Profile = info and info.Profile,
-        Selector = info and info.Selector,
-        Strategy = strategy,
-    }, moduleNames)
-
-    -- Don't let our own writes echo back in as if the player made them.
-    GameWatcher:SuspendTracking()
-
-    -- Apply in module priority order so dependencies (e.g. Macros) land before
-    -- the modules that reference them (e.g. ActionBars).
     for name, module in ModuleRegistry:IterableModulesByPriority(moduleNames) do
         local capturedData = sourceModules[name]
-
         if module and capturedData ~= nil then
             local canApply, warning = module:CanApply(meta)
             if not canApply then
@@ -156,13 +126,48 @@ local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, in
             end
         end
     end
+    return applyResults, applied
+end
 
+-- Shared apply core: capture a FULL rollback snapshot of Current before touching
+-- anything (so any change, including Exact deletions and per-module undo, can be
+-- rolled back), then apply the given module set with the per-module strategy.
+-- The rollback snapshot is only pushed to the undo stack when an apply actually
+-- happens. Returns an ApplyResult.
+local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, info)
+    -- Never change the live setup during combat; the protected talent and
+    -- action-bar APIs are locked. Report nothing applied.
+    if InCombatLockdown() then
+        return ApplyResult:New({})
+    end
+
+    -- Finish any in-flight save first so it cannot capture a half-applied setup.
+    SaveTask:Drain()
+
+    strategy = strategy or {}
+
+    local liveSnapshot = ProfileManager:RefreshLiveSnapshot()
+    C:Ensures(liveSnapshot ~= nil, "expected a live snapshot to roll back to, but the logged-in character captured nothing")
+    local rollbackSnapshot = Snapshot:Create(liveSnapshot:Modules(), BuildCurrentSource())
+
+    local moduleNames = ResolveModuleNames(sourceModules, moduleSet)
+
+    local debugHandle = Debugger:IsEnabled() and Debugger:BeginOperation("apply", {
+        Profile = info and info.Profile,
+        Selector = info and info.Selector,
+        Strategy = strategy,
+    }, moduleNames)
+
+    -- Don't let our own writes echo back in as if the player made them.
+    GameWatcher:SuspendTracking()
+    local applyResults, applied = ApplyModules(sourceModules, meta, moduleNames, strategy)
+    -- Only record an undo point when an apply actually happened.
     if applied then
         ProfileManager:PushUndo(rollbackSnapshot)
         ProfileManager:RefreshLiveSnapshot()
     end
-
     GameWatcher:ResumeTracking()
+
     if Debugger:IsEnabled() then
         Debugger:EndOperation(debugHandle, sourceModules, applyResults)
     end
@@ -372,28 +377,13 @@ function SnapshotManager:UndoLastApply(moduleSet)
     local applyMeta = BuildApplyMeta(snapshot)
     local rollbackModules = snapshot:Modules()
     local moduleNames = ResolveModuleNames(rollbackModules, moduleSet)
-    local applyResults = {}
 
     local debugHandle = Debugger:IsEnabled() and Debugger:BeginOperation("undo", {
         Subject = snapshot:GetSubject(),
     }, moduleNames)
 
     GameWatcher:SuspendTracking()
-
-    for name in pairs(moduleNames) do
-        local module = ModuleRegistry:Get(name)
-        local capturedData = rollbackModules[name]
-
-        if module and capturedData ~= nil then
-            local applySucceeded, applyError = pcall(module.Apply, module, capturedData, applyMeta, { mode = "exact" })
-            if applySucceeded then
-                applyResults[name] = { applied = true }
-            else
-                applyResults[name] = { applied = false, reason = tostring(applyError) }
-            end
-        end
-    end
-
+    local applyResults = ApplyModules(rollbackModules, applyMeta, moduleNames, { default = "exact" })
     ProfileManager:PopUndo()
     ProfileManager:RefreshLiveSnapshot()
     GameWatcher:ResumeTracking()
