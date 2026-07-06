@@ -9,8 +9,8 @@ local Time = addon.Time
 
     An imported profile is a named, class-locked container of snapshots brought
     in from another character. Unlike a real profile it has no live Current, no
-    undo stack and no live snapshot; it is purely a curated history. Records live under
-    DB.Imports, keyed by a generated numeric id:
+    undo stack and no live snapshot; it is purely a curated history. Each container
+    lives under DB.Imports, keyed by a generated numeric id:
 
         {
             Name      = <unique, user-given display name>,
@@ -36,7 +36,7 @@ local ShareUtils = addon:GetObject("ShareUtils")
 local Trim = ShareUtils.Trim
 local IsValidClassID = ShareUtils.IsValidClassID
 
-local function SnapshotHash(record, snapshot)
+local function SnapshotHash(container, snapshot)
     if not snapshot then
         return nil
     end
@@ -44,7 +44,7 @@ local function SnapshotHash(record, snapshot)
     -- Import duplicates can be payload-less shells. Align them to their owner's
     -- normalized hash so duplicate grouping and selector matching stay stable.
     if snapshot.Ref ~= nil and snapshot.Data == nil and snapshot.ModuleHashes == nil then
-        local owner = FindByIndex and FindByIndex(record, snapshot.Ref)
+        local owner = FindByIndex and FindByIndex(container, snapshot.Ref)
         if owner then
             local ownerHash = SnapshotInfo:HashValue(owner)
             snapshot.Hash = ownerHash
@@ -63,61 +63,12 @@ end
 -- ignoring the container with skipID.
 local function NameTaken(name, skipID)
     local needle = Trim(name):lower()
-    for importID, record in pairs(imports) do
-        if importID ~= skipID and record.Name:lower() == needle then
+    for importID, container in pairs(imports) do
+        if importID ~= skipID and container.Name:lower() == needle then
             return true
         end
     end
     return false
-end
-
--- Selector parts: a hash (or prefix) and an optional #Index disambiguator.
-local function ParseSelector(selector)
-    local hash, indexText = selector:match("^([%w]+)#(%d+)$")
-    if indexText then
-        return hash:lower(), tonumber(indexText)
-    end
-    return selector:lower(), nil
-end
-
--- Resolve a snapshot within a container by hash/prefix, optionally pinned to a
--- specific #Index. Returns snapshot, array index — or nil, nil, reason.
-local function FindSnapshot(record, selector)
-    local snapshots = record.Snapshots
-    local hash, snapshotIndex = ParseSelector(selector)
-
-    if snapshotIndex then
-        for index = 1, #snapshots do
-            local snapshot = snapshots[index]
-            if snapshot.Index == snapshotIndex then
-                if SnapshotHash(record, snapshot):sub(1, #hash) == hash then
-                    return snapshot, index
-                end
-                return nil, nil, "not-found"
-            end
-        end
-        return nil, nil, "not-found"
-    end
-
-    local match, matchIndex, candidates
-    for index = 1, #snapshots do
-        if SnapshotHash(record, snapshots[index]):sub(1, #hash) == hash then
-            if match then
-                candidates = candidates or { match }
-                tinsert(candidates, snapshots[index])
-            else
-                match, matchIndex = snapshots[index], index
-            end
-        end
-    end
-
-    if candidates then
-        return nil, nil, "ambiguous", candidates
-    end
-    if match then
-        return match, matchIndex
-    end
-    return nil, nil, "not-found"
 end
 
 function ImportStore:OnInitialized()
@@ -138,7 +89,7 @@ function ImportStore:GetImport(importID)
 end
 
 -- Create an empty class-locked container with a unique name. Returns the
--- record and its id, or nil + a reason ("invalid-name", "invalid-class",
+-- container and its id, or nil + a reason ("invalid-name", "invalid-class",
 -- "duplicate-name").
 function ImportStore:CreateImport(name, classID)
     if type(name) ~= "string" or Trim(name) == "" then
@@ -154,22 +105,22 @@ function ImportStore:CreateImport(name, classID)
     local importID = db.ImportSequence + 1
     db.ImportSequence = importID
 
-    local record = {
+    local container = {
         Name = Trim(name),
         ClassID = classID,
         Created = Time:Now(),
         NextIndex = 1,
         Snapshots = {},
     }
-    imports[importID] = record
-    return record, importID
+    imports[importID] = container
+    return container, importID
 end
 
 -- Rename a container. Returns true, or false + a reason ("not-found",
 -- "invalid-name", "duplicate-name").
 function ImportStore:RenameImport(importID, name)
-    local record = imports[importID]
-    if not record then
+    local container = imports[importID]
+    if not container then
         return false, "not-found"
     end
     if type(name) ~= "string" or Trim(name) == "" then
@@ -179,7 +130,7 @@ function ImportStore:RenameImport(importID, name)
         return false, "duplicate-name"
     end
 
-    record.Name = Trim(name)
+    container.Name = Trim(name)
     return true
 end
 
@@ -199,15 +150,15 @@ end
 -- Returns whether the container moved (false at a group boundary, for a lone
 -- container, or when the id is unknown).
 function ImportStore:MoveImport(importID, direction)
-    local record = imports[importID]
-    if not record then
+    local container = imports[importID]
+    if not container then
         return false
     end
 
     local group = {}
     for id, entry in pairs(imports) do
-        if entry.ClassID == record.ClassID then
-            group[#group + 1] = { id = id, record = entry }
+        if entry.ClassID == container.ClassID then
+            group[#group + 1] = { id = id, container = entry }
         end
     end
     if #group < 2 then
@@ -215,8 +166,8 @@ function ImportStore:MoveImport(importID, direction)
     end
 
     table.sort(group, function(a, b)
-        local ao = a.record.Order or a.record.Created or 0
-        local bo = b.record.Order or b.record.Created or 0
+        local ao = a.container.Order or a.container.Created or 0
+        local bo = b.container.Order or b.container.Created or 0
         if ao ~= bo then
             return ao < bo
         end
@@ -225,7 +176,7 @@ function ImportStore:MoveImport(importID, direction)
 
     -- Normalise to sequential orders so the swap below always moves the row.
     for index = 1, #group do
-        group[index].record.Order = index
+        group[index].container.Order = index
     end
 
     local pos
@@ -241,8 +192,8 @@ function ImportStore:MoveImport(importID, direction)
         return false
     end
 
-    group[pos].record.Order, group[target].record.Order =
-        group[target].record.Order, group[pos].record.Order
+    group[pos].container.Order, group[target].container.Order =
+        group[target].container.Order, group[pos].container.Order
     return true
 end
 
@@ -250,10 +201,10 @@ end
 
 -- The container entry that carries its own payload for this hash (the owner), or
 -- nil. Duplicates drop their heavy Data and reference the owner's Index instead.
-local function FindOwner(record, hash)
-    for index = 1, #record.Snapshots do
-        local entry = record.Snapshots[index]
-        if entry.Ref == nil and SnapshotHash(record, entry) == hash then
+local function FindOwner(container, hash)
+    for index = 1, #container.Snapshots do
+        local entry = container.Snapshots[index]
+        if entry.Ref == nil and SnapshotHash(container, entry) == hash then
             return entry
         end
     end
@@ -261,22 +212,29 @@ local function FindOwner(record, hash)
 end
 
 -- The container entry with this per-container Index, or nil.
-FindByIndex = function(record, snapshotIndex)
-    for index = 1, #record.Snapshots do
-        if record.Snapshots[index].Index == snapshotIndex then
-            return record.Snapshots[index]
+FindByIndex = function(container, snapshotIndex)
+    for index = 1, #container.Snapshots do
+        if container.Snapshots[index].Index == snapshotIndex then
+            return container.Snapshots[index]
         end
     end
     return nil
 end
 
+-- The normalized content hash of a stored entry, resolving a payload-less
+-- duplicate shell to its owner's hash. A caller hashes entries through this when
+-- resolving a selector to a stored entry.
+function ImportStore:HashOf(container, snapshot)
+    return SnapshotHash(container, snapshot)
+end
+
 -- A duplicate stores no payload of its own; resolve it against its owner so
 -- callers always see a snapshot with the real Data. Owners resolve to themselves.
-local function ResolvePayload(record, snapshot)
+function ImportStore:ResolvePayload(container, snapshot)
     if snapshot.Ref == nil then
         return snapshot
     end
-    local owner = FindByIndex(record, snapshot.Ref)
+    local owner = FindByIndex(container, snapshot.Ref)
     if not owner then
         return snapshot
     end
@@ -284,7 +242,7 @@ local function ResolvePayload(record, snapshot)
     for key, value in pairs(snapshot) do
         resolved[key] = value
     end
-    resolved.Hash = SnapshotHash(record, snapshot)
+    resolved.Hash = SnapshotHash(container, snapshot)
     resolved.Data = owner.Data
     resolved.Modules = owner.Modules
     resolved.ModuleHashes = owner.ModuleHashes or snapshot.ModuleHashes
@@ -297,19 +255,19 @@ end
 -- payload. Returns the stored snapshot and a warning ("duplicate" when its Hash
 -- was already present), or nil + a reason ("not-found", "class-mismatch").
 function ImportStore:AddSnapshot(importID, snapshot)
-    local record = imports[importID]
-    if not record then
+    local container = imports[importID]
+    if not container then
         return nil, "not-found"
     end
 
     local classID = snapshot.Source and snapshot.Source.ClassID
-    if classID ~= record.ClassID then
+    if classID ~= container.ClassID then
         return nil, "class-mismatch"
     end
 
     local warning
-    local snapshotHash = SnapshotHash(record, snapshot)
-    local owner = FindOwner(record, snapshotHash)
+    local snapshotHash = SnapshotHash(container, snapshot)
+    local owner = FindOwner(container, snapshotHash)
     if owner then
         warning = "duplicate"
         -- Share the owner's payload when it is compressed; the raw-fallback case
@@ -323,130 +281,53 @@ function ImportStore:AddSnapshot(importID, snapshot)
         end
     end
 
-    snapshot.Index = record.NextIndex
-    record.NextIndex = record.NextIndex + 1
-    tinsert(record.Snapshots, snapshot)
+    snapshot.Index = container.NextIndex
+    container.NextIndex = container.NextIndex + 1
+    tinsert(container.Snapshots, snapshot)
     return snapshot, warning
 end
 
 -- The container's snapshots, oldest-first (empty when the id is unknown).
 function ImportStore:GetSnapshots(importID)
-    local record = imports[importID]
-    return record and record.Snapshots or {}
+    local container = imports[importID]
+    return container and container.Snapshots or {}
 end
 
--- Resolve a snapshot in a container by selector, following a duplicate's Ref to
--- the owner so the returned snapshot always carries the real payload. Returns
--- snapshotInfo, reason, candidates.
-function ImportStore:GetSnapshot(importID, selector)
-    local record = imports[importID]
-    if not record then
-        return nil, "not-found"
-    end
-    local snapshot, _, reason, candidates = FindSnapshot(record, selector)
-    if not snapshot then
-        return nil, reason, candidates
-    end
-    return ResolvePayload(record, snapshot), reason, candidates
-end
-
--- Remove a snapshot from a container by selector. Deleting an owner (a snapshot
--- that duplicates reference) also removes those duplicates, since they hold no
--- payload of their own. Returns whether anything was removed.
-function ImportStore:DeleteSnapshot(importID, selector)
-    local record = imports[importID]
-    if not record then
-        return false
-    end
-
-    local snapshot, index = FindSnapshot(record, selector)
-    if not index then
-        return false
-    end
-
+-- Remove a resolved snapshot entry from its container. Deleting an owner (an
+-- entry that duplicates reference) also removes those duplicates, since they
+-- hold no payload of their own. Returns whether anything was removed.
+function ImportStore:RemoveSnapshot(container, snapshot)
     if snapshot.Ref == nil then
         local ownerIndex = snapshot.Index
-        for i = #record.Snapshots, 1, -1 do
-            local entry = record.Snapshots[i]
+        for i = #container.Snapshots, 1, -1 do
+            local entry = container.Snapshots[i]
             if entry == snapshot or entry.Ref == ownerIndex then
-                tremove(record.Snapshots, i)
+                tremove(container.Snapshots, i)
             end
         end
     else
-        tremove(record.Snapshots, index)
+        for i = #container.Snapshots, 1, -1 do
+            if container.Snapshots[i] == snapshot then
+                tremove(container.Snapshots, i)
+                break
+            end
+        end
     end
     return true
 end
 
--- How many duplicates reference the snapshot addressed by selector (0 when it is
--- itself a duplicate or has no dependents). Lets callers warn before a cascade.
-function ImportStore:CountDependentDuplicates(importID, selector)
-    local record = imports[importID]
-    if not record then
+-- How many duplicates reference the given owner entry (0 when it is itself a
+-- duplicate or has no dependents). Lets callers warn before an owner delete
+-- cascades.
+function ImportStore:CountDependents(container, snapshot)
+    if snapshot.Ref ~= nil then
         return 0
     end
-
-    local snapshot = FindSnapshot(record, selector)
-    if not snapshot or snapshot.Ref ~= nil then
-        return 0
-    end
-
     local count = 0
-    for index = 1, #record.Snapshots do
-        if record.Snapshots[index].Ref == snapshot.Index then
+    for index = 1, #container.Snapshots do
+        if container.Snapshots[index].Ref == snapshot.Index then
             count = count + 1
         end
     end
     return count
-end
-
--- Replace a snapshot's editable note. Returns whether the snapshot was found.
-function ImportStore:SetSnapshotNotes(importID, selector, text)
-    local record = imports[importID]
-    if not record then
-        return false
-    end
-
-    local snapshot = FindSnapshot(record, selector)
-    if not snapshot then
-        return false
-    end
-
-    snapshot.Notes = text
-    return true
-end
-
--- Pin a snapshot in a container by selector, protecting it from nothing (imports
--- never prune) but floating it to the top of the list as a marked reference.
--- Pins the exact entry addressed, whether it owns its hash or duplicates one.
--- Returns whether it was found.
-function ImportStore:PinSnapshot(importID, selector)
-    local record = imports[importID]
-    if not record then
-        return false
-    end
-
-    local snapshot = FindSnapshot(record, selector)
-    if not snapshot then
-        return false
-    end
-
-    snapshot.Pinned = true
-    return true
-end
-
--- Clear a snapshot's pin by selector. Returns whether it was found.
-function ImportStore:UnpinSnapshot(importID, selector)
-    local record = imports[importID]
-    if not record then
-        return false
-    end
-
-    local snapshot = FindSnapshot(record, selector)
-    if not snapshot then
-        return false
-    end
-
-    snapshot.Pinned = false
-    return true
 end

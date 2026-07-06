@@ -34,7 +34,7 @@ end
 -- nil). opts.modules narrows the export to a { [name] = true } subset and
 -- opts.notes sets the travelling note (falling back to the snapshot's own).
 -- Returns the string, or nil + a reason.
-function ExportManager:ExportSnapshot(profileName, selector, opts)
+function ExportManager:ExportSavedSnapshot(profileName, selector, opts)
     C:IsString(profileName, 2)
     opts = opts or {}
 

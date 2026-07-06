@@ -21,16 +21,16 @@ local ImportStore = addon:GetObject("ImportStore")
 -- determinism). Each entry is { ID = importID, Name = containerName }.
 function ImportedHashDictionary:GetHashOwners()
     local owners = {}
-    for importID, record in pairs(ImportStore:GetImports()) do
-        local created = record.Created or 0
+    for importID, container in pairs(ImportStore:GetImports()) do
+        local created = container.Created or 0
         local byIndex = {}
-        for index = 1, #record.Snapshots do
-            local snapshot = record.Snapshots[index]
+        for index = 1, #container.Snapshots do
+            local snapshot = container.Snapshots[index]
             byIndex[snapshot.Index] = snapshot
         end
 
-        for index = 1, #record.Snapshots do
-            local snapshot = record.Snapshots[index]
+        for index = 1, #container.Snapshots do
+            local snapshot = container.Snapshots[index]
             local hash
             if snapshot.Ref ~= nil and snapshot.Data == nil and snapshot.ModuleHashes == nil then
                 local owner = byIndex[snapshot.Ref]
@@ -52,7 +52,7 @@ function ImportedHashDictionary:GetHashOwners()
                     or added < best.Added
                     or (added == best.Added and created < best.Created)
                     or (added == best.Added and created == best.Created and importID < best.ID) then
-                    owners[hash] = { ID = importID, Name = record.Name, Added = added, Created = created }
+                    owners[hash] = { ID = importID, Name = container.Name, Added = added, Created = created }
                 end
             end
         end

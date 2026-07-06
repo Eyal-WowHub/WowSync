@@ -31,6 +31,68 @@ local function BuildImportSnapshot(sharedData)
     return snapshotInfo
 end
 
+-- Selector parts: a hash (or prefix) and an optional #Index disambiguator.
+local function ParseSelector(selector)
+    local hash, indexText = selector:match("^([%w]+)#(%d+)$")
+    if indexText then
+        return hash:lower(), tonumber(indexText)
+    end
+    return selector:lower(), nil
+end
+
+-- Resolve an entry within a container by hash/prefix, optionally pinned to a
+-- specific #Index. Returns the raw stored entry, or nil + a reason
+-- ("not-found" / "ambiguous") + candidates. Entries are hashed through the
+-- store, which normalizes a payload-less duplicate shell to its owner's hash.
+local function FindSnapshot(container, selector)
+    local snapshots = container.Snapshots
+    local hash, snapshotIndex = ParseSelector(selector)
+
+    if snapshotIndex then
+        for index = 1, #snapshots do
+            local snapshot = snapshots[index]
+            if snapshot.Index == snapshotIndex then
+                if ImportStore:HashOf(container, snapshot):sub(1, #hash) == hash then
+                    return snapshot
+                end
+                return nil, "not-found"
+            end
+        end
+        return nil, "not-found"
+    end
+
+    local match, candidates
+    for index = 1, #snapshots do
+        if ImportStore:HashOf(container, snapshots[index]):sub(1, #hash) == hash then
+            if match then
+                candidates = candidates or { match }
+                tinsert(candidates, snapshots[index])
+            else
+                match = snapshots[index]
+            end
+        end
+    end
+
+    if candidates then
+        return nil, "ambiguous", candidates
+    end
+    if match then
+        return match
+    end
+    return nil, "not-found"
+end
+
+-- Resolve importID + selector to (container, entry). The container is returned
+-- even when only the snapshot is missing, alongside nil + reason + candidates.
+local function ResolveEntry(importID, selector)
+    local container = ImportStore:GetImport(importID)
+    if not container then
+        return nil, nil, "not-found"
+    end
+    local snapshot, reason, candidates = FindSnapshot(container, selector)
+    return container, snapshot, reason, candidates
+end
+
 --[[ Import ]]
 
 -- Import a shared string. With opts.targetID it is appended to that container;
@@ -55,8 +117,8 @@ function ImportManager:ImportString(text, opts)
         return { ImportID = opts.targetID, Duplicate = warning == "duplicate" }
     end
 
-    local record, importIDOrReason = ImportStore:CreateImport(opts.name, sharedData.ClassID)
-    if not record then
+    local container, importIDOrReason = ImportStore:CreateImport(opts.name, sharedData.ClassID)
+    if not container then
         return nil, importIDOrReason
     end
 
@@ -66,7 +128,7 @@ function ImportManager:ImportString(text, opts)
         ImportStore:DeleteImport(importID)
         return nil, warning
     end
-    return { ImportID = importID, Name = record.Name, Duplicate = warning == "duplicate" }
+    return { ImportID = importID, Name = container.Name, Duplicate = warning == "duplicate" }
 end
 
 --[[ Containers (UI) ]]
@@ -81,8 +143,8 @@ function ImportManager:GetProfiles()
     local currentClassID = select(3, UnitClass("player"))
 
     local list = {}
-    for importID, record in pairs(ImportStore:GetImports()) do
-        local snapshots = record.Snapshots
+    for importID, container in pairs(ImportStore:GetImports()) do
+        local snapshots = container.Snapshots
         local lastImported
         for index = 1, #snapshots do
             local importedAt = snapshots[index].ImportedAt
@@ -92,10 +154,10 @@ function ImportManager:GetProfiles()
         end
         tinsert(list, {
             ID = importID,
-            Name = record.Name,
-            ClassID = record.ClassID,
-            Created = record.Created,
-            Order = record.Order or record.Created or 0,
+            Name = container.Name,
+            ClassID = container.ClassID,
+            Created = container.Created,
+            Order = container.Order or container.Created or 0,
             SnapshotCount = #snapshots,
             LastImported = lastImported,
         })
@@ -140,11 +202,11 @@ end
 function ImportManager:GetSnapshot(importID, selector)
     C:IsString(importID, 2)
     C:IsString(selector, 3)
-    local snapshotInfo, reason = ImportStore:GetSnapshot(importID, selector)
-    if not snapshotInfo then
+    local container, snapshot, reason = ResolveEntry(importID, selector)
+    if not snapshot then
         return nil, reason or "not-found"
     end
-    return Snapshot:From(nil, snapshotInfo)
+    return Snapshot:From(nil, ImportStore:ResolvePayload(container, snapshot))
 end
 
 -- Rename a container. Returns true, or false + a reason.
@@ -176,7 +238,11 @@ end
 function ImportManager:DeleteSnapshot(importID, selector)
     C:IsString(importID, 2)
     C:IsString(selector, 3)
-    return ImportStore:DeleteSnapshot(importID, selector)
+    local container, snapshot = ResolveEntry(importID, selector)
+    if not snapshot then
+        return false
+    end
+    return ImportStore:RemoveSnapshot(container, snapshot)
 end
 
 -- How many duplicates would be removed alongside the snapshot at selector, so
@@ -184,7 +250,11 @@ end
 function ImportManager:CountDependentDuplicates(importID, selector)
     C:IsString(importID, 2)
     C:IsString(selector, 3)
-    return ImportStore:CountDependentDuplicates(importID, selector)
+    local container, snapshot = ResolveEntry(importID, selector)
+    if not snapshot then
+        return 0
+    end
+    return ImportStore:CountDependents(container, snapshot)
 end
 
 -- Replace an imported snapshot's editable note. Returns whether it was found.
@@ -192,7 +262,12 @@ function ImportManager:SetSnapshotNotes(importID, selector, text)
     C:IsString(importID, 2)
     C:IsString(selector, 3)
     C:IsString(text, 4)
-    return ImportStore:SetSnapshotNotes(importID, selector, text)
+    local _, snapshot = ResolveEntry(importID, selector)
+    if not snapshot then
+        return false
+    end
+    snapshot.Notes = text
+    return true
 end
 
 -- Pin an imported snapshot, floating it to the top of the container as a marked
@@ -200,14 +275,24 @@ end
 function ImportManager:PinSnapshot(importID, selector)
     C:IsString(importID, 2)
     C:IsString(selector, 3)
-    return ImportStore:PinSnapshot(importID, selector)
+    local _, snapshot = ResolveEntry(importID, selector)
+    if not snapshot then
+        return false
+    end
+    snapshot.Pinned = true
+    return true
 end
 
 -- Clear an imported snapshot's pin. Returns whether it was found.
 function ImportManager:UnpinSnapshot(importID, selector)
     C:IsString(importID, 2)
     C:IsString(selector, 3)
-    return ImportStore:UnpinSnapshot(importID, selector)
+    local _, snapshot = ResolveEntry(importID, selector)
+    if not snapshot then
+        return false
+    end
+    snapshot.Pinned = false
+    return true
 end
 
 --[[ Apply ]]
@@ -217,11 +302,11 @@ end
 function ImportManager:PreviewApplySnapshot(importID, selector, moduleSet)
     C:IsString(importID, 2)
     C:IsString(selector, 3)
-    local snapshotInfo, reason = ImportStore:GetSnapshot(importID, selector)
-    if not snapshotInfo then
+    local container, snapshot, reason = ResolveEntry(importID, selector)
+    if not snapshot then
         return nil, reason or "not-found"
     end
-    return SnapshotManager:Preview(Snapshot:From(nil, snapshotInfo), moduleSet)
+    return SnapshotManager:Preview(Snapshot:From(nil, ImportStore:ResolvePayload(container, snapshot)), moduleSet)
 end
 
 -- Apply an imported snapshot to the logged-in character, pushing a rollback
@@ -229,9 +314,9 @@ end
 function ImportManager:ApplySnapshot(importID, selector, strategy, moduleSet)
     C:IsString(importID, 2)
     C:IsString(selector, 3)
-    local snapshotInfo, reason = ImportStore:GetSnapshot(importID, selector)
-    if not snapshotInfo then
+    local container, snapshot, reason = ResolveEntry(importID, selector)
+    if not snapshot then
         return nil, reason or "not-found"
     end
-    return SnapshotManager:Apply(Snapshot:From(nil, snapshotInfo), strategy, moduleSet)
+    return SnapshotManager:Apply(Snapshot:From(nil, ImportStore:ResolvePayload(container, snapshot)), strategy, moduleSet)
 end
