@@ -26,7 +26,7 @@ addon.ModuleInterface = ModuleInterface
 
     Capture() -> capturedData
         Read the player's current live state for this domain and return it as a
-        plain, serializable table. No side effects. Called by CurrentStore when
+        plain, serializable table. No side effects. Called by LiveStore when
         mirroring live state and when saving a snapshot.
 
     Apply(capturedData, sourceMetadata, applyOptions)
@@ -55,7 +55,7 @@ addon.ModuleInterface = ModuleInterface
     ShouldCapture() -> boolean
         Guard asked before Capture. Return false to defer because the live state
         is momentarily untrustworthy (e.g. ActionBars during combat, when bar
-        paging shows a transient layout). Called by CurrentStore.
+        paging shows a transient layout). Called by LiveStore.
 
     GetWatchedEvents() -> { eventName, ... }
         Declares the game events meaning "my live state may have changed." The

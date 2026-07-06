@@ -9,7 +9,7 @@ local Time = addon.Time
 
     An imported profile is a named, class-locked container of snapshots brought
     in from another character. Unlike a real profile it has no live Current, no
-    undo stack and no head; it is purely a curated history. Records live under
+    undo stack and no live snapshot; it is purely a curated history. Records live under
     DB.Imports, keyed by a generated numeric id:
 
         {

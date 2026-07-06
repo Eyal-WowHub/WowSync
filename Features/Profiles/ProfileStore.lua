@@ -15,13 +15,13 @@ local Time = addon.Time
 
         {
             Metadata  = { Created, NextIndex, ClassID, LastSeen },
-            Current   = <live setup; owned by CurrentStore>,
+            Current   = <live setup; owned by LiveStore>,
             Undo      = { <rollback snapshot>, ... }, -- owned by UndoStore
             Snapshots = { <snapshot>, ... },          -- the saved history
         }
 
     ProfileStore owns the record's shell (it creates the canonical shape) and the
-    Snapshots history; CurrentStore and UndoStore fill in Current and Undo on the
+    Snapshots history; LiveStore and UndoStore fill in Current and Undo on the
     same record. Notes belong to the snapshot (its Notes), not the record.
     Snapshots are ordered oldest-first (newest appended at the end); each entry
     has the snapshotInfo shape (Hash + Timestamp + Modules + ...).
@@ -170,9 +170,10 @@ end
 -- entries down to the soft cap. Returns the same Snapshot.
 function ProfileStore:AppendSnapshot(snapshot, note)
     Snapshot.Validate(snapshot, 2)
-    -- A head is a live view of Current, not a history entry; a save mints a fresh
-    -- snapshot from its content, so the head object itself is never appended.
-    C:Ensures(not snapshot:IsHead(), "cannot append a head to the history")
+    -- The live snapshot is a live view of Current, not a history entry; a save
+    -- mints a fresh snapshot from its content, so the live snapshot itself is
+    -- never appended.
+    C:Ensures(not snapshot:IsLive(), "cannot append the live snapshot to the history")
 
     local snapshotInfo = snapshot:ToStore()
     if note ~= nil then

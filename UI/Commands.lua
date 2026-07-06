@@ -84,12 +84,12 @@ local function PrintAddonStatus()
 end
 
 -- Profile stanza: stored snapshot count, latest snapshot summary, in-sync flag
--- against the live head, and the undo stack depth. Fingerprints the live head
--- to compute the in-sync flag, so this is the heaviest status stanza.
+-- against the live snapshot, and the undo stack depth. Fingerprints the live
+-- snapshot to compute the in-sync flag, so this is the heaviest status stanza.
 local function PrintProfileStatus()
     local charKey = SnapshotManager:GetCurrentCharKey()
     local latest = ProfileManager:Latest(charKey)
-    local head = ProfileManager:GetHead(charKey)
+    local liveSnapshot = ProfileManager:GetLiveSnapshot(charKey)
 
     addon:Print(L["[Profile]"])
     addon:PrintLine(L["  Snapshots: X / Y"]:format(#ProfileManager:GetHistory(charKey), SnapshotManager:GetSnapshotLimit()))
@@ -100,9 +100,9 @@ local function PrintProfileStatus()
         addon:PrintLine(L["  Latest: none"])
     end
 
-    if not head then
+    if not liveSnapshot then
         addon:PrintLine(L["  In sync: no captured state"])
-    elseif latest and head:CompareTo(latest) then
+    elseif latest and liveSnapshot:CompareTo(latest) then
         addon:PrintLine(L["  In sync: yes"])
     else
         addon:PrintLine(L["  In sync: no"])

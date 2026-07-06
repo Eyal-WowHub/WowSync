@@ -16,9 +16,10 @@ local Time = addon.Time
 
     A snapshotInfo is a PLAIN table (no metatable) so it persists to
     SavedVariables unchanged. This object owns everything about that shape: how
-    to build it from captured modules (Create for a saved snapshot, CreateHead
-    for a character's live head), how to validate it (Validate), and how to
-    derive from it (hashing, decoding, selector, subject). The Snapshot object
+    to build it from captured modules (CreateForSavedSnapshot for a saved
+    snapshot, CreateForLiveSnapshot for a live snapshot), how to validate it
+    (Validate), and how to derive from it (hashing, decoding, selector,
+    subject). The Snapshot object
     wraps a snapshotInfo and exposes the read surface; features never touch the
     plain table directly.
 
@@ -33,8 +34,8 @@ local Time = addon.Time
             Source = { Character, ClassID },
             Modules,       -- name-set { [name]=true } (compressed) OR full dict
             Data,          -- string?: Codec blob of { [name]=data } (compressed)
-            Live,          -- true for a live head (an unsaved current setup)
-            Connected,     -- true when a head belongs to the connected character
+            Live,          -- true for the live snapshot (an unsaved current setup)
+            Connected,     -- true when the live snapshot belongs to the connected character
         }
 ]]
 
@@ -53,7 +54,7 @@ end
 
 -- The full { [moduleName] = capturedData } table a snapshotInfo stands for,
 -- decompressed from Data. Returns the plaintext Modules table for snapshots
--- stored uncompressed (heads and the compression-unavailable fallback).
+-- stored uncompressed (the live snapshot and the compression-unavailable fallback).
 local function DecodeModules(snapshotInfo)
     if snapshotInfo.Data == nil then
         return snapshotInfo.Modules or {}
@@ -147,7 +148,7 @@ end
 
 -- Build the immutable data of a new saved snapshot from a captured module set,
 -- compressing it into Data and keeping only the module-name set in Modules.
-function SnapshotInfo:Create(modulesData, source)
+function SnapshotInfo:CreateForSavedSnapshot(modulesData, source)
     C:IsTable(modulesData, 2)
     C:IsTable(source, 3)
 
@@ -172,23 +173,23 @@ function SnapshotInfo:Create(modulesData, source)
     return snapshotInfo
 end
 
--- Build the immutable data of a character's live head from its captured modules.
--- A head is uncompressed and carries no Index; Live marks it unsaved and
--- Connected marks it as the currently connected character's setup. headMeta is
--- { Character, ClassID, LastSeen, Connected }.
-function SnapshotInfo:CreateHead(modulesData, headMeta)
+-- Build the immutable data of a character's live snapshot from its captured
+-- modules. A live snapshot is uncompressed and carries no Index; Live marks it
+-- unsaved and Connected marks it as the currently connected character's setup.
+-- liveMeta is { Character, ClassID, LastSeen, Connected }.
+function SnapshotInfo:CreateForLiveSnapshot(modulesData, liveMeta)
     C:IsTable(modulesData, 2)
-    C:IsTable(headMeta, 3)
+    C:IsTable(liveMeta, 3)
 
     local hash, moduleHashes = self:Fingerprint(modulesData)
     return {
         Hash = hash,
         ModuleHashes = moduleHashes,
-        Timestamp = headMeta.LastSeen,
-        Source = { Character = headMeta.Character, ClassID = headMeta.ClassID },
+        Timestamp = liveMeta.LastSeen,
+        Source = { Character = liveMeta.Character, ClassID = liveMeta.ClassID },
         Modules = modulesData,
         Live = true,
-        Connected = headMeta.Connected or false,
+        Connected = liveMeta.Connected or false,
     }
 end
 
@@ -223,7 +224,7 @@ function SnapshotInfo:ModuleNames(snapshotInfo)
     return SortedNames(snapshotInfo.Modules)
 end
 
--- The "<hash>#<index>" selector of a saved snapshot, or nil for a head (no Index).
+-- The "<hash>#<index>" selector of a saved snapshot, or nil for the live snapshot (no Index).
 function SnapshotInfo:Selector(snapshotInfo)
     if snapshotInfo.Index == nil then
         return nil

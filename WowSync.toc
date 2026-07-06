@@ -47,11 +47,11 @@ Features\Development\Debugger.lua
 
 Features\Profiles\ProfileStore.lua
 Features\Profiles\UndoStore.lua
-Features\Profiles\CurrentStore.lua
+Features\Profiles\LiveStore.lua
+Features\Profiles\ProfileManager.lua
 Features\Profiles\GameWatcher.lua
 Features\Profiles\CharacterManager.lua
 Features\Profiles\SaveTask.lua
-Features\Profiles\ProfileManager.lua
 
 Features\Snapshots\SnapshotApplyMode.lua
 Features\Snapshots\ApplyResult.lua

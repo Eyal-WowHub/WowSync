@@ -5,7 +5,7 @@ local C = LibStub("Contracts-1.0")
 
 local ModuleRegistry = addon.ModuleRegistry
 
-local CurrentStore = addon:GetObject("CurrentStore")
+local ProfileManager = addon:GetObject("ProfileManager")
 
 --[[
     GameWatcher — keeps each character's Current a *live* mirror of the game.
@@ -13,7 +13,7 @@ local CurrentStore = addon:GetObject("CurrentStore")
     Modules declare GetWatchedEvents() (e.g. UPDATE_MACROS). When one of those
     events fires, the matching module is marked dirty and a single short debounce
     timer is (re)started; on fire, only the dirty modules are re-captured into
-    Current via CurrentStore:CaptureModule. A burst of events therefore collapses
+    Current via ProfileManager:RefreshLiveSnapshotModule. A burst of events therefore collapses
     into one recapture, and unrelated modules are never touched.
 
     Feedback guard: our own Apply/Undo change the game and so fire these very
@@ -66,7 +66,7 @@ local function Flush()
         return
     end
     for name in pairs(dirty) do
-        if CurrentStore:CaptureModule(name) then
+        if ProfileManager:RefreshLiveSnapshotModule(name) then
             dirty[name] = nil
         end
     end
@@ -127,7 +127,7 @@ function GameWatcher:Watch()
 
     -- Catch up on everything that changed while inactive, so the mirror is
     -- correct before incremental events take over.
-    CurrentStore:Capture()
+    ProfileManager:RefreshLiveSnapshot()
 
     wipe(watchedModules)
     for name, module in ModuleRegistry:Iterate() do

@@ -14,8 +14,9 @@ local cache = setmetatable({}, { __mode = "k" })
 --[[
     Snapshot — the behaviour/identity object wrapping one snapshotInfo (the
     immutable data, owned and built by SnapshotInfo). A Snapshot is either a
-    stored history entry or a character's live head; a head is just a snapshot
-    that has not been saved. The entity only reads and derives from its data and
+    stored history entry or the character's live snapshot; the live snapshot is
+    just a snapshot that has not been saved. The entity only reads and derives
+    from its data and
     compares against other snapshots — every operation (apply, save, pin, delete)
     lives on a manager that takes a Snapshot. Wrappers are identity-cached, so one
     Snapshot exists per snapshotInfo.
@@ -23,7 +24,7 @@ local cache = setmetatable({}, { __mode = "k" })
 
 --[[ Factories (identity-cached) ]]
 
--- Wrap a snapshotInfo (a stored entry or a live head) owned by the given
+-- Wrap a snapshotInfo (a stored entry or the live snapshot) owned by the given
 -- character. Returns the same wrapper per snapshotInfo across calls.
 function Snapshot:From(charKey, snapshotInfo)
     local snapshot = cache[snapshotInfo]
@@ -42,18 +43,18 @@ end
 
 -- Mint a new, unsaved snapshot from a captured module set.
 function Snapshot:Create(modulesData, source)
-    local snapshotInfo = SnapshotInfo:Create(modulesData, source)
+    local snapshotInfo = SnapshotInfo:CreateForSavedSnapshot(modulesData, source)
     return self:From(source and source.Character, snapshotInfo)
 end
 
 --[[ Instance: reads (data concerns delegate to SnapshotInfo) ]]
 
--- True for a live head (an unsaved current setup) versus a saved snapshot.
-function Snapshot:IsHead()
+-- True for the live snapshot (an unsaved current setup) versus a saved snapshot.
+function Snapshot:IsLive()
     return self.info.Live == true
 end
 
--- True when this head is the currently connected character's live setup.
+-- True when this live snapshot is the currently connected character's live setup.
 function Snapshot:IsCharacterConnected()
     return self.info.Connected == true
 end
@@ -83,12 +84,14 @@ function Snapshot:GetSubject()
     return SnapshotInfo:Subject(self.info)
 end
 
--- The editable note attached to a saved snapshot ("" when unset or a head).
+-- The editable note attached to a saved snapshot ("" when unset or on the live
+-- snapshot).
 function Snapshot:GetNotes()
     return self.info.Notes or ""
 end
 
--- True when the snapshot is pinned (exempt from pruning). A head is never pinned.
+-- True when the snapshot is pinned (exempt from pruning). The live snapshot is
+-- never pinned.
 function Snapshot:IsPinned()
     return self.info.Pinned or false
 end
@@ -98,12 +101,12 @@ function Snapshot:GetModuleNames()
     return SnapshotInfo:ModuleNames(self.info)
 end
 
--- The "<hash>#<index>" selector for a saved snapshot, or nil for a head.
+-- The "<hash>#<index>" selector for a saved snapshot, or nil for the live snapshot.
 function Snapshot:GetSelector()
     return SnapshotInfo:Selector(self.info)
 end
 
--- The profile-local index assigned to a saved snapshot, or nil for a head.
+-- The profile-local index assigned to a saved snapshot, or nil for the live snapshot.
 function Snapshot:GetIndex()
     return self.info.Index
 end

@@ -4,7 +4,7 @@ local ExportManager = addon:NewObject("ExportManager")
 --[[
     ExportManager — turns stored setups into portable shared strings.
 
-    It reads a profile snapshot or a character's current head, optionally narrows
+    It reads a profile snapshot or a character's current live snapshot, optionally narrows
     it to a subset of modules, and hands it to ShareCodec to produce an
     anonymised shared string. It owns no state and stores nothing; exporting is a
     pure read.
@@ -55,20 +55,20 @@ function ExportManager:ExportSnapshot(profileName, selector, opts)
     return ShareCodec:Encode(modules, classID, snapshot:GetTimestamp(), notes)
 end
 
--- Anonymised shared string for a character's current head. opts.modules narrows
--- the export to a { [name] = true } subset and opts.notes attaches a note.
+-- Anonymised shared string for a character's current live snapshot. opts.modules
+-- narrows the export to a { [name] = true } subset and opts.notes attaches a note.
 -- Returns the string, or nil + a reason.
-function ExportManager:ExportHead(charKey, opts)
+function ExportManager:ExportLiveSnapshot(charKey, opts)
     opts = opts or {}
 
-    local head = ProfileManager:GetHead(charKey)
-    if not head then
+    local liveSnapshot = ProfileManager:GetLiveSnapshot(charKey)
+    if not liveSnapshot then
         return nil, "not-found"
     end
 
-    local modules = FilterModules(head:Modules(), opts.modules)
+    local modules = FilterModules(liveSnapshot:Modules(), opts.modules)
     if next(modules) == nil then
         return nil, "no-modules"
     end
-    return ShareCodec:Encode(modules, head:GetCharacterInfo().ClassID, head:GetTimestamp(), opts.notes)
+    return ShareCodec:Encode(modules, liveSnapshot:GetCharacterInfo().ClassID, liveSnapshot:GetTimestamp(), opts.notes)
 end

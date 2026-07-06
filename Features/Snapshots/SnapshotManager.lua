@@ -9,7 +9,6 @@ local ModuleRegistry = addon.ModuleRegistry
 local Snapshot = addon.Snapshot
 local SnapshotApplyMode = addon.SnapshotApplyMode
 
-local CurrentStore = addon:GetObject("CurrentStore")
 local Debugger = addon:GetObject("Debugger")
 local Differ = addon:GetObject("Differ")
 local GameWatcher = addon:GetObject("GameWatcher")
@@ -21,9 +20,9 @@ local UndoStore = addon:GetObject("UndoStore")
     SnapshotManager — the snapshot subsystem's orchestrator/facade.
 
     It owns no state of its own; it coordinates the registry, the profile
-    history (ProfileManager), the per-character live setup (CurrentStore), the
-    rollback snapshot stack (UndoStore), the snapshot value-object (Snapshot), and
-    the apply preview (Differ).
+    history and per-character live setup (ProfileManager), the rollback snapshot
+    stack (UndoStore), the snapshot value-object (Snapshot), and the apply
+    preview (Differ).
 
     Flow:
       Save    -> capture Current, build a Snapshot, append to the profile
@@ -35,13 +34,11 @@ local UndoStore = addon:GetObject("UndoStore")
 
 function SnapshotManager:OnInitialized()
     -- Finish any in-flight sliced save before SavedVariables is written, so an
-    -- explicit Save started just before logout still lands. Draining re-captures
-    -- Current as a raw table, so compress it again here; CurrentStore's logout
-    -- handler also ends in a compress, so whichever of the two runs last leaves
-    -- Current stored compressed.
+    -- explicit Save started just before logout still lands, then capture and
+    -- compress the final live setup for storage.
     self:RegisterEvent("PLAYER_LOGOUT", function()
         SaveTask:Drain()
-        CurrentStore:Compress()
+        ProfileManager:StoreLiveSnapshot()
     end)
 end
 
@@ -123,7 +120,9 @@ local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, in
     local defaultMode = strategy.default or "merge"
     local overrides = strategy.overrides or {}
 
-    local rollbackSnapshot = Snapshot:Create(CurrentStore:Capture(), BuildCurrentSource()):ToStore()
+    local liveSnapshot = ProfileManager:RefreshLiveSnapshot()
+    C:Ensures(liveSnapshot ~= nil, "expected a live snapshot to roll back to, but the logged-in character captured nothing")
+    local rollbackSnapshot = Snapshot:Create(liveSnapshot:Modules(), BuildCurrentSource()):ToStore()
 
     local moduleNames = ResolveModuleNames(sourceModules, moduleSet)
     local applyResults = {}
@@ -162,7 +161,7 @@ local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, in
 
     if applied then
         UndoStore:Push(nil, rollbackSnapshot)
-        CurrentStore:Capture()
+        ProfileManager:RefreshLiveSnapshot()
     end
 
     GameWatcher:ResumeTracking()
@@ -193,15 +192,9 @@ end
 
 --[[ Current ]]
 
--- Re-capture the logged-in character's live setup; returns the captured modules.
-function SnapshotManager:CaptureGameData()
-    return CurrentStore:Capture()
-end
-
 -- True when the logged-in character has anything captured to save.
 function SnapshotManager:HasCapturedGameData()
-    local capturedModules = CurrentStore:Get()
-    return capturedModules ~= nil and next(capturedModules) ~= nil
+    return ProfileManager:GetLiveSnapshot() ~= nil
 end
 
 -- The logged-in character's profile key (its full name).
@@ -228,7 +221,9 @@ function SnapshotManager:SaveCurrentSnapshot(note, moduleSet, onComplete)
     end
 
     SaveTask:Run(function()
-        local snapshotModules = FilterCapturedModules(CurrentStore:Capture(), moduleSet)
+        local liveSnapshot = ProfileManager:RefreshLiveSnapshot()
+        C:Ensures(liveSnapshot ~= nil, "expected a live snapshot to save, but the logged-in character captured nothing")
+        local snapshotModules = FilterCapturedModules(liveSnapshot:Modules(), moduleSet)
         local snapshot = Snapshot:Create(snapshotModules, BuildCurrentSource())
 
         local stored = ProfileManager:AddSnapshot(snapshot, note)
@@ -266,16 +261,15 @@ function SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, onCompl
     end
 
     SaveTask:Run(function()
-        local capturedModules = CurrentStore:Get(charKey)
-        if not capturedModules then
+        local liveSnapshot = ProfileManager:GetLiveSnapshot(charKey)
+        if not liveSnapshot then
             return nil, "unknown-character"
         end
 
-        local snapshotModules = FilterCapturedModules(capturedModules, moduleSet)
-        local characterMetadata = CurrentStore:GetMetadata(charKey)
+        local snapshotModules = FilterCapturedModules(liveSnapshot:Modules(), moduleSet)
         local snapshot = Snapshot:Create(snapshotModules, {
             Character = charKey,
-            ClassID = characterMetadata and characterMetadata.ClassID,
+            ClassID = liveSnapshot:GetCharacterInfo().ClassID,
         })
 
         local stored = ProfileManager:AddSnapshot(snapshot, note)
@@ -292,18 +286,19 @@ end
 
 --[[ Preview / Apply ]]
 
--- Preview applying a snapshot (a stored entry, a head, or an import) over the
--- connected character's current setup. cached diffs against the already-captured
--- Current instead of re-scanning the live setup, for cheap repeated previews.
+-- Preview applying a snapshot (a stored entry, the live snapshot, or an import)
+-- over the connected character's current setup. cached diffs against the
+-- already-captured Current instead of re-scanning the live setup, for cheap
+-- repeated previews.
 function SnapshotManager:Preview(snapshot, moduleSet, cached)
     Snapshot.Validate(snapshot, 2)
-    local currentModules = cached and CurrentStore:Get() or CurrentStore:Capture()
-    return Differ:Preview(currentModules, snapshot:Modules(), moduleSet)
+    local liveSnapshot = cached and ProfileManager:GetLiveSnapshot() or ProfileManager:RefreshLiveSnapshot()
+    return Differ:Preview(liveSnapshot and liveSnapshot:Modules(), snapshot:Modules(), moduleSet)
 end
 
 --[[ Apply ]]
 
--- Apply a snapshot (a stored entry, a head, or an import) to the connected
+-- Apply a snapshot (a stored entry, the live snapshot, or an import) to the connected
 -- character. strategy = { default = "merge"|"exact", overrides = { [name]=mode } }.
 -- A full rollback snapshot of Current is pushed to the undo stack first.
 function SnapshotManager:Apply(snapshot, strategy, moduleSet)
@@ -405,7 +400,7 @@ function SnapshotManager:UndoLastApply(moduleSet)
     end
 
     UndoStore:Pop()
-    CurrentStore:Capture()
+    ProfileManager:RefreshLiveSnapshot()
     GameWatcher:ResumeTracking()
     if Debugger:IsEnabled() then
         Debugger:EndOperation(debugHandle, rollbackModules, applyResults)

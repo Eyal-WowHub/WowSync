@@ -23,7 +23,7 @@ local SnapshotManager = addon:GetObject("SnapshotManager")
 -- Build a storable snapshot from decoded shared data, keeping the original
 -- capture time and note and recording when it was imported.
 local function BuildImportSnapshot(sharedData)
-    local snapshotInfo = SnapshotInfo:Create(sharedData.Modules, { ClassID = sharedData.ClassID })
+    local snapshotInfo = SnapshotInfo:CreateForSavedSnapshot(sharedData.Modules, { ClassID = sharedData.ClassID })
     snapshotInfo.Timestamp = sharedData.Timestamp
     snapshotInfo.Notes = sharedData.Notes
     snapshotInfo.ImportedAt = Time:Now()
