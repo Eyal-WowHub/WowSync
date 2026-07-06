@@ -212,7 +212,7 @@ end
 -- Capture Current (optionally a subset) and append it as a snapshot to the
 -- logged-in character's profile, tagging it with the given optional note. The
 -- capture and fingerprint are sliced across frames, bracketed by
--- WOWSYNC_SAVE_STARTED/FINISHED so the UI can show progress; the stored
+-- WOWSYNC_SNAPSHOT_SAVE_STARTED/FINISHED so the UI can show progress; the stored
 -- snapshot is handed to onComplete.
 function SnapshotManager:SaveCurrentSnapshot(note, moduleSet, onComplete)
     if InCombatLockdown() then

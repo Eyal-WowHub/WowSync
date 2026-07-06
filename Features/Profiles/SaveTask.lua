@@ -9,7 +9,7 @@ local GameWatcher = addon:GetObject("GameWatcher")
     SaveTask — runs a save body across frames without hitching the game.
 
     The body is sliced across frames so its capture and fingerprint never hitch a
-    single frame, bracketed by WOWSYNC_SAVE_STARTED/FINISHED and by GameWatcher's
+    single frame, bracketed by WOWSYNC_SNAPSHOT_SAVE_STARTED/FINISHED and by GameWatcher's
     flush suspension so the live mirror cannot change the setup mid-save. At most
     one save runs at a time; a request made while one is in flight is rejected
     with "busy". A body that crashes is reported as "error".
@@ -27,7 +27,7 @@ function SaveTask:IsRunning()
     return task:IsRunning()
 end
 
--- Run a save body across frames, bracketed by WOWSYNC_SAVE_STARTED/FINISHED. The
+-- Run a save body across frames, bracketed by WOWSYNC_SNAPSHOT_SAVE_STARTED/FINISHED. The
 -- body returns the stored snapshot, or nil plus a reason; a body that crashes is
 -- reported as "error" (its message already surfaced through the game's error
 -- handler). The result is forwarded to the finish event and the optional
@@ -43,7 +43,7 @@ function SaveTask:Run(saveBody, onComplete)
     end
 
     GameWatcher:SuspendFlush()
-    WowSync:TriggerEvent("WOWSYNC_SAVE_STARTED")
+    WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_SAVE_STARTED")
 
     task:Start(saveBody, function(saveSucceeded, storedSnapshot, reason)
         -- A crash surfaces as (false, message); map it to the "error" reason. A
@@ -52,7 +52,7 @@ function SaveTask:Run(saveBody, onComplete)
             storedSnapshot, reason = nil, "error"
         end
         GameWatcher:ResumeFlush()
-        WowSync:TriggerEvent("WOWSYNC_SAVE_FINISHED", storedSnapshot, reason)
+        WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_SAVE_FINISHED", storedSnapshot, reason)
         if onComplete then
             onComplete(storedSnapshot, reason)
         end
