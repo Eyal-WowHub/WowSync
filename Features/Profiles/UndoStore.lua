@@ -1,68 +1,54 @@
 local _, addon = ...
 local UndoStore = addon:NewObject("UndoStore")
 
-local CharacterInfo = LibStub("CharacterInfo-1.0")
-
 local BoundedList = addon.BoundedList
-
-local ProfileStore = addon:GetObject("ProfileStore")
 
 --[[
     UndoStore — a per-character stack of rollback snapshots.
 
     Before any apply, the current live setup is captured and pushed here so the
-    change can be undone. Entries share the Snapshot shape and live on the
-    character's record under DB.Profiles[charKey].Undo (owned by ProfileStore).
-    The stack is capped at Settings.MaxUndo; the oldest entry is dropped when the
-    cap is exceeded.
+    change can be undone. Entries share the snapshotInfo shape and live on the
+    record's Undo slice; ProfileManager owns the record and hands it in, so this
+    store is a stateless transformer over the slice it is given. The stack is
+    capped at Settings.MaxUndo; the oldest entry is dropped when the cap is
+    exceeded.
 ]]
 
-local profiles
-
-function UndoStore:OnInitialized()
-    profiles = addon.DB.Profiles
-end
-
-function UndoStore:Push(profileName, rollbackSnapshot)
-    profileName = profileName or CharacterInfo:GetFullName()
-    local rollbackStack = ProfileStore:CreateProfile(profileName).Undo
-    BoundedList:Wrap(rollbackStack, {
+-- Push a rollback snapshotInfo onto the record's undo stack, capping it at
+-- Settings.MaxUndo (the oldest entry drops when the cap is exceeded).
+function UndoStore:Push(profile, rollbackSnapshot)
+    BoundedList:Wrap(profile.Undo, {
         max = function() return addon.DB.Settings.MaxUndo or 10 end,
     }):Push(rollbackSnapshot)
 end
 
-function UndoStore:Peek(profileName)
-    profileName = profileName or CharacterInfo:GetFullName()
-    local profile = profiles[profileName]
+-- The most recent rollback snapshotInfo on the record, or nil when empty.
+function UndoStore:Peek(profile)
     local rollbackStack = profile and profile.Undo
     return rollbackStack and rollbackStack[#rollbackStack]
 end
 
-function UndoStore:Pop(profileName)
-    profileName = profileName or CharacterInfo:GetFullName()
-    local profile = profiles[profileName]
+-- Pop and return the most recent rollback snapshotInfo, or nil when empty.
+function UndoStore:Pop(profile)
     local rollbackStack = profile and profile.Undo
     if rollbackStack and #rollbackStack > 0 then
         return tremove(rollbackStack)
     end
 end
 
-function UndoStore:List(profileName)
-    profileName = profileName or CharacterInfo:GetFullName()
-    local profile = profiles[profileName]
+-- The record's undo stack (oldest-first), or an empty table when it has none.
+function UndoStore:List(profile)
     return (profile and profile.Undo) or {}
 end
 
-function UndoStore:Has(profileName)
-    profileName = profileName or CharacterInfo:GetFullName()
-    local profile = profiles[profileName]
+-- True when the record has anything to undo.
+function UndoStore:Has(profile)
     local rollbackStack = profile and profile.Undo
     return rollbackStack ~= nil and #rollbackStack > 0
 end
 
-function UndoStore:Clear(profileName)
-    profileName = profileName or CharacterInfo:GetFullName()
-    local profile = profiles[profileName]
+-- Clear the record's undo stack.
+function UndoStore:Clear(profile)
     if profile then
         profile.Undo = {}
     end

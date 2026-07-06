@@ -14,15 +14,13 @@ local Differ = addon:GetObject("Differ")
 local GameWatcher = addon:GetObject("GameWatcher")
 local ProfileManager = addon:GetObject("ProfileManager")
 local SaveTask = addon:GetObject("SaveTask")
-local UndoStore = addon:GetObject("UndoStore")
 
 --[[
     SnapshotManager — the snapshot subsystem's orchestrator/facade.
 
     It owns no state of its own; it coordinates the registry, the profile
-    history and per-character live setup (ProfileManager), the rollback snapshot
-    stack (UndoStore), the snapshot value-object (Snapshot), and the apply
-    preview (Differ).
+    history, per-character live setup and undo stack (ProfileManager), the
+    snapshot value-object (Snapshot), and the apply preview (Differ).
 
     Flow:
       Save    -> capture Current, build a Snapshot, append to the profile
@@ -122,7 +120,7 @@ local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, in
 
     local liveSnapshot = ProfileManager:RefreshLiveSnapshot()
     C:Ensures(liveSnapshot ~= nil, "expected a live snapshot to roll back to, but the logged-in character captured nothing")
-    local rollbackSnapshot = Snapshot:Create(liveSnapshot:Modules(), BuildCurrentSource()):ToStore()
+    local rollbackSnapshot = Snapshot:Create(liveSnapshot:Modules(), BuildCurrentSource())
 
     local moduleNames = ResolveModuleNames(sourceModules, moduleSet)
     local applyResults = {}
@@ -160,7 +158,7 @@ local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, in
     end
 
     if applied then
-        UndoStore:Push(nil, rollbackSnapshot)
+        ProfileManager:PushUndo(rollbackSnapshot)
         ProfileManager:RefreshLiveSnapshot()
     end
 
@@ -311,12 +309,11 @@ end
 --[[ Undo ]]
 
 function SnapshotManager:CanUndo()
-    return UndoStore:Has()
+    return ProfileManager:HasUndo()
 end
 
 -- Subject + sorted module names describing a single rollback snapshot.
-local function DescribeRollbackSnapshot(rollbackInfo)
-    local snapshot = Snapshot:From(rollbackInfo.Source and rollbackInfo.Source.Character, rollbackInfo)
+local function DescribeRollbackSnapshot(snapshot)
     return {
         Subject = snapshot:GetSubject(),
         Timestamp = snapshot:GetTimestamp(),
@@ -326,7 +323,7 @@ end
 
 -- Subject + module names of the change that UndoLastApply would roll back.
 function SnapshotManager:GetNextUndoPoint()
-    local rollbackSnapshot = UndoStore:Peek()
+    local rollbackSnapshot = ProfileManager:PeekUndo()
     if not rollbackSnapshot then
         return nil
     end
@@ -338,19 +335,18 @@ end
 -- snapshot re-applied in Exact mode over the current setup. Nil when there is
 -- nothing to undo.
 function SnapshotManager:PreviewUndo()
-    local rollbackInfo = UndoStore:Peek()
-    if not rollbackInfo then
+    local rollbackSnapshot = ProfileManager:PeekUndo()
+    if not rollbackSnapshot then
         return nil
     end
-    local snapshot = Snapshot:From(rollbackInfo.Source and rollbackInfo.Source.Character, rollbackInfo)
-    return self:Preview(snapshot)
+    return self:Preview(rollbackSnapshot)
 end
 
 -- The undo points newest-first, each describing one apply that can be rolled
 -- back. Index 1 is the most recent (what a single UndoLastApply reverts); undoing
 -- to a deeper index rolls back every apply above it as well.
 function SnapshotManager:GetUndoPoints()
-    local rollbackSnapshots = UndoStore:List()
+    local rollbackSnapshots = ProfileManager:ListUndo()
     local undoPoints = {}
     for i = #rollbackSnapshots, 1, -1 do
         tinsert(undoPoints, DescribeRollbackSnapshot(rollbackSnapshots[i]))
@@ -368,11 +364,10 @@ function SnapshotManager:UndoLastApply(moduleSet)
     -- Finish any in-flight save first so it cannot capture a half-undone setup.
     SaveTask:Drain()
 
-    local rollbackInfo = UndoStore:Peek()
-    if not rollbackInfo then
+    local snapshot = ProfileManager:PeekUndo()
+    if not snapshot then
         return nil
     end
-    local snapshot = Snapshot:From(rollbackInfo.Source and rollbackInfo.Source.Character, rollbackInfo)
 
     local applyMeta = BuildApplyMeta(snapshot)
     local rollbackModules = snapshot:Modules()
@@ -399,7 +394,7 @@ function SnapshotManager:UndoLastApply(moduleSet)
         end
     end
 
-    UndoStore:Pop()
+    ProfileManager:PopUndo()
     ProfileManager:RefreshLiveSnapshot()
     GameWatcher:ResumeTracking()
     if Debugger:IsEnabled() then
@@ -415,7 +410,7 @@ function SnapshotManager:UndoApplies(count)
     count = count or 1
     local aggregate = ApplyResult:New()
     for _ = 1, count do
-        if not UndoStore:Has() then
+        if not ProfileManager:HasUndo() then
             break
         end
 
