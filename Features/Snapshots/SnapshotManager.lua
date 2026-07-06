@@ -11,7 +11,6 @@ local SnapshotApplyMode = addon.SnapshotApplyMode
 
 local Debugger = addon:GetObject("Debugger")
 local Differ = addon:GetObject("Differ")
-local GameWatcher = addon:GetObject("GameWatcher")
 local ProfileManager = addon:GetObject("ProfileManager")
 local SaveTask = addon:GetObject("SaveTask")
 
@@ -158,15 +157,17 @@ local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, in
         Strategy = strategy,
     }, moduleNames)
 
-    -- Don't let our own writes echo back in as if the player made them.
-    GameWatcher:SuspendTracking()
+    -- Announce the write so the live-mirror watcher pauses: our own apply fires
+    -- the very game events it tracks, and it must not mirror them back as if the
+    -- player had made them.
+    WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_APPLY_STARTED")
     local applyResults, applied = ApplyModules(sourceModules, meta, moduleNames, strategy)
     -- Only record an undo point when an apply actually happened.
     if applied then
         ProfileManager:PushUndo(rollbackSnapshot)
         ProfileManager:RefreshLiveSnapshot()
     end
-    GameWatcher:ResumeTracking()
+    WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_APPLY_FINISHED")
 
     if Debugger:IsEnabled() then
         Debugger:EndOperation(debugHandle, sourceModules, applyResults)
@@ -382,11 +383,11 @@ function SnapshotManager:UndoLastApply(moduleSet)
         Subject = snapshot:GetSubject(),
     }, moduleNames)
 
-    GameWatcher:SuspendTracking()
+    WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_UNDO_STARTED")
     local applyResults = ApplyModules(rollbackModules, applyMeta, moduleNames, { default = "exact" })
     ProfileManager:PopUndo()
     ProfileManager:RefreshLiveSnapshot()
-    GameWatcher:ResumeTracking()
+    WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_UNDO_FINISHED")
     if Debugger:IsEnabled() then
         Debugger:EndOperation(debugHandle, rollbackModules, applyResults)
     end

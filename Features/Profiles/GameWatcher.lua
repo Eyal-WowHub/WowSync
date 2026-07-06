@@ -17,11 +17,12 @@ local ProfileManager = addon:GetObject("ProfileManager")
     into one recapture, and unrelated modules are never touched.
 
     Feedback guard: our own Apply/Undo change the game and so fire these very
-    events. SnapshotManager brackets those with SuspendTracking/ResumeTracking,
-    which Suspend()s this object (Addon-1.0 drops event dispatch while suspended)
-    across the apply plus a short settle window, so we never re-mirror our own
-    writes. WoW delivers events between frames, never mid-function, so the
-    synchronous apply loop itself cannot be interrupted by a recapture.
+    events. An apply or undo brackets its writes with the WOWSYNC_SNAPSHOT_APPLY/
+    UNDO started/finished events; this watcher listens for them and Suspend()s
+    itself (Addon-1.0 drops event dispatch while suspended) across the write plus
+    a short settle window, so we never re-mirror our own writes. WoW delivers
+    events between frames, never mid-function, so the synchronous apply loop
+    itself cannot be interrupted by a recapture.
 
     Save isolation: SaveTask brackets a save with SuspendFlush/ResumeFlush,
     holding off recapture flushes while it reads Current (events still mark
@@ -114,6 +115,14 @@ end
 --[[ Lifecycle ]]
 
 function GameWatcher:OnInitialized()
+    -- An apply or undo announces its writes with these events; suspend tracking
+    -- for their duration so our own writes are never mirrored back as if the
+    -- player had made them.
+    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_APPLY_STARTED", function() self:SuspendTracking() end)
+    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_APPLY_FINISHED", function() self:ResumeTracking() end)
+    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_UNDO_STARTED", function() self:SuspendTracking() end)
+    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_UNDO_FINISHED", function() self:ResumeTracking() end)
+
     ResolveActivationMode()
 end
 
