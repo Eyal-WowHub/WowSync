@@ -108,6 +108,10 @@ Applying a snapshot is reversible. After an apply, use **Undo** (in the window o
 
 Talent loadouts are an exception: undo can restore loadouts that were removed, but it will not delete talent loadouts that an apply added. Any extra loadouts can be removed manually in the talent UI.
 
+## Developers
+
+WowSync validates its own internal calls with the [Contracts](https://github.com/Eyal-WowHub/Contracts) library. Unpackaged (source) builds are flagged with `## X-WowSync-DevMode: 1` in the TOC — which the packager strips from every release — and run every contract check, printing a developer-mode notice at login. Packaged releases skip the expensive checks, and there is nothing to configure.
+
 ## Side Notes
 
 * Profiles and snapshots are saved per account, so they are shared across all of your characters.

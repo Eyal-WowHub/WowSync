@@ -3,8 +3,7 @@ local HashedSnapshot = {}
 addon.HashedSnapshot = HashedSnapshot
 HashedSnapshot.__index = HashedSnapshot
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.Contracts
 local Hash = addon.Hash
 local HashedModule = addon.HashedModule
 local ModuleIds = addon.ModuleIds

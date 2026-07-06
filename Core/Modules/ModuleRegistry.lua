@@ -2,8 +2,7 @@ local _, addon = ...
 local ModuleRegistry = {}
 addon.ModuleRegistry = ModuleRegistry
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.Contracts
 local Interface = addon.ModuleInterface
 local ModuleIds = addon.ModuleIds
 
@@ -96,6 +95,7 @@ end
 -- and whether anything was actually applied.
 function ModuleRegistry:ApplyModules(moduleNames, sourceModules, strategy, classID)
     C:IsArray(moduleNames, 2)
+    C:IsTable(sourceModules, 3)
     strategy = strategy or {}
     local defaultMode = strategy.default or "merge"
     local overrides = strategy.overrides or {}

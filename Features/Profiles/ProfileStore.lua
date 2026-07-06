@@ -1,8 +1,7 @@
 local _, addon = ...
 local ProfileStore = addon:NewObject("ProfileStore")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.Contracts
 local BoundedList = addon.BoundedList
 local Snapshot = addon.Snapshot
 local Time = addon.Time

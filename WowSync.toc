@@ -10,6 +10,10 @@
 ## X-Curse-Project-ID: 1592163
 ## X-Wago-ID: x618gVN1
 
+#@debug@
+## X-WowSync-DevMode: 1
+#@end-debug@
+
 ## SavedVariables: WowSyncDB, WowSyncDebugDB
 
 Libs\LibStub\LibStub.lua

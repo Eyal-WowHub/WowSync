@@ -1,11 +1,11 @@
 local _, addon = ...
 local ProfileManager = addon:NewObject("ProfileManager")
 
-local C = LibStub("Contracts-1.0")
-local CharacterInfo = LibStub("CharacterInfo-1.0")
-
+local C = addon.Contracts
 local Snapshot = addon.Snapshot
 local SnapshotInfo = addon.SnapshotInfo
+
+local CharacterInfo = LibStub("CharacterInfo-1.0")
 
 local LiveStore = addon:GetObject("LiveStore")
 local ProfileStore = addon:GetObject("ProfileStore")
@@ -31,6 +31,7 @@ local cachedLiveSnapshots = {}
 --[[ Profile CRUD ]]
 
 function ProfileManager:GetProfile(profileName)
+    C:IsString(profileName, 2)
     return ProfileStore:GetProfile(profileName)
 end
 
@@ -74,6 +75,7 @@ end
 -- the bulk RefreshLiveSnapshot stays silent, so a listener that reacts by
 -- recapturing cannot feed back into a loop.
 function ProfileManager:RefreshLiveSnapshotModule(moduleName)
+    C:IsString(moduleName, 2)
     local profile = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
     local captured = LiveStore:CaptureModule(profile, moduleName)
     if captured then
@@ -143,11 +145,13 @@ end
 -- Append a snapshot to its character's history: a save always appends, even when
 -- nothing changed. Returns the stored Snapshot.
 function ProfileManager:AddSnapshot(snapshot, note)
+    Snapshot.Validate(snapshot, 2)
     return ProfileStore:AppendSnapshot(snapshot, note)
 end
 
 -- A character's most recent saved snapshot as a Snapshot, or nil when none exist.
 function ProfileManager:Latest(charKey)
+    C:IsString(charKey, 2)
     return ProfileStore:GetLatestSnapshot(charKey)
 end
 
@@ -155,6 +159,7 @@ end
 -- once the history is at/over the cap) as a Snapshot, or nil when a save would
 -- evict nothing (under the cap, or every snapshot is pinned).
 function ProfileManager:PendingEviction(charKey)
+    C:IsString(charKey, 2)
     local snapshots = ProfileStore:GetSnapshots(charKey)
     if #snapshots < ProfileStore:GetMaxSnapshots() then
         return nil
@@ -179,6 +184,7 @@ end
 -- newest-first within each group (the order a timeline shows them under the
 -- live snapshot).
 function ProfileManager:GetHistory(charKey)
+    C:IsString(charKey, 2)
     local pinned, unpinned = {}, {}
     for _, snapshot in ipairs(ProfileStore:GetSnapshots(charKey)) do
         if snapshot:IsPinned() then
@@ -333,5 +339,6 @@ end
 -- Permanently remove a snapshot from its character's history. Returns whether it
 -- was found and removed.
 function ProfileManager:Remove(snapshot)
+    Snapshot.Validate(snapshot, 2)
     return ProfileStore:RemoveSnapshot(snapshot)
 end

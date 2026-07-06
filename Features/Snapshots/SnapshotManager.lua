@@ -1,13 +1,13 @@
 local _, addon = ...
 local SnapshotManager = addon:NewObject("SnapshotManager")
 
-local C = LibStub("Contracts-1.0")
-local CharacterInfo = LibStub("CharacterInfo-1.0")
-
+local C = addon.Contracts
 local ApplyResult = addon.ApplyResult
 local ModuleRegistry = addon.ModuleRegistry
 local Snapshot = addon.Snapshot
 local SnapshotApplyMode = addon.SnapshotApplyMode
+
+local CharacterInfo = LibStub("CharacterInfo-1.0")
 
 local Debugger = addon:GetObject("Debugger")
 local Differ = addon:GetObject("Differ")

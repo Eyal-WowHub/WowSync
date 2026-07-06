@@ -1,8 +1,7 @@
 local _, addon = ...
 WowSync = addon:NewObject(addon:GetName())
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.Contracts
 local L = addon.L
 
 -- Loads the companion UI addon on demand, then fires WOWSYNC_UI_TOGGLED so the
@@ -33,6 +32,7 @@ end
 local Imports = {
     -- Shared formatter/value tables.
     ChangeBadge = true,
+    Contracts = true,
 
     -- Namespaced helper surfaces.
     Console = {

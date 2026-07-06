@@ -100,6 +100,7 @@ L["Debug logging is on. It persists across sessions until you turn it off."] = "
 L["Debug logging is off. The debug log has been cleared."] = "Debug logging is off. The debug log has been cleared."
 L["Debug logging is on (X events recorded)."] = "Debug logging is on (%d events recorded)."
 L["Debug logging is off."] = "Debug logging is off."
+L["Developer mode is active — contract checks are fully enabled."] = "Developer mode is active — contract checks are fully enabled."
 L["Show the command list"] = "Show the command list"
 L["Unknown command. Type X."] = "Unknown command. Type %s."
 

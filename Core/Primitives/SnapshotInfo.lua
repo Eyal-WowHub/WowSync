@@ -2,8 +2,7 @@ local _, addon = ...
 local SnapshotInfo = {}
 addon.SnapshotInfo = SnapshotInfo
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.Contracts
 local Codec = addon.Codec
 local HashedModule = addon.HashedModule
 local HashedSnapshot = addon.HashedSnapshot

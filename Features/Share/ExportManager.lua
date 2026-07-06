@@ -10,6 +10,8 @@ local ExportManager = addon:NewObject("ExportManager")
     pure read.
 ]]
 
+local C = addon.Contracts
+
 local ProfileManager = addon:GetObject("ProfileManager")
 local ShareCodec = addon:GetObject("ShareCodec")
 
@@ -33,6 +35,7 @@ end
 -- opts.notes sets the travelling note (falling back to the snapshot's own).
 -- Returns the string, or nil + a reason.
 function ExportManager:ExportSnapshot(profileName, selector, opts)
+    C:IsString(profileName, 2)
     opts = opts or {}
 
     local snapshot, reason
@@ -59,6 +62,7 @@ end
 -- narrows the export to a { [name] = true } subset and opts.notes attaches a note.
 -- Returns the string, or nil + a reason.
 function ExportManager:ExportLiveSnapshot(charKey, opts)
+    C:IsString(charKey, 2)
     opts = opts or {}
 
     local liveSnapshot = ProfileManager:GetLiveSnapshot(charKey)

@@ -12,6 +12,7 @@ local ImportManager = addon:NewObject("ImportManager")
     SnapshotManager.
 ]]
 
+local C = addon.Contracts
 local Snapshot = addon.Snapshot
 local SnapshotInfo = addon.SnapshotInfo
 local Time = addon.Time
@@ -36,6 +37,7 @@ end
 -- otherwise a new container named opts.name is created. Returns
 -- { ImportID, Name, Duplicate }, or nil + a reason.
 function ImportManager:ImportString(text, opts)
+    C:IsString(text, 2)
     opts = opts or {}
 
     local sharedData, reason = ShareCodec:Decode(text)
@@ -119,6 +121,7 @@ end
 
 -- A container by id, or nil.
 function ImportManager:GetImport(importID)
+    C:IsString(importID, 2)
     return ImportStore:GetImport(importID)
 end
 
@@ -127,6 +130,7 @@ end
 -- dedup/origin flags and per-row chrome read import-only fields), so it works
 -- with them directly rather than through Snapshot.
 function ImportManager:GetSnapshots(importID)
+    C:IsString(importID, 2)
     return ImportStore:GetSnapshots(importID)
 end
 
@@ -134,6 +138,8 @@ end
 -- followed to the owner), for the shared apply/preview UI. Nil + a reason when
 -- it cannot be resolved.
 function ImportManager:GetSnapshot(importID, selector)
+    C:IsString(importID, 2)
+    C:IsString(selector, 3)
     local snapshotInfo, reason = ImportStore:GetSnapshot(importID, selector)
     if not snapshotInfo then
         return nil, reason or "not-found"
@@ -143,48 +149,64 @@ end
 
 -- Rename a container. Returns true, or false + a reason.
 function ImportManager:RenameImport(importID, name)
+    C:IsString(importID, 2)
+    C:IsString(name, 3)
     return ImportStore:RenameImport(importID, name)
 end
 
 -- Remove a container and its snapshots. Returns whether one was removed.
 function ImportManager:DeleteImport(importID)
+    C:IsString(importID, 2)
     return ImportStore:DeleteImport(importID)
 end
 
 -- Move a container one step up within its class group. Returns whether it moved.
 function ImportManager:MoveImportUp(importID)
+    C:IsString(importID, 2)
     return ImportStore:MoveImport(importID, -1)
 end
 
 -- Move a container one step down within its class group. Returns whether it moved.
 function ImportManager:MoveImportDown(importID)
+    C:IsString(importID, 2)
     return ImportStore:MoveImport(importID, 1)
 end
 
 -- Remove one snapshot from a container by selector. Returns whether one was removed.
 function ImportManager:DeleteSnapshot(importID, selector)
+    C:IsString(importID, 2)
+    C:IsString(selector, 3)
     return ImportStore:DeleteSnapshot(importID, selector)
 end
 
 -- How many duplicates would be removed alongside the snapshot at selector, so
 -- the UI can warn before deleting an owner that others reference.
 function ImportManager:CountDependentDuplicates(importID, selector)
+    C:IsString(importID, 2)
+    C:IsString(selector, 3)
     return ImportStore:CountDependentDuplicates(importID, selector)
 end
 
 -- Replace an imported snapshot's editable note. Returns whether it was found.
 function ImportManager:SetSnapshotNotes(importID, selector, text)
+    C:IsString(importID, 2)
+    C:IsString(selector, 3)
+    C:IsString(text, 4)
     return ImportStore:SetSnapshotNotes(importID, selector, text)
 end
 
 -- Pin an imported snapshot, floating it to the top of the container as a marked
 -- reference. Returns whether it was found.
 function ImportManager:PinSnapshot(importID, selector)
+    C:IsString(importID, 2)
+    C:IsString(selector, 3)
     return ImportStore:PinSnapshot(importID, selector)
 end
 
 -- Clear an imported snapshot's pin. Returns whether it was found.
 function ImportManager:UnpinSnapshot(importID, selector)
+    C:IsString(importID, 2)
+    C:IsString(selector, 3)
     return ImportStore:UnpinSnapshot(importID, selector)
 end
 
@@ -193,6 +215,8 @@ end
 -- Preview applying an imported snapshot over the logged-in character's Current.
 -- Returns the preview, or nil + a reason.
 function ImportManager:PreviewApplySnapshot(importID, selector, moduleSet)
+    C:IsString(importID, 2)
+    C:IsString(selector, 3)
     local snapshotInfo, reason = ImportStore:GetSnapshot(importID, selector)
     if not snapshotInfo then
         return nil, reason or "not-found"
@@ -203,6 +227,8 @@ end
 -- Apply an imported snapshot to the logged-in character, pushing a rollback
 -- snapshot first. Returns the apply results, or nil + a reason.
 function ImportManager:ApplySnapshot(importID, selector, strategy, moduleSet)
+    C:IsString(importID, 2)
+    C:IsString(selector, 3)
     local snapshotInfo, reason = ImportStore:GetSnapshot(importID, selector)
     if not snapshotInfo then
         return nil, reason or "not-found"

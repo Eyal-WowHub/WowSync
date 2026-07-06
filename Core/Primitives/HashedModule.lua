@@ -3,8 +3,7 @@ local HashedModule = {}
 addon.HashedModule = HashedModule
 HashedModule.__index = HashedModule
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.Contracts
 local Hash = addon.Hash
 local ModuleIds = addon.ModuleIds
 

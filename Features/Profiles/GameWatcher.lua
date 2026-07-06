@@ -1,8 +1,7 @@
 local _, addon = ...
 local GameWatcher = addon:NewObject("GameWatcher")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.Contracts
 local ModuleRegistry = addon.ModuleRegistry
 
 local ProfileManager = addon:GetObject("ProfileManager")
