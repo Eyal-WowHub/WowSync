@@ -74,6 +74,11 @@ function Snapshot:GetCharacterInfo()
     return self.characterInfo
 end
 
+-- The class id the snapshot was captured on.
+function Snapshot:GetClassID()
+    return self:GetCharacterInfo().ClassID
+end
+
 -- The moment the snapshot was captured.
 function Snapshot:GetTimestamp()
     return self.info.Timestamp
@@ -96,9 +101,10 @@ function Snapshot:IsPinned()
     return self.info.Pinned or false
 end
 
--- The sorted module names the snapshot carries.
-function Snapshot:GetModuleNames()
-    return SnapshotInfo:ModuleNames(self.info)
+-- The sorted module names the snapshot carries, optionally narrowed to a
+-- { [name] = true } subset.
+function Snapshot:GetModuleNames(moduleSet)
+    return SnapshotInfo:ModuleNames(self.info, moduleSet)
 end
 
 -- The "<hash>#<index>" selector for a saved snapshot, or nil for the live snapshot.

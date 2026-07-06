@@ -57,11 +57,6 @@ local function BuildCurrentSource()
     }
 end
 
--- The meta passed to a module's CanApply/Apply, derived from a Snapshot.
-local function BuildApplyMeta(snapshot)
-    return { ClassID = snapshot:GetCharacterInfo().ClassID }
-end
-
 -- The chosen module subset (intersected with what was actually captured), or
 -- the whole capture when no subset is given.
 local function FilterCapturedModules(capturedModules, moduleSet)
@@ -79,61 +74,12 @@ local function FilterCapturedModules(capturedModules, moduleSet)
     return subset
 end
 
--- Resolve the effective set of module names: the chosen subset intersected with
--- what the snapshot actually contains, or everything in the snapshot when no
--- subset is given.
-local function ResolveModuleNames(capturedModules, moduleSet)
-    local moduleNames = {}
-    if moduleSet then
-        for name in pairs(moduleSet) do
-            if capturedModules[name] ~= nil then
-                moduleNames[name] = true
-            end
-        end
-    else
-        for name in pairs(capturedModules) do
-            moduleNames[name] = true
-        end
-    end
-    return moduleNames
-end
-
--- Write captured module payloads into the live game in module priority order
--- (so dependencies like Macros land before the modules that reference them),
--- honoring each module's CanApply gate and apply mode. Returns the per-module
--- results and whether anything was actually applied.
-local function ApplyModules(sourceModules, meta, moduleNames, strategy)
-    local defaultMode = strategy.default or "merge"
-    local overrides = strategy.overrides or {}
-    local applyResults = {}
-    local applied = false
-    for name, module in ModuleRegistry:IterableModulesByPriority(moduleNames) do
-        local capturedData = sourceModules[name]
-        if module and capturedData ~= nil then
-            local canApply, warning = module:CanApply(meta)
-            if not canApply then
-                applyResults[name] = { applied = false, reason = warning }
-            else
-                local mode = overrides[name] or defaultMode
-                local applySucceeded, applyError = pcall(module.Apply, module, capturedData, meta, { mode = mode })
-                if applySucceeded then
-                    applyResults[name] = { applied = true, mode = mode, warning = warning }
-                    applied = true
-                else
-                    applyResults[name] = { applied = false, reason = tostring(applyError) }
-                end
-            end
-        end
-    end
-    return applyResults, applied
-end
-
 -- Shared apply core: capture a FULL rollback snapshot of Current before touching
 -- anything (so any change, including Exact deletions and per-module undo, can be
 -- rolled back), then apply the given module set with the per-module strategy.
 -- The rollback snapshot is only pushed to the undo stack when an apply actually
 -- happens. Returns an ApplyResult.
-local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, info)
+local function ApplyCapturedModules(snapshot, moduleSet, strategy)
     -- Never change the live setup during combat; the protected talent and
     -- action-bar APIs are locked. Report nothing applied.
     if InCombatLockdown() then
@@ -149,11 +95,11 @@ local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, in
     C:Ensures(liveSnapshot ~= nil, "expected a live snapshot to roll back to, but the logged-in character captured nothing")
     local rollbackSnapshot = Snapshot:Create(liveSnapshot:Modules(), BuildCurrentSource())
 
-    local moduleNames = ResolveModuleNames(sourceModules, moduleSet)
+    local sourceModules = snapshot:Modules()
+    local moduleNames = snapshot:GetModuleNames(moduleSet)
 
     local debugHandle = Debugger:IsEnabled() and Debugger:BeginOperation("apply", {
-        Profile = info and info.Profile,
-        Selector = info and info.Selector,
+        Profile = snapshot:GetCharacterInfo().Key,
         Strategy = strategy,
     }, moduleNames)
 
@@ -161,7 +107,7 @@ local function ApplyCapturedModules(sourceModules, meta, strategy, moduleSet, in
     -- the very game events it tracks, and it must not mirror them back as if the
     -- player had made them.
     WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_APPLY_STARTED")
-    local applyResults, applied = ApplyModules(sourceModules, meta, moduleNames, strategy)
+    local applyResults, applied = ModuleRegistry:ApplyModules(moduleNames, sourceModules, strategy, snapshot:GetClassID())
     -- Only record an undo point when an apply actually happened.
     if applied then
         ProfileManager:PushUndo(rollbackSnapshot)
@@ -273,7 +219,7 @@ function SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, onCompl
         local snapshotModules = FilterCapturedModules(liveSnapshot:Modules(), moduleSet)
         local snapshot = Snapshot:Create(snapshotModules, {
             Character = charKey,
-            ClassID = liveSnapshot:GetCharacterInfo().ClassID,
+            ClassID = liveSnapshot:GetClassID(),
         })
 
         local stored = ProfileManager:AddSnapshot(snapshot, note)
@@ -307,9 +253,7 @@ end
 -- A full rollback snapshot of Current is pushed to the undo stack first.
 function SnapshotManager:Apply(snapshot, strategy, moduleSet)
     Snapshot.Validate(snapshot, 2)
-    return ApplyCapturedModules(snapshot:Modules(), BuildApplyMeta(snapshot), strategy, moduleSet, {
-        Profile = snapshot:GetCharacterInfo().Key,
-    })
+    return ApplyCapturedModules(snapshot, moduleSet, strategy)
 end
 
 --[[ Undo ]]
@@ -375,16 +319,15 @@ function SnapshotManager:UndoLastApply(moduleSet)
         return nil
     end
 
-    local applyMeta = BuildApplyMeta(snapshot)
     local rollbackModules = snapshot:Modules()
-    local moduleNames = ResolveModuleNames(rollbackModules, moduleSet)
+    local moduleNames = snapshot:GetModuleNames(moduleSet)
 
     local debugHandle = Debugger:IsEnabled() and Debugger:BeginOperation("undo", {
         Subject = snapshot:GetSubject(),
     }, moduleNames)
 
     WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_UNDO_STARTED")
-    local applyResults = ApplyModules(rollbackModules, applyMeta, moduleNames, { default = "exact" })
+    local applyResults = ModuleRegistry:ApplyModules(moduleNames, rollbackModules, { default = "exact" }, snapshot:GetClassID())
     ProfileManager:PopUndo()
     ProfileManager:RefreshLiveSnapshot()
     WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_UNDO_FINISHED")

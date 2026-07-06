@@ -48,11 +48,11 @@ local function CaptureGameContext()
 end
 
 -- Each module's self-reported live state, keyed by module name, for the given
--- name set. Modules without a GetDebugState() method are omitted; one that errors is
+-- ordered list of names. Modules without a GetDebugState() method are omitted; one that errors is
 -- recorded as an error so a single bad module can't lose the whole event.
 local function CaptureModuleStates(moduleNames)
     local states = {}
-    for name in pairs(moduleNames) do
+    for _, name in ipairs(moduleNames) do
         local module = ModuleRegistry:Get(name)
         if module and type(module.GetDebugState) == "function" then
             local captureSucceeded, state = pcall(module.GetDebugState, module)
@@ -209,7 +209,7 @@ function Debugger:EndOperation(handle, moduleData, applyResults)
     local after = CaptureModuleStates(handle.ModuleNames)
 
     local modules = {}
-    for name in pairs(handle.ModuleNames) do
+    for _, name in ipairs(handle.ModuleNames) do
         modules[name] = {
             Before = handle.Before[name],
             After = after[name],

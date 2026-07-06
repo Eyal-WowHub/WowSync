@@ -59,7 +59,7 @@ end
 -- ties broken by name so the order is deterministic.
 local function SortByApplyPriority(moduleNames)
     local ordered = {}
-    for name in pairs(moduleNames) do
+    for _, name in ipairs(moduleNames) do
         ordered[#ordered + 1] = name
     end
     table.sort(ordered, function(a, b)
@@ -73,8 +73,8 @@ local function SortByApplyPriority(moduleNames)
     return ordered
 end
 
--- Iterates the given module names in apply order (ascending ApplyPriority, ties
--- broken by name), yielding each name and its module.
+-- Iterates the given module names (an ordered array) in apply order (ascending
+-- ApplyPriority, ties broken by name), yielding each name and its module.
 function ModuleRegistry:IterableModulesByPriority(moduleNames)
     local ordered = SortByApplyPriority(moduleNames)
     local i = 0
@@ -86,4 +86,39 @@ function ModuleRegistry:IterableModulesByPriority(moduleNames)
             return name, registeredModules[name]
         end
     end
+end
+
+-- Apply the given module names (an ordered array, e.g. from
+-- Snapshot:GetModuleNames) to the live game in apply-priority order, honoring
+-- each module's CanApply gate and per-module mode (strategy.default, with
+-- strategy.overrides[name] taking precedence). classID is the target character's
+-- class, passed to each module's CanApply/Apply. Returns the per-module results
+-- and whether anything was actually applied.
+function ModuleRegistry:ApplyModules(moduleNames, sourceModules, strategy, classID)
+    C:IsArray(moduleNames, 2)
+    strategy = strategy or {}
+    local defaultMode = strategy.default or "merge"
+    local overrides = strategy.overrides or {}
+    local meta = { ClassID = classID }
+    local applyResults = {}
+    local applied = false
+    for name, module in self:IterableModulesByPriority(moduleNames) do
+        local capturedData = sourceModules[name]
+        if module and capturedData ~= nil then
+            local canApply, warning = module:CanApply(meta)
+            if not canApply then
+                applyResults[name] = { applied = false, reason = warning }
+            else
+                local mode = overrides[name] or defaultMode
+                local applySucceeded, applyError = pcall(module.Apply, module, capturedData, meta, { mode = mode })
+                if applySucceeded then
+                    applyResults[name] = { applied = true, mode = mode, warning = warning }
+                    applied = true
+                else
+                    applyResults[name] = { applied = false, reason = tostring(applyError) }
+                end
+            end
+        end
+    end
+    return applyResults, applied
 end

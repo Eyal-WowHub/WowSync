@@ -71,12 +71,15 @@ local function BuildModuleNameSet(modulesData)
     return names
 end
 
--- The sorted module names present in a name-set or a { [name] = data } table.
-local function SortedNames(nameSet)
+-- The sorted module names present in a name-set or a { [name] = data } table,
+-- optionally narrowed to a { [name] = true } subset.
+local function SortedNames(nameSet, moduleSet)
     local names = {}
     if nameSet then
         for name in pairs(nameSet) do
-            names[#names + 1] = name
+            if not moduleSet or moduleSet[name] then
+                names[#names + 1] = name
+            end
         end
     end
     table.sort(names)
@@ -220,8 +223,8 @@ function SnapshotInfo:Modules(snapshotInfo)
 end
 
 -- The sorted module names present, without decompressing.
-function SnapshotInfo:ModuleNames(snapshotInfo)
-    return SortedNames(snapshotInfo.Modules)
+function SnapshotInfo:ModuleNames(snapshotInfo, moduleSet)
+    return SortedNames(snapshotInfo.Modules, moduleSet)
 end
 
 -- The "<hash>#<index>" selector of a saved snapshot, or nil for the live snapshot (no Index).
