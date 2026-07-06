@@ -27,9 +27,10 @@ local function TryCaptureModule(moduleName, module)
 
     local captureSucceeded, capturedData = pcall(module.Capture, module)
     if not captureSucceeded then
-        -- A module's Capture() is not expected to error; surface it so a broken
-        -- module is diagnosable instead of silently vanishing.
-        addon:Print(addon.L["Could not capture module 'X': Y"]:format(moduleName, tostring(capturedData)))
+        -- A module's Capture() is not expected to error; announce it so the
+        -- owning manager can surface a broken module instead of it silently
+        -- vanishing.
+        WowSync:TriggerEvent("WOWSYNC_MODULE_CAPTURE_FAILED", moduleName, tostring(capturedData))
         return nil, false
     end
 

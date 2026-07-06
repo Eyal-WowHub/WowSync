@@ -16,12 +16,9 @@ local ApplyResult = addon.ApplyResult
 local ModuleRegistry = addon.ModuleRegistry
 local Snapshot = addon.Snapshot
 
-local CharacterInfo = LibStub("CharacterInfo-1.0")
-
 local Debugger = addon:GetObject("Debugger")
 local Differ = addon:GetObject("Differ")
 local ProfileManager = addon:GetObject("ProfileManager")
-local ProfileStore = addon:GetObject("ProfileStore")
 local SaveTask = addon:GetObject("SaveTask")
 local UndoStore = addon:GetObject("UndoStore")
 
@@ -45,25 +42,25 @@ end
 -- Push a rollback snapshot onto the logged-in character's undo stack.
 function UndoManager:Push(snapshot)
     Snapshot.Validate(snapshot, 2)
-    local profile = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
+    local profile = ProfileManager:GetCurrentProfile()
     UndoStore:Push(profile, snapshot:ToStore())
 end
 
 -- The most recent rollback snapshot, or nil when there is nothing to undo.
 function UndoManager:Peek()
-    local profile = ProfileStore:GetProfile(CharacterInfo:GetFullName())
+    local profile = ProfileManager:GetCurrentProfile()
     return WrapRollback(UndoStore:Peek(profile))
 end
 
 -- Pop and return the most recent rollback snapshot, or nil when the stack is empty.
 function UndoManager:Pop()
-    local profile = ProfileStore:GetProfile(CharacterInfo:GetFullName())
+    local profile = ProfileManager:GetCurrentProfile()
     return WrapRollback(UndoStore:Pop(profile))
 end
 
 -- The logged-in character's undo stack as rollback Snapshots, oldest-first.
 function UndoManager:List()
-    local profile = ProfileStore:GetProfile(CharacterInfo:GetFullName())
+    local profile = ProfileManager:GetCurrentProfile()
     local rollbackInfos = UndoStore:List(profile)
     local rollbackSnapshots = {}
     for index = 1, #rollbackInfos do
@@ -74,7 +71,7 @@ end
 
 -- True when the logged-in character has anything to undo.
 function UndoManager:Has()
-    local profile = ProfileStore:GetProfile(CharacterInfo:GetFullName())
+    local profile = ProfileManager:GetCurrentProfile()
     return UndoStore:Has(profile)
 end
 

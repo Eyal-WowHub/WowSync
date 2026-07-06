@@ -5,7 +5,7 @@ local C = addon.Contracts
 
 local CharacterInfo = LibStub("CharacterInfo-1.0")
 
-local ProfileStore = addon:GetObject("ProfileStore")
+local ProfileManager = addon:GetObject("ProfileManager")
 
 --[[
     CharacterManager — the merged roster of known characters.
@@ -41,7 +41,7 @@ function CharacterManager:GetSavedCharacters()
 
     -- One record per character now holds both its Current and its history, so a
     -- single pass covers every character that has either.
-    for key, profile in pairs(ProfileStore:GetProfiles()) do
+    for key, profile in pairs(ProfileManager:GetProfiles()) do
         local capturedModules = profile.Current
         local hasCurrent = type(capturedModules) == "string"
             or (type(capturedModules) == "table" and next(capturedModules) ~= nil)

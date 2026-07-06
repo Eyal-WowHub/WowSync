@@ -38,6 +38,11 @@ function ProfileManager:GetProfiles()
     return ProfileStore:GetProfiles()
 end
 
+-- The logged-in character's record, created if it does not exist yet.
+function ProfileManager:GetCurrentProfile()
+    return ProfileStore:CreateProfile(CharacterInfo:GetFullName())
+end
+
 function ProfileManager:DeleteProfile(profileName)
     C:IsString(profileName, 2)
     return ProfileStore:DeleteProfile(profileName)
@@ -57,8 +62,13 @@ end
 -- fast in-session access; SnapshotManager captures and recompresses it on logout
 -- (so other characters can browse its final state).
 function ProfileManager:OnInitialized()
-    local profile = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
-    LiveStore:Decompress(profile)
+    LiveStore:Decompress(self:GetCurrentProfile())
+
+    -- Modules that fail to capture are announced by the store; surface them here
+    -- so a broken module is diagnosable instead of silently vanishing.
+    WowSync:RegisterEvent("WOWSYNC_MODULE_CAPTURE_FAILED", function(_, _, moduleName, err)
+        addon:Print(addon.L["Could not capture module 'X': Y"]:format(moduleName, err))
+    end)
 end
 
 -- Re-scan the logged-in character's live setup into its Current and return the
