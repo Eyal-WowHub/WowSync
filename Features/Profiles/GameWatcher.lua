@@ -24,10 +24,11 @@ local ProfileManager = addon:GetObject("ProfileManager")
     events between frames, never mid-function, so the synchronous apply loop
     itself cannot be interrupted by a recapture.
 
-    Save isolation: SaveTask brackets a save with SuspendFlush/ResumeFlush,
-    holding off recapture flushes while it reads Current (events still mark
-    modules dirty) so the setup a save captures and fingerprints cannot change
-    mid-save; the held changes flush the moment the save finishes.
+    Save isolation: a save brackets itself with the WOWSYNC_SNAPSHOT_SAVE events;
+    this watcher listens and holds off recapture flushes while the save reads
+    Current (events still mark modules dirty) so the setup a save captures and
+    fingerprints cannot change mid-save; the held changes flush the moment the
+    save finishes.
 
     Combat: a module may decline capture in combat (ShouldCapture); such modules
     stay dirty and are flushed again on PLAYER_REGEN_ENABLED.
@@ -122,6 +123,11 @@ function GameWatcher:OnInitialized()
     WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_APPLY_FINISHED", function() self:ResumeTracking() end)
     WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_UNDO_STARTED", function() self:SuspendTracking() end)
     WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_UNDO_FINISHED", function() self:ResumeTracking() end)
+
+    -- A save reads Current across frames; hold off recapture flushes for its
+    -- duration so the live mirror can't change the setup mid-save.
+    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_SAVE_STARTED", function() self:SuspendFlush() end)
+    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_SAVE_FINISHED", function() self:ResumeFlush() end)
 
     ResolveActivationMode()
 end

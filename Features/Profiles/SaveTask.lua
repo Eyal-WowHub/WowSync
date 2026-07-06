@@ -3,16 +3,15 @@ local SaveTask = addon:NewObject("SaveTask")
 
 local FrameTask = addon.FrameTask
 
-local GameWatcher = addon:GetObject("GameWatcher")
-
 --[[
     SaveTask — runs a save body across frames without hitching the game.
 
     The body is sliced across frames so its capture and fingerprint never hitch a
-    single frame, bracketed by WOWSYNC_SNAPSHOT_SAVE_STARTED/FINISHED and by GameWatcher's
-    flush suspension so the live mirror cannot change the setup mid-save. At most
-    one save runs at a time; a request made while one is in flight is rejected
-    with "busy". A body that crashes is reported as "error".
+    single frame, bracketed by WOWSYNC_SNAPSHOT_SAVE_STARTED/FINISHED. The
+    live-mirror watcher listens for those and holds off its recapture flushes so
+    the setup cannot change mid-save. At most one save runs at a time; a request
+    made while one is in flight is rejected with "busy". A body that crashes is
+    reported as "error".
 ]]
 
 -- The most time a save spends in any single frame before yielding, kept low
@@ -42,7 +41,6 @@ function SaveTask:Run(saveBody, onComplete)
         return
     end
 
-    GameWatcher:SuspendFlush()
     WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_SAVE_STARTED")
 
     task:Start(saveBody, function(saveSucceeded, storedSnapshot, reason)
@@ -51,7 +49,6 @@ function SaveTask:Run(saveBody, onComplete)
         if not saveSucceeded then
             storedSnapshot, reason = nil, "error"
         end
-        GameWatcher:ResumeFlush()
         WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_SAVE_FINISHED", storedSnapshot, reason)
         if onComplete then
             onComplete(storedSnapshot, reason)
