@@ -47,6 +47,7 @@ local Imports = {
     -- Domain objects.
     ProfileManager = true,
     SnapshotManager = true,
+    UndoManager = true,
     ImportManager = true,
     ExportManager = true,
     ImportedHashDictionary = true,

@@ -8,10 +8,9 @@ local BoundedList = addon.BoundedList
 
     Before any apply, the current live setup is captured and pushed here so the
     change can be undone. Entries share the snapshotInfo shape and live on the
-    record's Undo slice; ProfileManager owns the record and hands it in, so this
-    store is a stateless transformer over the slice it is given. The stack is
-    capped at Settings.MaxUndo; the oldest entry is dropped when the cap is
-    exceeded.
+    record's Undo slice; UndoManager hands the record in, so this store is a
+    stateless transformer over the slice it is given. The stack is capped at
+    Settings.MaxUndo; the oldest entry is dropped when the cap is exceeded.
 ]]
 
 -- Push a rollback snapshotInfo onto the record's undo stack, capping it at

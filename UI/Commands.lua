@@ -9,6 +9,7 @@ local GameWatcher = addon:GetObject("GameWatcher")
 local ProfileManager = addon:GetObject("ProfileManager")
 local SaveTask = addon:GetObject("SaveTask")
 local SnapshotManager = addon:GetObject("SnapshotManager")
+local UndoManager = addon:GetObject("UndoManager")
 
 --[[
     Slash command interface ("/wowsync", "/ws").
@@ -108,7 +109,7 @@ local function PrintProfileStatus()
         addon:PrintLine(L["  In sync: no"])
     end
 
-    local undoPoints = SnapshotManager:GetUndoPoints()
+    local undoPoints = UndoManager:GetUndoPoints()
     if #undoPoints == 0 then
         addon:PrintLine(L["  Undo points: 0"])
     else
@@ -244,10 +245,10 @@ function Commands:OnInitialized()
                 addon:Print(L["X: skipped - Y"]:format(moduleName, applyResult:Get(moduleName).reason or L["unknown"]))
             end
         elseif command == "undo" then
-            if not SnapshotManager:CanUndo() then
+            if not UndoManager:CanUndo() then
                 addon:Print(L["Nothing to undo."])
             else
-                local undoResult = SnapshotManager:UndoLastApply()
+                local undoResult = UndoManager:UndoLastApply()
                 if undoResult then
                     addon:Print(L["Undid the last apply:"])
                     for _, moduleName in ipairs(undoResult:Applied()) do

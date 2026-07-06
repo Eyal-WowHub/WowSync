@@ -9,7 +9,6 @@ local CharacterInfo = LibStub("CharacterInfo-1.0")
 
 local LiveStore = addon:GetObject("LiveStore")
 local ProfileStore = addon:GetObject("ProfileStore")
-local UndoStore = addon:GetObject("UndoStore")
 
 --[[
     ProfileManager — the business layer over the profile store.
@@ -90,49 +89,6 @@ function ProfileManager:StoreLiveSnapshot()
     local profile = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
     LiveStore:Capture(profile)
     LiveStore:Compress(profile)
-end
-
---[[ Undo stack ]]
-
--- Wrap a rollback snapshotInfo as a Snapshot, keyed to its source character.
-local function WrapRollback(rollbackInfo)
-    return rollbackInfo and Snapshot:From(rollbackInfo.Source and rollbackInfo.Source.Character, rollbackInfo)
-end
-
--- Push a rollback snapshot onto the logged-in character's undo stack.
-function ProfileManager:PushUndo(snapshot)
-    Snapshot.Validate(snapshot, 2)
-    local profile = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
-    UndoStore:Push(profile, snapshot:ToStore())
-end
-
--- The most recent rollback snapshot, or nil when there is nothing to undo.
-function ProfileManager:PeekUndo()
-    local profile = ProfileStore:GetProfile(CharacterInfo:GetFullName())
-    return WrapRollback(UndoStore:Peek(profile))
-end
-
--- Pop and return the most recent rollback snapshot, or nil when the stack is empty.
-function ProfileManager:PopUndo()
-    local profile = ProfileStore:GetProfile(CharacterInfo:GetFullName())
-    return WrapRollback(UndoStore:Pop(profile))
-end
-
--- The logged-in character's undo stack as rollback Snapshots, oldest-first.
-function ProfileManager:ListUndo()
-    local profile = ProfileStore:GetProfile(CharacterInfo:GetFullName())
-    local rollbackInfos = UndoStore:List(profile)
-    local rollbackSnapshots = {}
-    for index = 1, #rollbackInfos do
-        rollbackSnapshots[index] = WrapRollback(rollbackInfos[index])
-    end
-    return rollbackSnapshots
-end
-
--- True when the logged-in character has anything to undo.
-function ProfileManager:HasUndo()
-    local profile = ProfileStore:GetProfile(CharacterInfo:GetFullName())
-    return UndoStore:Has(profile)
 end
 
 --[[ Snapshot history ]]
