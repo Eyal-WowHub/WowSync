@@ -12,7 +12,7 @@ local cache = setmetatable({}, { __mode = "k" })
 
 --[[
     Snapshot — the behaviour/identity object wrapping one snapshotInfo (the
-    immutable data, owned and built by SnapshotInfo). A Snapshot is either a
+    immutable data, owned and created by SnapshotInfo). A Snapshot is either a
     stored history entry or the character's live snapshot; the live snapshot is
     just a snapshot that has not been saved. The entity only reads and derives
     from its data and
@@ -23,9 +23,12 @@ local cache = setmetatable({}, { __mode = "k" })
 
 --[[ Factories (identity-cached) ]]
 
--- Wrap a snapshotInfo (a stored entry or the live snapshot) owned by the given
--- character. Returns the same wrapper per snapshotInfo across calls.
-function Snapshot:From(charKey, snapshotInfo)
+-- Create the snapshot wrapping a snapshotInfo (a stored entry or the live
+-- snapshot) owned by the given character. Returns the same wrapper per
+-- snapshotInfo across calls.
+function Snapshot:Create(charKey, snapshotInfo)
+    C:Requires(charKey, 2, "string", "nil")
+    C:IsTable(snapshotInfo, 3)
     local snapshot = cache[snapshotInfo]
     if not snapshot then
         SnapshotInfo:Validate(snapshotInfo)
@@ -40,10 +43,10 @@ function Snapshot:From(charKey, snapshotInfo)
     return snapshot
 end
 
--- Mint a new, unsaved snapshot from a captured module set.
-function Snapshot:Create(modulesData, source)
+-- Wrap a captured module set as a new saved snapshot.
+function Snapshot:WrapCapturedModuleSet(modulesData, source)
     local snapshotInfo = SnapshotInfo:CreateForSavedSnapshot(modulesData, source)
-    return self:From(source and source.Character, snapshotInfo)
+    return self:Create(source and source.CharacterName, snapshotInfo)
 end
 
 --[[ Instance: reads (data concerns delegate to SnapshotInfo) ]]
@@ -67,7 +70,7 @@ function Snapshot:GetCharacterInfo()
     local source = self.info.Source
     self.characterInfo = {
         Key = self.charKey,
-        Character = source and source.Character,
+        Character = source and (source.CharacterName or source.Character),
         ClassID = source and source.ClassID,
     }
     return self.characterInfo

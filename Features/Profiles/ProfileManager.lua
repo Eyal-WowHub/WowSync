@@ -34,14 +34,14 @@ local cachedLiveSnapshots = {}
 function ProfileManager:GetProfile(profileName)
     C:IsString(profileName, 2)
     local record = ProfileStore:GetProfile(profileName)
-    return record and Profile:From(profileName, record) or nil
+    return record and Profile:Create(profileName, record) or nil
 end
 
 -- Every stored character profile as Profile objects.
 function ProfileManager:GetProfiles()
     local profiles = {}
     for key, record in pairs(ProfileStore:GetProfiles()) do
-        tinsert(profiles, Profile:From(key, record))
+        tinsert(profiles, Profile:Create(key, record))
     end
     return profiles
 end
@@ -49,7 +49,7 @@ end
 -- The logged-in character's profile, created if it does not exist yet.
 function ProfileManager:GetCurrentProfile()
     local charKey = CharacterInfo:GetFullName()
-    return Profile:From(charKey, ProfileStore:CreateProfile(charKey))
+    return Profile:Create(charKey, ProfileStore:CreateProfile(charKey))
 end
 
 function ProfileManager:DeleteProfile(profileName)
@@ -159,7 +159,7 @@ function ProfileManager:GetLiveSnapshot(profile)
 
     local charMeta = profile:ToStore().Metadata
     local fresh = SnapshotInfo:CreateForLiveSnapshot(capturedModules, {
-        Character = charKey,
+        CharacterName = charKey,
         ClassID = charMeta and charMeta.ClassID,
         LastSeen = charMeta and charMeta.LastSeen,
         Connected = profile:IsCharacterConnected(),
@@ -175,7 +175,7 @@ function ProfileManager:GetLiveSnapshot(profile)
         liveSnapshotInfo = fresh
         cachedLiveSnapshots[charKey] = liveSnapshotInfo
     end
-    return Snapshot:From(charKey, liveSnapshotInfo)
+    return Snapshot:Create(charKey, liveSnapshotInfo)
 end
 
 -- A character's full timeline as ordered Snapshot objects: the live snapshot

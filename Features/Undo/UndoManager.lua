@@ -36,7 +36,7 @@ end
 
 -- Wrap a rollback snapshotInfo as a Snapshot, keyed to its source character.
 local function WrapRollback(rollbackInfo)
-    return rollbackInfo and Snapshot:From(rollbackInfo.Source and rollbackInfo.Source.Character, rollbackInfo)
+    return rollbackInfo and Snapshot:Create(rollbackInfo.Source and (rollbackInfo.Source.CharacterName or rollbackInfo.Source.Character), rollbackInfo)
 end
 
 -- Push a rollback snapshot onto the logged-in character's undo stack.

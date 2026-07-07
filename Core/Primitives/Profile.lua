@@ -25,9 +25,11 @@ local cache = setmetatable({}, { __mode = "k" })
 
 --[[ Factory (identity-cached) ]]
 
--- Wrap a character's record under the given key. Returns the same wrapper per
--- record across calls.
-function Profile:From(charKey, charRecord)
+-- Create the profile wrapping a character's record under the given key. Returns
+-- the same wrapper per record across calls.
+function Profile:Create(charKey, charRecord)
+    C:IsString(charKey, 2)
+    C:IsTable(charRecord, 3)
     local profile = cache[charRecord]
     if not profile then
         profile = setmetatable({ charKey = charKey, charRecord = charRecord }, Profile)
@@ -75,7 +77,7 @@ function Profile:Snapshots()
     local snapshots = {}
     local stored = self.charRecord.Snapshots or {}
     for index = 1, #stored do
-        snapshots[index] = Snapshot:From(self.charKey, stored[index])
+        snapshots[index] = Snapshot:Create(self.charKey, stored[index])
     end
     return snapshots
 end
@@ -117,7 +119,7 @@ end
 function Profile:GetLatestSnapshot()
     local stored = self.charRecord.Snapshots
     local latest = stored and stored[#stored]
-    return latest and Snapshot:From(self.charKey, latest) or nil
+    return latest and Snapshot:Create(self.charKey, latest) or nil
 end
 
 -- The class id the character was captured on: its recorded metadata, falling

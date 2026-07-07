@@ -30,8 +30,9 @@ local DEFAULT_APPLY_PRIORITY = 100
 
 --[[ Factory (identity-cached) ]]
 
--- Wrap a registered module. Returns the same wrapper per module across calls.
-function Module:From(rawModule)
+-- Create the Module wrapping a registered module. Returns the same wrapper per
+-- module across calls.
+function Module:Create(rawModule)
     C:IsTable(rawModule, 2)
     local module = cache[rawModule]
     if not module then
@@ -42,9 +43,10 @@ function Module:From(rawModule)
 end
 
 -- The Module for a registered name, or nil when no module is registered under it.
-function Module:For(name)
+function Module:WrapRegisteredModule(name)
+    C:IsString(name, 2)
     local rawModule = ModuleRegistry:Get(name)
-    return rawModule and Module:From(rawModule) or nil
+    return rawModule and Module:Create(rawModule) or nil
 end
 
 --[[ Instance: identity + static config ]]

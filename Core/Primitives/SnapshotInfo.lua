@@ -11,11 +11,11 @@ local Time = addon.Time
 
 --[[
     SnapshotInfo — the immutable data of one snapshot, and the factory that
-    builds, validates and derives from it.
+    creates, validates and derives from it.
 
     A snapshotInfo is a PLAIN table (no metatable) so it persists to
     SavedVariables unchanged. This object owns everything about that shape: how
-    to build it from captured modules (CreateForSavedSnapshot for a saved
+    to create it from captured modules (CreateForSavedSnapshot for a saved
     snapshot, CreateForLiveSnapshot for a live snapshot), how to validate it
     (Validate), and how to derive from it (hashing, decoding, selector,
     subject). The Snapshot object
@@ -30,7 +30,7 @@ local Time = addon.Time
             Timestamp,     -- number: capture time (drives the display subject)
             Notes,         -- string?: editable note
             Pinned,        -- boolean?: exempt from pruning
-            Source = { Character, ClassID },
+            Source = { CharacterName, ClassID },
             Modules,       -- name-set { [name]=true } (compressed) OR full dict
             Data,          -- string?: Codec blob of { [name]=data } (compressed)
             Live,          -- true for the live snapshot (an unsaved current setup)
@@ -148,7 +148,7 @@ function SnapshotInfo:Fingerprint(modulesData)
     return hashedSnapshot:GetValue(), moduleHashes
 end
 
--- Build the immutable data of a new saved snapshot from a captured module set,
+-- Create the immutable data of a new saved snapshot from a captured module set,
 -- compressing it into Data and keeping only the module-name set in Modules.
 function SnapshotInfo:CreateForSavedSnapshot(modulesData, source)
     C:IsTable(modulesData, 2)
@@ -175,23 +175,23 @@ function SnapshotInfo:CreateForSavedSnapshot(modulesData, source)
     return snapshotInfo
 end
 
--- Build the immutable data of a character's live snapshot from its captured
+-- Create the immutable data of a character's live snapshot from its captured
 -- modules. A live snapshot is uncompressed and carries no Index; Live marks it
 -- unsaved and Connected marks it as the currently connected character's setup.
--- liveMeta is { Character, ClassID, LastSeen, Connected }.
-function SnapshotInfo:CreateForLiveSnapshot(modulesData, liveMeta)
+-- metadata is { CharacterName, ClassID, LastSeen, Connected }.
+function SnapshotInfo:CreateForLiveSnapshot(modulesData, metadata)
     C:IsTable(modulesData, 2)
-    C:IsTable(liveMeta, 3)
+    C:IsTable(metadata, 3)
 
     local hash, moduleHashes = self:Fingerprint(modulesData)
     return {
         Hash = hash,
         ModuleHashes = moduleHashes,
-        Timestamp = liveMeta.LastSeen,
-        Source = { Character = liveMeta.Character, ClassID = liveMeta.ClassID },
+        Timestamp = metadata.LastSeen,
+        Source = { CharacterName = metadata.CharacterName, ClassID = metadata.ClassID },
         Modules = modulesData,
         Live = true,
-        Connected = liveMeta.Connected or false,
+        Connected = metadata.Connected or false,
     }
 end
 

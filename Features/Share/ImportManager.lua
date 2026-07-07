@@ -206,7 +206,7 @@ function ImportManager:GetSnapshot(importID, selector)
     if not snapshot then
         return nil, reason or "not-found"
     end
-    return Snapshot:From(nil, ImportStore:ResolvePayload(container, snapshot))
+    return Snapshot:Create(nil, ImportStore:ResolvePayload(container, snapshot))
 end
 
 -- Rename a container. Returns true, or false + a reason.
@@ -306,7 +306,7 @@ function ImportManager:PreviewApplySnapshot(importID, selector, moduleSet)
     if not snapshot then
         return nil, reason or "not-found"
     end
-    return SnapshotManager:Preview(Snapshot:From(nil, ImportStore:ResolvePayload(container, snapshot)), moduleSet)
+    return SnapshotManager:Preview(Snapshot:Create(nil, ImportStore:ResolvePayload(container, snapshot)), moduleSet)
 end
 
 -- Apply an imported snapshot to the logged-in character, pushing a rollback
@@ -318,5 +318,5 @@ function ImportManager:ApplySnapshot(importID, selector, strategy, moduleSet)
     if not snapshot then
         return nil, reason or "not-found"
     end
-    return SnapshotManager:Apply(Snapshot:From(nil, ImportStore:ResolvePayload(container, snapshot)), strategy, moduleSet)
+    return SnapshotManager:Apply(Snapshot:Create(nil, ImportStore:ResolvePayload(container, snapshot)), strategy, moduleSet)
 end

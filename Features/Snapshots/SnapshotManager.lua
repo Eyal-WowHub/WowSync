@@ -52,7 +52,7 @@ end
 
 local function BuildCurrentSource()
     return {
-        Character = CharacterInfo:GetFullName(),
+        CharacterName = CharacterInfo:GetFullName(),
         ClassID = PlayerUtil.GetClassID(),
     }
 end
@@ -93,7 +93,7 @@ local function ApplyCapturedModules(snapshot, moduleSet, strategy)
 
     local liveSnapshot = ProfileManager:RefreshLiveSnapshot()
     C:Ensures(liveSnapshot ~= nil, "expected a live snapshot to roll back to, but the logged-in character captured nothing")
-    local rollbackSnapshot = Snapshot:Create(liveSnapshot:Modules(), BuildCurrentSource())
+    local rollbackSnapshot = Snapshot:WrapCapturedModuleSet(liveSnapshot:Modules(), BuildCurrentSource())
 
     local sourceModules = snapshot:Modules()
     local moduleNames = snapshot:GetModuleNames(moduleSet)
@@ -174,7 +174,7 @@ function SnapshotManager:SaveCurrentSnapshot(note, moduleSet, onComplete)
         local liveSnapshot = ProfileManager:RefreshLiveSnapshot()
         C:Ensures(liveSnapshot ~= nil, "expected a live snapshot to save, but the logged-in character captured nothing")
         local snapshotModules = FilterCapturedModules(liveSnapshot:Modules(), moduleSet)
-        local snapshot = Snapshot:Create(snapshotModules, BuildCurrentSource())
+        local snapshot = Snapshot:WrapCapturedModuleSet(snapshotModules, BuildCurrentSource())
 
         local stored = ProfileManager:AddSnapshot(snapshot, note)
         if Debugger:IsEnabled() then
@@ -218,8 +218,8 @@ function SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, onCompl
         end
 
         local snapshotModules = FilterCapturedModules(liveSnapshot:Modules(), moduleSet)
-        local snapshot = Snapshot:Create(snapshotModules, {
-            Character = charKey,
+        local snapshot = Snapshot:WrapCapturedModuleSet(snapshotModules, {
+            CharacterName = charKey,
             ClassID = liveSnapshot:GetClassID(),
         })
 
