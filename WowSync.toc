@@ -17,6 +17,9 @@
 ## SavedVariables: WowSyncDB, WowSyncDebugDB
 
 Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 
 Libs\Contracts\Contracts.lua
 Libs\Addon\Addon.lua
@@ -75,6 +78,7 @@ Features\Share\ImportManager.lua
 
 UI\StaticPopupDialogs.lua
 UI\Commands.lua
+UI\MinimapButton.lua
 
 Modules\ActionBars.lua
 Modules\Talents.lua

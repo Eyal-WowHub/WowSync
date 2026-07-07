@@ -5,6 +5,8 @@ enable-nolib-creation: no
 externals:
   Libs/LibStub: https://repos.curseforge.com/wow/libstub/trunk
   Libs/CallbackHandler-1.0: https://repos.curseforge.com/wow/callbackhandler/trunk
+  Libs/LibDataBroker-1.1: https://repos.curseforge.com/wow/libdatabroker-1-1
+  Libs/LibDBIcon-1.0: https://repos.curseforge.com/wow/libdbicon-1-0
   Libs/AceDB-3.0: https://repos.curseforge.com/wow/ace3/trunk/AceDB-3.0
   Libs/Contracts: https://github.com/Eyal-WowHub/Contracts
   Libs/Addon: https://github.com/Eyal-WowHub/Addon
@@ -21,5 +23,5 @@ ignore:
 
 move-folders:
   WowSync/AddOns/WowSync_UI: WowSync_UI
-  WowSync/Libs/CallbackHandler-1.0/CallbackHandler-1.0: WowSync_UI/Libs/CallbackHandler-1.0
   WowSync/Libs/AceDB-3.0: WowSync_UI/Libs/AceDB-3.0
+  

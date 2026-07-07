@@ -5,6 +5,7 @@ addon.L = L
 -- Slash command feedback
 L["WowSync_UI addon not found."] = "WowSync_UI addon not found."
 L["WowSync_UI is required to import and export. Enable it in your AddOns list."] = "WowSync_UI is required to import and export. Enable it in your AddOns list."
+L["Left-click to open."] = "Left-click to open."
 L["Snapshot saved."] = "Snapshot saved."
 L["Could not save. Try again."] = "Could not save. Try again."
 L["A save is already in progress."] = "A save is already in progress."
