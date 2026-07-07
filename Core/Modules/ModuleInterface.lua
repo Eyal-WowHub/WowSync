@@ -86,8 +86,8 @@ addon.ModuleInterface = ModuleInterface
         Static, declarative settings for the module. A table field, not a method.
 
         SnapshotApplyMode declares supported apply modes (Merge, or All =
-        Merge+Exact). Read by SnapshotManager:GetModuleApplyMode to drive the
-        UI's merge/exact toggle and the `opts.mode` passed to Apply.
+        Merge+Exact). Read via Module:ApplyMode() to drive the UI's merge/exact
+        toggle and the `opts.mode` passed to Apply.
 
         ApplyPriority orders modules during an apply: lower numbers apply first,
         so modules others reference (Macros, Talents) precede the modules

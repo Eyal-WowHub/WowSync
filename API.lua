@@ -53,6 +53,7 @@ local Imports = {
     ImportedHashDictionary = true,
     CharacterManager = true,
     ModuleRegistry = true,
+    Module = true,
     Debugger = true,
     GameWatcher = {
         Attach = true,

@@ -4,9 +4,7 @@ local SnapshotManager = addon:NewObject("SnapshotManager")
 local C = addon.Contracts
 local ApplyResult = addon.ApplyResult
 local ModuleRegistry = addon.ModuleRegistry
-local Module = addon.Module
 local Snapshot = addon.Snapshot
-local SnapshotApplyMode = addon.SnapshotApplyMode
 
 local CharacterInfo = LibStub("CharacterInfo-1.0")
 
@@ -121,24 +119,6 @@ local function ApplyCapturedModules(snapshot, moduleSet, strategy)
     end
 
     return ApplyResult:New(applyResults)
-end
-
---[[ Modules ]]
-
--- The apply modes a module supports (None when unknown), so the apply UI can
--- offer Merge/Exact only where each is meaningful.
-function SnapshotManager:GetModuleApplyMode(name)
-    C:IsString(name, 2)
-    local module = Module:FromRegisteredModule(name)
-    return module and module:ApplyMode() or SnapshotApplyMode.None
-end
-
--- The fallback icon a module supplies for entries that carry none of their own,
--- giving each module a visual identity in the diff preview. Nil when unset.
-function SnapshotManager:GetModuleDefaultIcon(name)
-    C:IsString(name, 2)
-    local module = Module:FromRegisteredModule(name)
-    return module and module:DefaultIcon() or nil
 end
 
 --[[ Current ]]
