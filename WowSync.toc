@@ -54,6 +54,8 @@ Core\Primitives\Module.lua
 
 Features\Development\Debugger.lua
 
+Features\Plugins\PluginManager.lua
+
 Features\Profiles\ProfileStore.lua
 Features\Profiles\LiveStore.lua
 Features\Profiles\ProfileManager.lua
@@ -89,6 +91,8 @@ Modules\Chat.lua
 Modules\CombatLog.lua
 Modules\Addons.lua
 Modules\Settings.lua
+
+Features\Plugins\Plugin.lua
 
 API.lua
 

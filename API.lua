@@ -54,6 +54,7 @@ local Imports = {
     CharacterManager = true,
     ModuleRegistry = true,
     Module = true,
+    PluginManager = true,
     Debugger = true,
     GameWatcher = {
         Attach = true,

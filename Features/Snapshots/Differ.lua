@@ -19,6 +19,26 @@ local function Count(list)
     return list and #list or 0
 end
 
+-- Add a module diff's counts into totals. A grouped diff (the Plugin umbrella,
+-- shaped { groups = { { modules = { { added, changed, removed } } } } }) is
+-- summed across its plugins and their modules; a plain module diff is summed
+-- directly.
+local function AddDiffTotals(totals, moduleDiff)
+    if moduleDiff.groups then
+        for _, group in ipairs(moduleDiff.groups) do
+            for _, module in ipairs(group.modules) do
+                totals.added = totals.added + Count(module.added)
+                totals.changed = totals.changed + Count(module.changed)
+                totals.removed = totals.removed + Count(module.removed)
+            end
+        end
+    else
+        totals.added = totals.added + Count(moduleDiff.added)
+        totals.changed = totals.changed + Count(moduleDiff.changed)
+        totals.removed = totals.removed + Count(moduleDiff.removed)
+    end
+end
+
 -- Preview applying snapshotModules over currentModules.
 -- moduleSet (optional) restricts the preview to the given module names; when
 -- omitted, every module present in the snapshot is considered.
@@ -37,9 +57,7 @@ function Differ:Preview(currentModules, snapshotModules, moduleSet)
             local moduleDiff = module:Diff(currentModules[name], snapshotData)
             if moduleDiff then
                 moduleDiffs[name] = moduleDiff
-                diffTotals.added = diffTotals.added + Count(moduleDiff.added)
-                diffTotals.changed = diffTotals.changed + Count(moduleDiff.changed)
-                diffTotals.removed = diffTotals.removed + Count(moduleDiff.removed)
+                AddDiffTotals(diffTotals, moduleDiff)
             end
         end
     end

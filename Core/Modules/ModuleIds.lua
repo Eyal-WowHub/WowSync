@@ -26,6 +26,11 @@ local ID_BY_NAME = {
     PvpTalents = 107,
     Chat = 108,
     CombatLog = 109,
+
+    -- The single umbrella identity every plugin's data is consolidated under, so
+    -- a plugin never mints an id or mutates this registry. Far above the built-in
+    -- band; PluginManager namespaces each plugin's data beneath it.
+    Plugin = 1000000,
 }
 
 -- Reverse map id -> name, plus the ids in ascending order. Both built once. The

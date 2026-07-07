@@ -4,9 +4,7 @@ addon.Module = Module
 Module.__index = Module
 
 local C = addon.Contracts
-local ModuleIds = addon.ModuleIds
 local ModuleRegistry = addon.ModuleRegistry
-local HashedModule = addon.HashedModule
 
 -- Identity cache so exactly one wrapper exists per registered module (weak, so
 -- an unloaded module's wrapper is collected).
@@ -53,11 +51,6 @@ function Module:Name()
     return self.raw:GetName()
 end
 
--- The module's permanent numeric id from ModuleIds.
-function Module:Id()
-    return ModuleIds:GetId(self:Name())
-end
-
 -- The apply modes the module supports (a SnapshotApplyMode flag set), None when
 -- it declares none.
 function Module:ApplyMode()
@@ -98,11 +91,6 @@ end
 -- and apply options.
 function Module:Apply(capturedData, meta, applyOptions)
     return self.raw:Apply(capturedData, meta, applyOptions)
-end
-
--- The content fingerprint of a captured payload for this module, as a HashedModule.
-function Module:Hash(moduleData)
-    return HashedModule:Compute(self:Id(), moduleData)
 end
 
 --[[ Guard ]]

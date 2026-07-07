@@ -40,6 +40,38 @@ function ModuleRegistry:Register(module)
     registeredModules[moduleName] = module
 end
 
+-- Replace the module registered under an existing name with a new implementation,
+-- returning the module it replaced. The name must already be registered, so a
+-- plugin can only layer over a built-in module — reusing its permanent id and
+-- stored data — never invent one; the returned module lets the replacement
+-- delegate to the original. Held to the same contract as Register.
+function ModuleRegistry:Override(module)
+    C:IsTable(module, 2)
+
+    for _, method in ipairs(Interface.RequiredMethods) do
+        C:Ensures(type(module[method]) == "function", "Override: module must implement %s()", method)
+    end
+
+    for _, method in ipairs(Interface.OptionalMethods) do
+        if module[method] ~= nil then
+            C:Ensures(type(module[method]) == "function", "Override: module %s must be a function", method)
+        end
+    end
+
+    for field, expectedType in pairs(Interface.OptionalFields) do
+        if module[field] ~= nil then
+            C:Ensures(type(module[field]) == expectedType, "Override: module %s must be a %s", field, expectedType)
+        end
+    end
+
+    local moduleName = module:GetName()
+    local previous = registeredModules[moduleName]
+    C:Ensures(previous ~= nil, "Override: module '%s' is not registered", moduleName)
+
+    registeredModules[moduleName] = module
+    return previous
+end
+
 function ModuleRegistry:Get(moduleName)
     return registeredModules[moduleName]
 end
