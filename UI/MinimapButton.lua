@@ -26,12 +26,12 @@ local function IsCompanionAvailable()
     return C_AddOns.GetAddOnEnableState("WowSync_UI", UnitName("player")) > 0
 end
 
--- The data object LibDBIcon renders on the minimap: the brand icon, a left-click
+-- The data object LibDBIcon renders on the minimap: the addon icon, a left-click
 -- that toggles the window, and a short tooltip.
 local function CreateLauncher()
     return LDB:NewDataObject("WowSync", {
         type = "launcher",
-        icon = "Interface\\ICONS\\Ability_Priest_VoidShift",
+        icon = "Interface\\AddOns\\WowSync\\icon",
         OnClick = function(_, mouseButton)
             if mouseButton == "LeftButton" then
                 WowSync:Import("UI"):ToggleUI()
@@ -52,5 +52,10 @@ function MinimapButton:OnInitialized()
     -- the addon's saved settings.
     local settings = addon.DB.Settings
     settings.Minimap = settings.Minimap or {}
+    -- Default to the upper-right of the minimap ring (angle in degrees, measured
+    -- counter-clockwise from east); a manual drag overwrites this afterwards.
+    if settings.Minimap.minimapPos == nil then
+        settings.Minimap.minimapPos = 45
+    end
     LibDBIcon:Register("WowSync", CreateLauncher(), settings.Minimap)
 end
