@@ -47,6 +47,7 @@ Core\Primitives\HashedSnapshot.lua
 Core\Primitives\SnapshotInfo.lua
 Core\Primitives\Snapshot.lua
 Core\Primitives\Profile.lua
+Core\Primitives\Module.lua
 
 Features\Development\Debugger.lua
 
