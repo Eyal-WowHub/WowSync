@@ -31,6 +31,11 @@ local function SplitNameRealm(text)
     return strtrim(text), ""
 end
 
+-- The logged-in character's profile key (its full name).
+function CharacterManager:GetConnectedCharacterKey()
+    return CharacterInfo:GetFullName()
+end
+
 -- Every character that has a profile (saved history) and/or a captured live
 -- snapshot, including the logged-in one. Each entry:
 --   { Key, ClassID, LastSeen, IsCharacterConnected, HasCurrent, HasHistory }

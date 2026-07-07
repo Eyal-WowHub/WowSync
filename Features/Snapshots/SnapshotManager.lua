@@ -128,11 +128,6 @@ function SnapshotManager:HasCapturedGameData()
     return ProfileManager:GetLiveSnapshot(ProfileManager:GetCurrentProfile()) ~= nil
 end
 
--- The logged-in character's profile key (its full name).
-function SnapshotManager:GetCurrentCharKey()
-    return CharacterInfo:GetFullName()
-end
-
 -- The soft cap on snapshots kept per character profile.
 function SnapshotManager:GetSnapshotLimit()
     return ProfileManager:GetMaxSnapshots()

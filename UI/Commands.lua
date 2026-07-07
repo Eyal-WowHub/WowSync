@@ -81,14 +81,14 @@ local function PrintAddonStatus()
     addon:Print(L["[Addon]"])
     addon:PrintLine(L["  Version: X"]:format(version))
     addon:PrintLine(L["  Database schema: X"]:format(tostring(schema)))
-    addon:PrintLine(L["  Character: X"]:format(SnapshotManager:GetCurrentCharKey()))
+    addon:PrintLine(L["  Character: X"]:format(CharacterManager:GetConnectedCharacterKey()))
 end
 
 -- Profile stanza: stored snapshot count, latest snapshot summary, in-sync flag
 -- against the live snapshot, and the undo stack depth. Fingerprints the live
 -- snapshot to compute the in-sync flag, so this is the heaviest status stanza.
 local function PrintProfileStatus()
-    local charKey = SnapshotManager:GetCurrentCharKey()
+    local charKey = CharacterManager:GetConnectedCharacterKey()
     local profile = ProfileManager:GetProfile(charKey)
     local latest = profile and profile:GetLatestSnapshot()
     local liveSnapshot = profile and ProfileManager:GetLiveSnapshot(profile)
