@@ -43,7 +43,7 @@ function Module:Create(rawModule)
 end
 
 -- The Module for a registered name, or nil when no module is registered under it.
-function Module:WrapRegisteredModule(name)
+function Module:FromRegisteredModule(name)
     C:IsString(name, 2)
     local rawModule = ModuleRegistry:Get(name)
     return rawModule and Module:Create(rawModule) or nil

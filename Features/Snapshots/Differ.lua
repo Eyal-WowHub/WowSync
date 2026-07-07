@@ -1,7 +1,7 @@
 local _, addon = ...
 local Differ = addon:NewObject("Differ")
 
-local ModuleRegistry = addon.ModuleRegistry
+local Module = addon.Module
 
 --[[
     Differ — preview what applying a snapshot would change.
@@ -30,10 +30,10 @@ function Differ:Preview(currentModules, snapshotModules, moduleSet)
     local diffTotals = { added = 0, changed = 0, removed = 0 }
 
     for name in pairs(moduleSet or snapshotModules) do
-        local module = ModuleRegistry:Get(name)
+        local module = Module:FromRegisteredModule(name)
         local snapshotData = snapshotModules[name]
 
-        if module and module.Diff and snapshotData ~= nil then
+        if module and snapshotData ~= nil then
             local moduleDiff = module:Diff(currentModules[name], snapshotData)
             if moduleDiff then
                 moduleDiffs[name] = moduleDiff

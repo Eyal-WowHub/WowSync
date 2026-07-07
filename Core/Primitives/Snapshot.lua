@@ -43,8 +43,8 @@ function Snapshot:Create(charKey, snapshotInfo)
     return snapshot
 end
 
--- Wrap a captured module set as a new saved snapshot.
-function Snapshot:WrapCapturedModuleSet(modulesData, source)
+-- A saved-shape snapshot from a captured module set.
+function Snapshot:FromCapturedModuleSet(modulesData, source)
     local snapshotInfo = SnapshotInfo:CreateForSavedSnapshot(modulesData, source)
     return self:Create(source and source.CharacterName, snapshotInfo)
 end
