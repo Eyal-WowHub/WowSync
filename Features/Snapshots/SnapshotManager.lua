@@ -128,11 +128,6 @@ function SnapshotManager:HasCapturedGameData()
     return ProfileManager:GetLiveSnapshot(ProfileManager:GetCurrentProfile()) ~= nil
 end
 
--- The soft cap on snapshots kept per character profile.
-function SnapshotManager:GetSnapshotLimit()
-    return ProfileManager:GetMaxSnapshots()
-end
-
 --[[ Save ]]
 
 -- Capture Current (optionally a subset) and append it as a snapshot to the
@@ -164,51 +159,13 @@ function SnapshotManager:SaveCurrentSnapshot(note, moduleSet, onComplete)
     end, onComplete)
 end
 
--- Preview what saving the given module subset would do for a character
--- (default: the logged-in one). A save always creates a snapshot, so this only
--- reports the eviction it would cause. Returns:
---   evicted - the snapshot a save would prune to stay within MaxSnapshots, or
---             nil when nothing would be removed (under the cap, or all pinned).
-function SnapshotManager:PreviewSaveSnapshotByCharKey(moduleSet, charKey)
+-- Preview the eviction a save would cause for a character (default: the logged-in
+-- one). A save always creates a snapshot, so this only reports the snapshot that
+-- would be pruned to stay within MaxSnapshots, or nil when nothing would be
+-- removed (under the cap, or all pinned).
+function SnapshotManager:PreviewSaveEviction(charKey)
     local profile = ProfileManager:GetProfile(charKey or CharacterInfo:GetFullName())
     return profile and ProfileManager:PendingEviction(profile) or nil
-end
-
--- Append a snapshot built from another character's captured Current to that
--- character's profile, tagging it with the given optional note. Like
--- SaveCurrentSnapshot, it is sliced across frames with start/finish events;
--- onComplete receives the stored snapshot, or nil + a reason ("unknown-character").
-function SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, onComplete)
-    C:IsString(charKey, 2)
-
-    if InCombatLockdown() then
-        if onComplete then onComplete(nil, "combat") end
-        return
-    end
-
-    SaveTask:Run(function()
-        local profile = ProfileManager:GetProfile(charKey)
-        local liveSnapshot = profile and ProfileManager:GetLiveSnapshot(profile)
-        if not liveSnapshot then
-            return nil, "unknown-character"
-        end
-
-        local snapshotModules = FilterCapturedModules(liveSnapshot:Modules(), moduleSet)
-        local snapshot = Snapshot:FromCapturedModuleSet(snapshotModules, {
-            CharacterName = charKey,
-            ClassID = liveSnapshot:GetClassID(),
-        })
-
-        local stored = ProfileManager:AddSnapshot(snapshot, note)
-        if Debugger:IsEnabled() then
-            Debugger:RecordSave({
-                Profile = charKey,
-                Hash = snapshot:HashValue(),
-                Selector = stored and stored:GetSelector(),
-            }, snapshotModules)
-        end
-        return stored
-    end, onComplete)
 end
 
 --[[ Preview / Apply ]]

@@ -95,7 +95,7 @@ local function PrintProfileStatus()
     local historyCount = profile and #profile:GetHistory() or 0
 
     addon:Print(L["[Profile]"])
-    addon:PrintLine(L["  Snapshots: X / Y"]:format(historyCount, SnapshotManager:GetSnapshotLimit()))
+    addon:PrintLine(L["  Snapshots: X / Y"]:format(historyCount, ProfileManager:GetMaxSnapshots()))
 
     if latest then
         addon:PrintLine(L["  Latest: X - Y"]:format(ShortSelector(latest), latest:GetSubject()))
@@ -176,7 +176,7 @@ function Commands:OnInitialized()
 
         if command == "save" then
             local note = (arg and arg ~= "") and arg or nil
-            local evicted = SnapshotManager:PreviewSaveSnapshotByCharKey(nil)
+            local evicted = SnapshotManager:PreviewSaveEviction()
             SnapshotManager:SaveCurrentSnapshot(note, nil, function(snapshot, reason)
                 if snapshot then
                     addon:Print(L["Snapshot saved."])
