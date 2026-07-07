@@ -89,11 +89,13 @@ end
 -- snapshot to compute the in-sync flag, so this is the heaviest status stanza.
 local function PrintProfileStatus()
     local charKey = SnapshotManager:GetCurrentCharKey()
-    local latest = ProfileManager:GetLatestSnapshot(charKey)
-    local liveSnapshot = ProfileManager:GetLiveSnapshot(charKey)
+    local profile = ProfileManager:GetProfile(charKey)
+    local latest = profile and profile:GetLatestSnapshot()
+    local liveSnapshot = profile and ProfileManager:GetLiveSnapshot(profile)
+    local historyCount = profile and #profile:GetHistory() or 0
 
     addon:Print(L["[Profile]"])
-    addon:PrintLine(L["  Snapshots: X / Y"]:format(#ProfileManager:GetHistory(charKey), SnapshotManager:GetSnapshotLimit()))
+    addon:PrintLine(L["  Snapshots: X / Y"]:format(historyCount, SnapshotManager:GetSnapshotLimit()))
 
     if latest then
         addon:PrintLine(L["  Latest: X - Y"]:format(ShortSelector(latest), latest:GetSubject()))
@@ -216,16 +218,22 @@ function Commands:OnInitialized()
 
             profileName = resolvedProfileName
 
+            local profile = ProfileManager:GetProfile(profileName)
+            if not profile then
+                addon:Print(L["Profile 'X' has no snapshots."]:format(profileName))
+                return
+            end
+
             local snapshot
             if selector then
                 local reason, candidates
-                snapshot, reason, candidates = ProfileManager:FindSnapshot(profileName, selector)
+                snapshot, reason, candidates = ProfileManager:FindSnapshot(profile, selector)
                 if not snapshot then
                     PrintSnapshotError(selector, reason, candidates)
                     return
                 end
             else
-                snapshot = ProfileManager:GetLatestSnapshot(profileName)
+                snapshot = profile:GetLatestSnapshot()
                 if not snapshot then
                     addon:Print(L["Profile 'X' has no snapshots."]:format(profileName))
                     return
@@ -289,7 +297,8 @@ function Commands:OnInitialized()
                     return
                 end
 
-                local history = ProfileManager:GetHistory(profileName)
+                local profile = ProfileManager:GetProfile(profileName)
+                local history = profile and profile:GetHistory() or {}
                 if #history == 0 then
                     addon:Print(L["Profile 'X' has no snapshots."]:format(profileName))
                     return

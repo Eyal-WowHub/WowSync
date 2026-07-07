@@ -80,6 +80,39 @@ function Profile:Snapshots()
     return snapshots
 end
 
+-- Order saved snapshots newest-first: a later timestamp wins, index breaks ties.
+local function NewerFirst(left, right)
+    if left:GetTimestamp() ~= right:GetTimestamp() then
+        return left:GetTimestamp() > right:GetTimestamp()
+    end
+    return (left:GetIndex() or 0) > (right:GetIndex() or 0)
+end
+
+-- The character's saved history as Snapshot objects, pinned entries first and
+-- newest-first within each group (the order a timeline shows them under the live
+-- snapshot).
+function Profile:GetHistory()
+    local pinned, unpinned = {}, {}
+    for _, snapshot in ipairs(self:Snapshots()) do
+        if snapshot:IsPinned() then
+            tinsert(pinned, snapshot)
+        else
+            tinsert(unpinned, snapshot)
+        end
+    end
+    table.sort(pinned, NewerFirst)
+    table.sort(unpinned, NewerFirst)
+
+    local history = {}
+    for _, snapshot in ipairs(pinned) do
+        tinsert(history, snapshot)
+    end
+    for _, snapshot in ipairs(unpinned) do
+        tinsert(history, snapshot)
+    end
+    return history
+end
+
 -- The character's most recent saved snapshot as a Snapshot, or nil when none exist.
 function Profile:GetLatestSnapshot()
     local stored = self.charRecord.Snapshots

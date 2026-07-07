@@ -43,25 +43,25 @@ end
 function UndoManager:Push(snapshot)
     Snapshot.Validate(snapshot, 2)
     local profile = ProfileManager:GetCurrentProfile()
-    UndoStore:Push(profile, snapshot:ToStore())
+    UndoStore:Push(profile:ToStore(), snapshot:ToStore())
 end
 
 -- The most recent rollback snapshot, or nil when there is nothing to undo.
 function UndoManager:Peek()
     local profile = ProfileManager:GetCurrentProfile()
-    return WrapRollback(UndoStore:Peek(profile))
+    return WrapRollback(UndoStore:Peek(profile:ToStore()))
 end
 
 -- Pop and return the most recent rollback snapshot, or nil when the stack is empty.
 function UndoManager:Pop()
     local profile = ProfileManager:GetCurrentProfile()
-    return WrapRollback(UndoStore:Pop(profile))
+    return WrapRollback(UndoStore:Pop(profile:ToStore()))
 end
 
 -- The logged-in character's undo stack as rollback Snapshots, oldest-first.
 function UndoManager:List()
     local profile = ProfileManager:GetCurrentProfile()
-    local rollbackInfos = UndoStore:List(profile)
+    local rollbackInfos = UndoStore:List(profile:ToStore())
     local rollbackSnapshots = {}
     for index = 1, #rollbackInfos do
         rollbackSnapshots[index] = WrapRollback(rollbackInfos[index])
@@ -72,7 +72,7 @@ end
 -- True when the logged-in character has anything to undo.
 function UndoManager:Has()
     local profile = ProfileManager:GetCurrentProfile()
-    return UndoStore:Has(profile)
+    return UndoStore:Has(profile:ToStore())
 end
 
 --[[ Undo operation ]]

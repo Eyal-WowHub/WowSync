@@ -135,35 +135,6 @@ function ProfileStore:GetMaxSnapshots()
     return GetMaxSnapshotsSetting()
 end
 
-function ProfileStore:GetLatestSnapshot(profileName)
-    local profile = profiles[profileName]
-    if not profile then
-        return nil
-    end
-    EnsureMetadata(profile)
-    local snapshotInfo = profile.Snapshots[#profile.Snapshots]
-    if not snapshotInfo then
-        return nil
-    end
-    return Snapshot:From(profileName, snapshotInfo)
-end
-
--- The profile's saved snapshot history as Snapshot objects, oldest-first (empty
--- when none).
-function ProfileStore:GetSnapshots(profileName)
-    local profile = profiles[profileName]
-    if not profile then
-        return {}
-    end
-    EnsureMetadata(profile)
-
-    local snapshots = {}
-    for index = 1, #profile.Snapshots do
-        snapshots[index] = Snapshot:From(profileName, profile.Snapshots[index])
-    end
-    return snapshots
-end
-
 -- Append a snapshot to its character's saved history: persist its backing data,
 -- tag the optional note, assign the next index, and prune the oldest un-pinned
 -- entries down to the soft cap. Returns the same Snapshot.

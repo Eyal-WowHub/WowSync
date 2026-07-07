@@ -38,11 +38,16 @@ function ExportManager:ExportSavedSnapshot(profileName, selector, opts)
     C:IsString(profileName, 2)
     opts = opts or {}
 
+    local profile = ProfileManager:GetProfile(profileName)
+    if not profile then
+        return nil, "not-found"
+    end
+
     local snapshot, reason
     if selector then
-        snapshot, reason = ProfileManager:FindSnapshot(profileName, selector)
+        snapshot, reason = ProfileManager:FindSnapshot(profile, selector)
     else
-        snapshot = ProfileManager:GetLatestSnapshot(profileName)
+        snapshot = profile:GetLatestSnapshot()
     end
     if not snapshot then
         return nil, reason or "not-found"

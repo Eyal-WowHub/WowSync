@@ -144,7 +144,7 @@ end
 
 -- True when the logged-in character has anything captured to save.
 function SnapshotManager:HasCapturedGameData()
-    return ProfileManager:GetLiveSnapshot() ~= nil
+    return ProfileManager:GetLiveSnapshot(ProfileManager:GetCurrentProfile()) ~= nil
 end
 
 -- The logged-in character's profile key (its full name).
@@ -194,8 +194,8 @@ end
 --   evicted - the snapshot a save would prune to stay within MaxSnapshots, or
 --             nil when nothing would be removed (under the cap, or all pinned).
 function SnapshotManager:PreviewSaveSnapshotByCharKey(moduleSet, charKey)
-    charKey = charKey or CharacterInfo:GetFullName()
-    return ProfileManager:PendingEviction(charKey)
+    local profile = ProfileManager:GetProfile(charKey or CharacterInfo:GetFullName())
+    return profile and ProfileManager:PendingEviction(profile) or nil
 end
 
 -- Append a snapshot built from another character's captured Current to that
@@ -211,7 +211,8 @@ function SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, onCompl
     end
 
     SaveTask:Run(function()
-        local liveSnapshot = ProfileManager:GetLiveSnapshot(charKey)
+        local profile = ProfileManager:GetProfile(charKey)
+        local liveSnapshot = profile and ProfileManager:GetLiveSnapshot(profile)
         if not liveSnapshot then
             return nil, "unknown-character"
         end
@@ -242,7 +243,8 @@ end
 -- repeated previews.
 function SnapshotManager:Preview(snapshot, moduleSet, cached)
     Snapshot.Validate(snapshot, 2)
-    local liveSnapshot = cached and ProfileManager:GetLiveSnapshot() or ProfileManager:RefreshLiveSnapshot()
+    local liveSnapshot = cached and ProfileManager:GetLiveSnapshot(ProfileManager:GetCurrentProfile())
+        or ProfileManager:RefreshLiveSnapshot()
     return Differ:Preview(liveSnapshot and liveSnapshot:Modules(), snapshot:Modules(), moduleSet)
 end
 

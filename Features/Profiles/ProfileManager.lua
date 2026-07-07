@@ -46,9 +46,10 @@ function ProfileManager:GetProfiles()
     return profiles
 end
 
--- The logged-in character's record, created if it does not exist yet.
+-- The logged-in character's profile, created if it does not exist yet.
 function ProfileManager:GetCurrentProfile()
-    return ProfileStore:CreateProfile(CharacterInfo:GetFullName())
+    local charKey = CharacterInfo:GetFullName()
+    return Profile:From(charKey, ProfileStore:CreateProfile(charKey))
 end
 
 function ProfileManager:DeleteProfile(profileName)
@@ -70,7 +71,7 @@ end
 -- fast in-session access; SnapshotManager captures and recompresses it on logout
 -- (so other characters can browse its final state).
 function ProfileManager:OnInitialized()
-    LiveStore:Decompress(self:GetCurrentProfile())
+    LiveStore:Decompress(self:GetCurrentProfile():ToStore())
 
     -- Modules that fail to capture are announced by the store; surface them here
     -- so a broken module is diagnosable instead of silently vanishing.
@@ -82,9 +83,9 @@ end
 -- Re-scan the logged-in character's live setup into its Current and return the
 -- refreshed live snapshot, or nil when nothing was captured.
 function ProfileManager:RefreshLiveSnapshot()
-    local profile = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
-    LiveStore:Capture(profile)
-    return self:GetLiveSnapshot()
+    local profile = self:GetCurrentProfile()
+    LiveStore:Capture(profile:ToStore())
+    return self:GetLiveSnapshot(profile)
 end
 
 -- Re-scan a single module of the logged-in character's live setup; returns true
@@ -93,8 +94,8 @@ end
 -- recapturing cannot feed back into a loop.
 function ProfileManager:RefreshLiveSnapshotModule(moduleName)
     C:IsString(moduleName, 2)
-    local profile = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
-    local captured = LiveStore:CaptureModule(profile, moduleName)
+    local profile = self:GetCurrentProfile()
+    local captured = LiveStore:CaptureModule(profile:ToStore(), moduleName)
     if captured then
         WowSync:TriggerEvent("WOWSYNC_MODULE_DATA_UPDATED")
     end
@@ -104,9 +105,9 @@ end
 -- Capture the logged-in character's live setup and compress it for storage, so
 -- its final state persists on logout for other characters to browse.
 function ProfileManager:StoreLiveSnapshot()
-    local profile = ProfileStore:CreateProfile(CharacterInfo:GetFullName())
-    LiveStore:Capture(profile)
-    LiveStore:Compress(profile)
+    local profile = self:GetCurrentProfile()
+    LiveStore:Capture(profile:ToStore())
+    LiveStore:Compress(profile:ToStore())
 end
 
 --[[ Snapshot history ]]
@@ -123,18 +124,12 @@ function ProfileManager:AddSnapshot(snapshot, note)
     return ProfileStore:AppendSnapshot(snapshot, note)
 end
 
--- A character's most recent saved snapshot as a Snapshot, or nil when none exist.
-function ProfileManager:GetLatestSnapshot(charKey)
-    C:IsString(charKey, 2)
-    return ProfileStore:GetLatestSnapshot(charKey)
-end
-
 -- The snapshot a save would prune to stay within the cap (the oldest un-pinned
 -- once the history is at/over the cap) as a Snapshot, or nil when a save would
 -- evict nothing (under the cap, or every snapshot is pinned).
-function ProfileManager:PendingEviction(charKey)
-    C:IsString(charKey, 2)
-    local snapshots = ProfileStore:GetSnapshots(charKey)
+function ProfileManager:PendingEviction(profile)
+    Profile.Validate(profile, 2)
+    local snapshots = profile:Snapshots()
     if #snapshots < ProfileStore:GetMaxSnapshots() then
         return nil
     end
@@ -146,62 +141,28 @@ function ProfileManager:PendingEviction(charKey)
     return nil
 end
 
--- Order saved snapshots newest-first: a later timestamp wins, index breaks ties.
-local function NewerFirst(left, right)
-    if left:GetTimestamp() ~= right:GetTimestamp() then
-        return left:GetTimestamp() > right:GetTimestamp()
-    end
-    return (left:GetIndex() or 0) > (right:GetIndex() or 0)
-end
-
--- A character's saved history as Snapshot objects, pinned entries first and
--- newest-first within each group (the order a timeline shows them under the
--- live snapshot).
-function ProfileManager:GetHistory(charKey)
-    C:IsString(charKey, 2)
-    local pinned, unpinned = {}, {}
-    for _, snapshot in ipairs(ProfileStore:GetSnapshots(charKey)) do
-        if snapshot:IsPinned() then
-            tinsert(pinned, snapshot)
-        else
-            tinsert(unpinned, snapshot)
-        end
-    end
-    table.sort(pinned, NewerFirst)
-    table.sort(unpinned, NewerFirst)
-
-    local history = {}
-    for _, snapshot in ipairs(pinned) do
-        tinsert(history, snapshot)
-    end
-    for _, snapshot in ipairs(unpinned) do
-        tinsert(history, snapshot)
-    end
-    return history
-end
-
 -- A character's live snapshot: its current setup as a live Snapshot (the
 -- connected character's is live, an alt's is its last capture), or nil when
 -- nothing is captured. The live snapshot carries no Index; the companion UI
 -- floats it above the saved history as the always-current top of the timeline
 -- (the "head"). The snapshotInfo is kept and refreshed in place so the live
 -- snapshot keeps its Snapshot identity across captures.
-function ProfileManager:GetLiveSnapshot(charKey)
-    charKey = charKey or CharacterInfo:GetFullName()
+function ProfileManager:GetLiveSnapshot(profile)
+    Profile.Validate(profile, 2)
+    local charKey = profile:Key()
 
-    local profile = ProfileStore:GetProfile(charKey)
-    local capturedModules = LiveStore:Get(profile)
+    local capturedModules = LiveStore:Get(profile:ToStore())
     if not capturedModules or not next(capturedModules) then
         cachedLiveSnapshots[charKey] = nil
         return nil
     end
 
-    local charMeta = profile and profile.Metadata
+    local charMeta = profile:ToStore().Metadata
     local fresh = SnapshotInfo:CreateForLiveSnapshot(capturedModules, {
         Character = charKey,
         ClassID = charMeta and charMeta.ClassID,
         LastSeen = charMeta and charMeta.LastSeen,
-        Connected = charKey == CharacterInfo:GetFullName(),
+        Connected = profile:IsCharacterConnected(),
     })
 
     local liveSnapshotInfo = cachedLiveSnapshots[charKey]
@@ -220,15 +181,15 @@ end
 -- A character's full timeline as ordered Snapshot objects: the live snapshot
 -- first (when anything is captured), then its saved history (pinned newest-first,
 -- then un-pinned newest-first).
-function ProfileManager:GetTimeline(charKey)
-    charKey = charKey or CharacterInfo:GetFullName()
+function ProfileManager:GetTimeline(profile)
+    Profile.Validate(profile, 2)
 
     local timeline = {}
-    local liveSnapshot = self:GetLiveSnapshot(charKey)
+    local liveSnapshot = self:GetLiveSnapshot(profile)
     if liveSnapshot then
         tinsert(timeline, liveSnapshot)
     end
-    for _, snapshot in ipairs(self:GetHistory(charKey)) do
+    for _, snapshot in ipairs(profile:GetHistory()) do
         tinsert(timeline, snapshot)
     end
     return timeline
@@ -237,11 +198,11 @@ end
 -- Resolve a selector (<hash>, an unambiguous <hash-prefix>, or <hash>#<index>)
 -- within a character's history. Returns a Snapshot, or nil + a reason
 -- ("not-found" / "ambiguous") + a list of candidate Snapshots.
-function ProfileManager:FindSnapshot(charKey, selector)
-    C:IsString(charKey, 2)
+function ProfileManager:FindSnapshot(profile, selector)
+    Profile.Validate(profile, 2)
     C:IsString(selector, 3)
 
-    local snapshots = ProfileStore:GetSnapshots(charKey)
+    local snapshots = profile:Snapshots()
     local hash, wantedIndex = SnapshotInfo.ParseSelector(selector)
 
     if wantedIndex then
