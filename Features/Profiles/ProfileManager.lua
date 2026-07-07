@@ -89,14 +89,15 @@ function ProfileManager:RefreshLiveSnapshot()
 end
 
 -- Re-scan a single module of the logged-in character's live setup; returns true
--- when captured, false when skipped. Signals listeners on a successful capture;
--- the bulk RefreshLiveSnapshot stays silent, so a listener that reacts by
--- recapturing cannot feed back into a loop.
+-- when captured, false when skipped. Signals listeners only when the module's
+-- content actually changed, so re-mirroring our own writes (which reproduce the
+-- captured state) stays silent and a listener that reacts by recapturing cannot
+-- feed back into a loop.
 function ProfileManager:RefreshLiveSnapshotModule(moduleName)
     C:IsString(moduleName, 2)
     local profile = self:GetCurrentProfile()
-    local captured = LiveStore:CaptureModule(profile:ToStore(), moduleName)
-    if captured then
+    local captured, changed = LiveStore:CaptureModule(profile:ToStore(), moduleName)
+    if changed then
         WowSync:TriggerEvent("WOWSYNC_MODULE_DATA_UPDATED")
     end
     return captured

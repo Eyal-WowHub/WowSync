@@ -16,12 +16,13 @@ local ProfileManager = addon:GetObject("ProfileManager")
     into one recapture, and unrelated modules are never touched.
 
     Feedback guard: our own Apply/Undo change the game and so fire these very
-    events. An apply or undo brackets its writes with the WOWSYNC_SNAPSHOT_APPLY/
-    UNDO started/finished events; this watcher listens for them and Suspend()s
-    itself (Addon-1.0 drops event dispatch while suspended) across the write plus
-    a short settle window, so we never re-mirror our own writes. WoW delivers
-    events between frames, never mid-function, so the synchronous apply loop
-    itself cannot be interrupted by a recapture.
+    events, which re-mirror the modules we just wrote. That is harmless: a
+    recapture reproduces the state an apply already stored in Current, so
+    ProfileManager only signals WOWSYNC_MODULE_DATA_UPDATED when a module's
+    content actually changed -- our own writes stay silent, while a genuine edit
+    made moments later is still caught because the recapture always runs. WoW
+    delivers events between frames, never mid-function, so a recapture can never
+    interrupt the synchronous apply loop.
 
     Save isolation: a save brackets itself with the WOWSYNC_SNAPSHOT_SAVE events;
     this watcher listens and holds off recapture flushes while the save reads
@@ -37,7 +38,6 @@ local ProfileManager = addon:GetObject("ProfileManager")
 ]]
 
 local DEBOUNCE_SECONDS = 0.5
-local SETTLE_SECONDS = 0.2
 
 -- eventName -> array of module names that care about it.
 local watchedModules = {}
@@ -46,7 +46,6 @@ local dirty = {}
 
 local watching = false
 local flushGeneration = 0
-local resumeGeneration = 0
 
 -- True while a save holds Current: recapture flushes are held off so the live
 -- mirror never changes the setup a save is reading; dirty modules accumulate and
@@ -115,14 +114,6 @@ end
 --[[ Lifecycle ]]
 
 function GameWatcher:OnInitialized()
-    -- An apply or undo announces its writes with these events; suspend tracking
-    -- for their duration so our own writes are never mirrored back as if the
-    -- player had made them.
-    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_APPLY_STARTED", function() self:SuspendTracking() end)
-    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_APPLY_FINISHED", function() self:ResumeTracking() end)
-    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_UNDO_STARTED", function() self:SuspendTracking() end)
-    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_UNDO_FINISHED", function() self:ResumeTracking() end)
-
     -- A save reads Current across frames; hold off recapture flushes for its
     -- duration so the live mirror can't change the setup mid-save.
     WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_SAVE_STARTED", function() self:SuspendFlush() end)
@@ -212,27 +203,7 @@ function GameWatcher:HasAttachments()
     return next(attachments) ~= nil
 end
 
---[[ Recapture guards: hold the live mirror still while we change the game
-     ourselves (apply/undo), or while a save reads Current. ]]
-
--- Suspend live tracking for the duration of an apply so our own writes are not
--- mirrored back as if the player had made them.
-function GameWatcher:SuspendTracking()
-    resumeGeneration = resumeGeneration + 1 -- cancel any pending resume
-    self:Suspend()
-end
-
--- Resume after a short settle window, long enough for the apply's own events
--- (which WoW delivers on the following frame) to pass unheeded.
-function GameWatcher:ResumeTracking()
-    resumeGeneration = resumeGeneration + 1
-    local scheduledGeneration = resumeGeneration
-    C_Timer.After(SETTLE_SECONDS, function()
-        if scheduledGeneration == resumeGeneration then
-            self:Resume()
-        end
-    end)
-end
+--[[ Recapture guard: hold recapture flushes still while a save reads Current. ]]
 
 -- Hold off recapture flushes while a save reads Current, so the setup it
 -- captures and fingerprints cannot change underneath it. Events still mark

@@ -2,6 +2,7 @@ local _, addon = ...
 local LiveStore = addon:NewObject("LiveStore")
 
 local Codec = addon.Codec
+local Hash = addon.Hash
 local ModuleRegistry = addon.ModuleRegistry
 
 --[[
@@ -91,12 +92,15 @@ function LiveStore:Capture(profile)
 end
 
 -- Re-capture a single module into the given record's Current, leaving the other
--- modules untouched. Returns true when captured, or false when skipped (unknown
--- module, or ShouldCapture declined it, e.g. during combat).
+-- modules untouched. Returns captured, changed: captured is false when skipped
+-- (unknown module, or ShouldCapture declined it, e.g. during combat); changed is
+-- true only when the fresh capture differs in content from what Current already
+-- held, so re-mirroring our own writes (which reproduce the stored state) is
+-- reported as no change.
 function LiveStore:CaptureModule(profile, moduleName)
     local module = ModuleRegistry:Get(moduleName)
     if not module then
-        return false
+        return false, false
     end
 
     profile.Metadata.ClassID = PlayerUtil.GetClassID()
@@ -104,11 +108,13 @@ function LiveStore:CaptureModule(profile, moduleName)
 
     local capturedData, captured = TryCaptureModule(moduleName, module)
     if not captured then
-        return false
+        return false, false
     end
 
+    local previousData = profile.Current[moduleName]
+    local changed = previousData == nil or Hash:Create(previousData) ~= Hash:Create(capturedData)
     profile.Current[moduleName] = capturedData
-    return true
+    return true, changed
 end
 
 -- The decompressed live setup held by the given record (a throwaway copy when
