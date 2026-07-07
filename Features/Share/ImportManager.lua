@@ -183,7 +183,7 @@ end
 
 -- A container by id, or nil.
 function ImportManager:GetImport(importID)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     return ImportStore:GetImport(importID)
 end
 
@@ -192,7 +192,7 @@ end
 -- dedup/origin flags and per-row chrome read import-only fields), so it works
 -- with them directly rather than through Snapshot.
 function ImportManager:GetSnapshots(importID)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     return ImportStore:GetSnapshots(importID)
 end
 
@@ -200,7 +200,7 @@ end
 -- followed to the owner), for the shared apply/preview UI. Nil + a reason when
 -- it cannot be resolved.
 function ImportManager:GetSnapshot(importID, selector)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     C:IsString(selector, 3)
     local container, snapshot, reason = ResolveEntry(importID, selector)
     if not snapshot then
@@ -211,32 +211,32 @@ end
 
 -- Rename a container. Returns true, or false + a reason.
 function ImportManager:RenameImport(importID, name)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     C:IsString(name, 3)
     return ImportStore:RenameImport(importID, name)
 end
 
 -- Remove a container and its snapshots. Returns whether one was removed.
 function ImportManager:DeleteImport(importID)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     return ImportStore:DeleteImport(importID)
 end
 
 -- Move a container one step up within its class group. Returns whether it moved.
 function ImportManager:MoveImportUp(importID)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     return ImportStore:MoveImport(importID, -1)
 end
 
 -- Move a container one step down within its class group. Returns whether it moved.
 function ImportManager:MoveImportDown(importID)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     return ImportStore:MoveImport(importID, 1)
 end
 
 -- Remove one snapshot from a container by selector. Returns whether one was removed.
 function ImportManager:DeleteSnapshot(importID, selector)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     C:IsString(selector, 3)
     local container, snapshot = ResolveEntry(importID, selector)
     if not snapshot then
@@ -248,7 +248,7 @@ end
 -- How many duplicates would be removed alongside the snapshot at selector, so
 -- the UI can warn before deleting an owner that others reference.
 function ImportManager:CountDependentDuplicates(importID, selector)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     C:IsString(selector, 3)
     local container, snapshot = ResolveEntry(importID, selector)
     if not snapshot then
@@ -259,7 +259,7 @@ end
 
 -- Replace an imported snapshot's editable note. Returns whether it was found.
 function ImportManager:SetSnapshotNotes(importID, selector, text)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     C:IsString(selector, 3)
     C:IsString(text, 4)
     local _, snapshot = ResolveEntry(importID, selector)
@@ -273,7 +273,7 @@ end
 -- Pin an imported snapshot, floating it to the top of the container as a marked
 -- reference. Returns whether it was found.
 function ImportManager:PinSnapshot(importID, selector)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     C:IsString(selector, 3)
     local _, snapshot = ResolveEntry(importID, selector)
     if not snapshot then
@@ -285,7 +285,7 @@ end
 
 -- Clear an imported snapshot's pin. Returns whether it was found.
 function ImportManager:UnpinSnapshot(importID, selector)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     C:IsString(selector, 3)
     local _, snapshot = ResolveEntry(importID, selector)
     if not snapshot then
@@ -300,7 +300,7 @@ end
 -- Preview applying an imported snapshot over the logged-in character's Current.
 -- Returns the preview, or nil + a reason.
 function ImportManager:PreviewApplySnapshot(importID, selector, moduleSet)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     C:IsString(selector, 3)
     local container, snapshot, reason = ResolveEntry(importID, selector)
     if not snapshot then
@@ -312,7 +312,7 @@ end
 -- Apply an imported snapshot to the logged-in character, pushing a rollback
 -- snapshot first. Returns the apply results, or nil + a reason.
 function ImportManager:ApplySnapshot(importID, selector, strategy, moduleSet)
-    C:IsString(importID, 2)
+    C:IsNumber(importID, 2)
     C:IsString(selector, 3)
     local container, snapshot, reason = ResolveEntry(importID, selector)
     if not snapshot then

@@ -70,7 +70,12 @@ function ExportManager:ExportLiveSnapshot(charKey, opts)
     C:IsString(charKey, 2)
     opts = opts or {}
 
-    local liveSnapshot = ProfileManager:GetLiveSnapshot(charKey)
+    local profile = ProfileManager:GetProfile(charKey)
+    if not profile then
+        return nil, "not-found"
+    end
+
+    local liveSnapshot = ProfileManager:GetLiveSnapshot(profile)
     if not liveSnapshot then
         return nil, "not-found"
     end

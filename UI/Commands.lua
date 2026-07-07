@@ -276,7 +276,13 @@ function Commands:OnInitialized()
             profileName = resolvedProfileName
 
             if selector then
-                local snapshot, reason, candidates = ProfileManager:FindSnapshot(profileName, selector)
+                local profile = ProfileManager:GetProfile(profileName)
+                if not profile then
+                    PrintSnapshotError(selector, "not-found")
+                    return
+                end
+
+                local snapshot, reason, candidates = ProfileManager:FindSnapshot(profile, selector)
                 if not snapshot then
                     PrintSnapshotError(selector, reason, candidates)
                     return
