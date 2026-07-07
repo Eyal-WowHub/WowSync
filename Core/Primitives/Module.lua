@@ -12,9 +12,6 @@ local HashedModule = addon.HashedModule
 -- an unloaded module's wrapper is collected).
 local cache = setmetatable({}, { __mode = "k" })
 
--- Apply priority used for a module that declares none (lower applies first).
-local DEFAULT_APPLY_PRIORITY = 100
-
 --[[
     Module — the behaviour/identity face over one registered sync module.
 
@@ -73,12 +70,6 @@ end
 function Module:DefaultIcon()
     local config = self.raw.Config
     return config and config.DefaultIcon or nil
-end
-
--- The module's apply priority (lower applies first), or the default when unset.
-function Module:Priority()
-    local config = self.raw.Config
-    return config and config.ApplyPriority or DEFAULT_APPLY_PRIORITY
 end
 
 --[[ Instance: behaviour ]]
