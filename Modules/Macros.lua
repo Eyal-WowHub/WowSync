@@ -100,13 +100,10 @@ end
 function Macros:Apply(capturedData, sourceMetadata, applyOptions)
     local exact = applyOptions and applyOptions.mode == "exact"
 
-    if capturedData.Account then
-        self:ApplyMacros(capturedData.Account, false, exact)
-    end
-
-    if capturedData.Character then
-        self:ApplyMacros(capturedData.Character, true, exact)
-    end
+    -- A captured scope with no macros can round-trip as nil; treat it as an
+    -- empty set so Exact mode still clears that scope instead of skipping it.
+    self:ApplyMacros(capturedData.Account or {}, false, exact)
+    self:ApplyMacros(capturedData.Character or {}, true, exact)
 end
 
 function Macros:ApplyMacros(macros, isCharacterSpecific, exact)
