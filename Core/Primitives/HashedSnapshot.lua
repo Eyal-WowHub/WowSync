@@ -76,32 +76,25 @@ function HashedSnapshot:Compare(other)
     return self.value == other.value
 end
 
--- Iterate the ids of modules that differ between this and other: present in both
--- with different hashes, or present in only one. Walks ModuleIds' canonical order
--- and yields each differing id once. Lazy, so a caller can stop at the first
--- difference (e.g. "does anything differ?") without building a set.
-function HashedSnapshot:CompareByModules(other)
+-- True when every module this snapshot carries is present in other with an
+-- identical hash; a module missing from other, or holding a different hash,
+-- makes it false. Modules other carries that this one lacks are ignored.
+-- Compares stored hashes only, so neither snapshot is decoded.
+function HashedSnapshot:IsSubsetOf(other)
     HashedSnapshot.Validate(other, 2)
 
-    local mine = self.hashedModuleById
+    local this = self.hashedModuleById
     local theirs = other.hashedModuleById
-    local nextId, orderedIds, index = ModuleIds:IterableIds()
-    return function()
-        while true do
-            local nextIndex, id = nextId(orderedIds, index)
-            index = nextIndex
-            if id == nil then
-                return nil
-            end
-            local mineModule = mine[id]
+    for _, id in ModuleIds:IterableIds() do
+        local module = this[id]
+        if module then
             local theirsModule = theirs[id]
-            if mineModule or theirsModule then
-                if not mineModule or not theirsModule or mineModule:GetValue() ~= theirsModule:GetValue() then
-                    return id
-                end
+            if not theirsModule or module:GetValue() ~= theirsModule:GetValue() then
+                return false
             end
         end
     end
+    return true
 end
 
 -- Guard that value is a HashedSnapshot, returning it for convenient chaining.

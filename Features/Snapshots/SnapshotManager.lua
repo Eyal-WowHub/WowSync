@@ -181,6 +181,16 @@ function SnapshotManager:Preview(snapshot, moduleSet, cached)
     return Differ:Preview(liveSnapshot and liveSnapshot:Modules(), snapshot:Modules(), moduleSet)
 end
 
+-- Whether the connected character's live setup matches the given snapshot over
+-- the snapshot's modules -- the decode-free verdict behind the timeline's
+-- in-sync/changed colouring. Compares stored per-module hashes; false when there
+-- is no captured live setup to compare against.
+function SnapshotManager:IsLiveSnapshotSynchronizedTo(snapshot)
+    Snapshot.Validate(snapshot, 2)
+    local liveSnapshot = ProfileManager:GetLiveSnapshot(ProfileManager:GetCurrentProfile())
+    return liveSnapshot ~= nil and snapshot:IsSynchronizedTo(liveSnapshot)
+end
+
 --[[ Apply ]]
 
 -- Apply a snapshot (a stored entry, the live snapshot, or an import) to the connected

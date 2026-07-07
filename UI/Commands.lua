@@ -105,7 +105,7 @@ local function PrintProfileStatus()
 
     if not liveSnapshot then
         addon:PrintLine(L["  In sync: no captured state"])
-    elseif latest and liveSnapshot:CompareTo(latest) then
+    elseif latest and liveSnapshot:Equals(latest) then
         addon:PrintLine(L["  In sync: yes"])
     else
         addon:PrintLine(L["  In sync: no"])

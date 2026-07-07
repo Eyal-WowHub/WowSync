@@ -135,9 +135,17 @@ function Snapshot:Modules()
 end
 
 -- True when this snapshot has the same content as another (same combined hash).
-function Snapshot:CompareTo(other)
+function Snapshot:Equals(other)
     Snapshot.Validate(other, 2)
     return self:HashValue() == other:HashValue()
+end
+
+-- True when this snapshot is in sync with another: every module it carries is
+-- present in the other with identical content, so applying it would change
+-- nothing. Compares stored per-module hashes, so neither payload is decoded.
+function Snapshot:IsSynchronizedTo(other)
+    Snapshot.Validate(other, 2)
+    return self:GetHash():IsSubsetOf(other:GetHash())
 end
 
 -- Guard that value is a Snapshot, returning it for convenient chaining.
