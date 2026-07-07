@@ -42,7 +42,7 @@ function ExportManager:ExportSavedSnapshot(profileName, selector, opts)
     if selector then
         snapshot, reason = ProfileManager:FindSnapshot(profileName, selector)
     else
-        snapshot = ProfileManager:Latest(profileName)
+        snapshot = ProfileManager:GetLatestSnapshot(profileName)
     end
     if not snapshot then
         return nil, reason or "not-found"

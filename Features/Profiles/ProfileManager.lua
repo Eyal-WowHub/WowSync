@@ -4,6 +4,7 @@ local ProfileManager = addon:NewObject("ProfileManager")
 local C = addon.Contracts
 local Snapshot = addon.Snapshot
 local SnapshotInfo = addon.SnapshotInfo
+local Profile = addon.Profile
 
 local CharacterInfo = LibStub("CharacterInfo-1.0")
 
@@ -29,13 +30,20 @@ local cachedLiveSnapshots = {}
 
 --[[ Profile CRUD ]]
 
+-- The character's profile as a Profile object, or nil when none is stored.
 function ProfileManager:GetProfile(profileName)
     C:IsString(profileName, 2)
-    return ProfileStore:GetProfile(profileName)
+    local record = ProfileStore:GetProfile(profileName)
+    return record and Profile:From(profileName, record) or nil
 end
 
+-- Every stored character profile as Profile objects.
 function ProfileManager:GetProfiles()
-    return ProfileStore:GetProfiles()
+    local profiles = {}
+    for key, record in pairs(ProfileStore:GetProfiles()) do
+        tinsert(profiles, Profile:From(key, record))
+    end
+    return profiles
 end
 
 -- The logged-in character's record, created if it does not exist yet.
@@ -116,7 +124,7 @@ function ProfileManager:AddSnapshot(snapshot, note)
 end
 
 -- A character's most recent saved snapshot as a Snapshot, or nil when none exist.
-function ProfileManager:Latest(charKey)
+function ProfileManager:GetLatestSnapshot(charKey)
     C:IsString(charKey, 2)
     return ProfileStore:GetLatestSnapshot(charKey)
 end

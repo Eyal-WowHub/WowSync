@@ -89,7 +89,7 @@ end
 -- snapshot to compute the in-sync flag, so this is the heaviest status stanza.
 local function PrintProfileStatus()
     local charKey = SnapshotManager:GetCurrentCharKey()
-    local latest = ProfileManager:Latest(charKey)
+    local latest = ProfileManager:GetLatestSnapshot(charKey)
     local liveSnapshot = ProfileManager:GetLiveSnapshot(charKey)
 
     addon:Print(L["[Profile]"])
@@ -225,7 +225,7 @@ function Commands:OnInitialized()
                     return
                 end
             else
-                snapshot = ProfileManager:Latest(profileName)
+                snapshot = ProfileManager:GetLatestSnapshot(profileName)
                 if not snapshot then
                     addon:Print(L["Profile 'X' has no snapshots."]:format(profileName))
                     return
@@ -307,12 +307,13 @@ function Commands:OnInitialized()
                 end
             else
                 local profiles = ProfileManager:GetProfiles()
-                if next(profiles) then
+                if #profiles > 0 then
                     addon:Print(L["Saved profiles:"])
-                    for profileName in pairs(profiles) do
-                        local latest = ProfileManager:Latest(profileName)
+                    for _, profile in ipairs(profiles) do
+                        local profileName = profile:Key()
+                        local latest = profile:GetLatestSnapshot()
                         local subject = latest and latest:GetSubject() or L["empty"]
-                        addon:Print(L["  X (Y) - Z"]:format(profileName, #ProfileManager:GetHistory(profileName), subject))
+                        addon:Print(L["  X (Y) - Z"]:format(profileName, #profile:Snapshots(), subject))
                     end
                 else
                     addon:Print(L["No saved profiles."])

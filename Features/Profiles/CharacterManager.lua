@@ -31,49 +31,29 @@ local function SplitNameRealm(text)
     return strtrim(text), ""
 end
 
--- Every character that has a profile (saved history) and/or a captured Current,
--- including the logged-in one. Each entry:
---   { Key, ClassID, LastSeen, IsCurrent, HasCurrent, HasHistory }
+-- Every character that has a profile (saved history) and/or a captured live
+-- snapshot, including the logged-in one. Each entry:
+--   { Key, ClassID, LastSeen, IsCharacterConnected, HasCurrent, HasHistory }
 -- Sorted with the logged-in character first, then most-recently-seen.
 function CharacterManager:GetSavedCharacters()
-    local currentCharKey = CharacterInfo:GetFullName()
     local characters = {}
 
-    -- One record per character now holds both its Current and its history, so a
-    -- single pass covers every character that has either.
-    for key, profile in pairs(ProfileManager:GetProfiles()) do
-        local capturedModules = profile.Current
-        local hasCurrent = type(capturedModules) == "string"
-            or (type(capturedModules) == "table" and next(capturedModules) ~= nil)
-        local snapshots = profile.Snapshots
-        local hasHistory = snapshots ~= nil and #snapshots > 0
-
-        if hasCurrent or hasHistory then
-            local metadata = profile.Metadata or {}
-            local character = {
-                Key = key,
-                IsCurrent = key == currentCharKey,
-                HasCurrent = hasCurrent or nil,
-                HasHistory = hasHistory or nil,
-                ClassID = metadata.ClassID,
-                LastSeen = metadata.LastSeen,
-            }
-
-            -- Fall back to the latest snapshot's source for identity when the
-            -- record carries no Current metadata (e.g. history kept, data pruned).
-            if not character.ClassID and hasHistory then
-                local latestSnapshot = snapshots[#snapshots]
-                character.ClassID = latestSnapshot.Source and latestSnapshot.Source.ClassID
-                character.LastSeen = character.LastSeen or latestSnapshot.Timestamp
-            end
-
-            tinsert(characters, character)
+    for _, profile in ipairs(ProfileManager:GetProfiles()) do
+        if not profile:IsEmpty() then
+            tinsert(characters, {
+                Key = profile:Key(),
+                IsCharacterConnected = profile:IsCharacterConnected(),
+                HasCurrent = profile:HasLiveSnapshot() or nil,
+                HasHistory = profile:HasHistory() or nil,
+                ClassID = profile:GetClassID(),
+                LastSeen = profile:GetLastSeenTime(),
+            })
         end
     end
 
     table.sort(characters, function(left, right)
-        if left.IsCurrent ~= right.IsCurrent then
-            return left.IsCurrent
+        if left.IsCharacterConnected ~= right.IsCharacterConnected then
+            return left.IsCharacterConnected
         end
         return (left.LastSeen or 0) > (right.LastSeen or 0)
     end)
