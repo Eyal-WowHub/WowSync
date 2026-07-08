@@ -19,17 +19,16 @@ local function Count(list)
     return list and #list or 0
 end
 
--- Add a module diff's counts into totals. A grouped diff (the Plugin umbrella,
--- shaped { groups = { { modules = { { added, changed, removed } } } } }) is
--- summed across its plugins and their modules; a plain module diff is summed
--- directly.
+-- Add a module diff's counts into totals. The Plugin umbrella's diff, shaped
+-- { plugins = { { subModules = { { added, changed, removed } } } } }, is summed
+-- across its plugins and their submodules; a plain module diff is summed directly.
 local function AddDiffTotals(totals, moduleDiff)
-    if moduleDiff.groups then
-        for _, group in ipairs(moduleDiff.groups) do
-            for _, module in ipairs(group.modules) do
-                totals.added = totals.added + Count(module.added)
-                totals.changed = totals.changed + Count(module.changed)
-                totals.removed = totals.removed + Count(module.removed)
+    if moduleDiff.plugins then
+        for _, plugin in ipairs(moduleDiff.plugins) do
+            for _, subModule in ipairs(plugin.subModules) do
+                totals.added = totals.added + Count(subModule.added)
+                totals.changed = totals.changed + Count(subModule.changed)
+                totals.removed = totals.removed + Count(subModule.removed)
             end
         end
     else

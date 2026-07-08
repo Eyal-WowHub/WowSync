@@ -23,7 +23,7 @@ local ModuleRegistry = addon.ModuleRegistry
       - OverrideModule: replace a built-in module with the plugin's version (via
         ModuleRegistry:Override), to layer over ActionBars, Chat and the like.
 
-    Each plugin keeps its own isolated slice of every snapshot (data is grouped by
+    Each plugin keeps its own isolated slice of every snapshot (data is keyed by
     plugin name) and its own SavedVariables (handed in at Register). Because the
     consolidated data is keyed by plugin and module name, the Plugin module's hash
     reflects each plugin's named slice — a change in one plugin is visible without
@@ -166,12 +166,12 @@ local function HasEntries(diff)
     return #(diff.added or {}) + #(diff.changed or {}) + #(diff.removed or {}) > 0
 end
 
--- Preview what applying snapshotData over currentData would change, grouped by
--- plugin then module so the UI can render "Plugin: <name>" with a section per
--- module beneath it. Each module entry carries canExact so the preview gates its
--- removals exactly as an apply would. Plugins and modules are walked in name order
--- for a stable layout; only those with visible changes are kept. Returns nil when
--- nothing changed, so the Plugin umbrella contributes no diff at all.
+-- Preview what applying snapshotData over currentData would change, organized by
+-- plugin then submodule so the UI can render "Plugin: <name>" with a section per
+-- submodule beneath it. Each submodule entry carries canExact so the preview
+-- gates its removals exactly as an apply would. Plugins and submodules are walked
+-- in name order for a stable layout; only those with visible changes are kept.
+-- Returns nil when nothing changed, so the Plugin umbrella contributes no diff.
 function PluginManager:DiffAll(currentData, snapshotData)
     currentData = currentData or {}
     snapshotData = snapshotData or {}
@@ -182,7 +182,7 @@ function PluginManager:DiffAll(currentData, snapshotData)
     end
     table.sort(pluginNames)
 
-    local groups
+    local pluginDiffs
     for _, pluginName in ipairs(pluginNames) do
         local plugin = plugins[pluginName]
         local currentPlugin = currentData[pluginName]
@@ -194,14 +194,14 @@ function PluginManager:DiffAll(currentData, snapshotData)
         end
         table.sort(moduleNames)
 
-        local groupModules
+        local subModules
         for _, moduleName in ipairs(moduleNames) do
             local module = plugin.modules[moduleName]
             if module.Diff then
                 local diff = module:Diff(currentPlugin and currentPlugin[moduleName], snapshotPlugin and snapshotPlugin[moduleName])
                 if diff and HasEntries(diff) then
-                    groupModules = groupModules or {}
-                    groupModules[#groupModules + 1] = {
+                    subModules = subModules or {}
+                    subModules[#subModules + 1] = {
                         name = moduleName,
                         canExact = ModuleCanExact(module),
                         added = diff.added or {},
@@ -212,14 +212,14 @@ function PluginManager:DiffAll(currentData, snapshotData)
             end
         end
 
-        if groupModules then
-            groups = groups or {}
-            groups[#groups + 1] = { name = pluginName, modules = groupModules }
+        if subModules then
+            pluginDiffs = pluginDiffs or {}
+            pluginDiffs[#pluginDiffs + 1] = { name = pluginName, subModules = subModules }
         end
     end
 
-    if not groups then
+    if not pluginDiffs then
         return nil
     end
-    return { groups = groups }
+    return { plugins = pluginDiffs }
 end

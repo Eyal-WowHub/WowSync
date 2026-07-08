@@ -17,9 +17,10 @@ local SnapshotApplyMode = addon.SnapshotApplyMode
 ]]
 
 Plugin.Config = {
-    -- Applies after the built-in modules, so a plugin that rebuilds itself from
-    -- the final game state (e.g. a UI addon) sees everything already in place.
-    ApplyPriority = 200,
+    -- Applies dead last, far above the built-in band (mirroring the reserved id),
+    -- so a plugin that rebuilds itself from the final game state (e.g. a UI addon)
+    -- sees everything already in place.
+    ApplyPriority = 1000000,
     SnapshotApplyMode = SnapshotApplyMode.All,
 }
 
