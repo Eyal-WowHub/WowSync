@@ -15,21 +15,6 @@ local C = addon.Contracts
 local ProfileManager = addon:GetObject("ProfileManager")
 local ShareCodec = addon:GetObject("ShareCodec")
 
--- Keep only the modules named in `allowed` (a { [name] = true } set). With no
--- set the full { [name] = data } table passes through unchanged.
-local function FilterModules(modules, allowed)
-    if not allowed then
-        return modules
-    end
-    local filtered = {}
-    for name, data in pairs(modules) do
-        if allowed[name] then
-            filtered[name] = data
-        end
-    end
-    return filtered
-end
-
 -- Anonymised shared string for a profile snapshot (latest when selector is
 -- nil). opts.modules narrows the export to a { [name] = true } subset and
 -- opts.notes sets the travelling note (falling back to the snapshot's own).
@@ -53,7 +38,7 @@ function ExportManager:ExportSavedSnapshot(profileName, selector, opts)
         return nil, reason or "not-found"
     end
 
-    local modules = FilterModules(snapshot:Modules(), opts.modules)
+    local modules = snapshot:Modules(opts.modules)
     if next(modules) == nil then
         return nil, "no-modules"
     end
@@ -80,7 +65,7 @@ function ExportManager:ExportLiveSnapshot(charKey, opts)
         return nil, "not-found"
     end
 
-    local modules = FilterModules(liveSnapshot:Modules(), opts.modules)
+    local modules = liveSnapshot:Modules(opts.modules)
     if next(modules) == nil then
         return nil, "no-modules"
     end

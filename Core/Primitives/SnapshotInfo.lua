@@ -85,6 +85,47 @@ local function SortedNames(nameSet, moduleSet)
     return names
 end
 
+-- Keep the parts of `data` selected by `selection`: `true` keeps the whole value,
+-- a table recurses one level per key (so a nested plugin/submodule selection keeps
+-- only the chosen submodules). Returns nil when nothing is kept.
+local function FilterBySelection(data, selection)
+    if selection == true then
+        return data
+    end
+    if type(selection) ~= "table" or type(data) ~= "table" then
+        return nil
+    end
+    local kept
+    for key, childSelection in pairs(selection) do
+        local child = FilterBySelection(data[key], childSelection)
+        if child ~= nil then
+            kept = kept or {}
+            kept[key] = child
+        end
+    end
+    return kept
+end
+
+-- Narrow a { [name] = data } module table to a selection. moduleSet maps a module
+-- name to `true` (the whole module) or a nested selection table (e.g. the Plugin
+-- umbrella's { [plugin] = { [subModule] = true } }); a nil moduleSet passes the
+-- whole table through.
+local function FilterModuleData(modules, moduleSet)
+    if not moduleSet then
+        return modules or {}
+    end
+    local filtered = {}
+    if modules then
+        for name, selection in pairs(moduleSet) do
+            local kept = FilterBySelection(modules[name], selection)
+            if kept ~= nil then
+                filtered[name] = kept
+            end
+        end
+    end
+    return filtered
+end
+
 local function BuildHashedSnapshot(modulesData)
     local hashedModules = {}
     local moduleHashes = {}
@@ -216,9 +257,12 @@ function SnapshotInfo:Hashed(snapshotInfo)
     return BuildHashedSnapshotFromModuleHashes(snapshotInfo.ModuleHashes)
 end
 
--- The decoded { [moduleName] = capturedData } table.
-function SnapshotInfo:Modules(snapshotInfo)
-    return DecodeModules(snapshotInfo)
+-- The decoded { [moduleName] = capturedData } table, optionally narrowed to a
+-- selection (a flat { [name] = true } set or the Plugin umbrella's nested
+-- { [plugin] = { [subModule] = true } }). Shared by apply, save and share so all
+-- three honour the same selection.
+function SnapshotInfo:Modules(snapshotInfo, moduleSet)
+    return FilterModuleData(DecodeModules(snapshotInfo), moduleSet)
 end
 
 -- The sorted module names present, without decompressing.

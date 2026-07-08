@@ -56,23 +56,6 @@ local function BuildCurrentSource()
     }
 end
 
--- The chosen module subset (intersected with what was actually captured), or
--- the whole capture when no subset is given.
-local function FilterCapturedModules(capturedModules, moduleSet)
-    if not moduleSet then
-        return capturedModules or {}
-    end
-    local subset = {}
-    if capturedModules then
-        for name in pairs(moduleSet) do
-            if capturedModules[name] ~= nil then
-                subset[name] = capturedModules[name]
-            end
-        end
-    end
-    return subset
-end
-
 -- Shared apply core: capture a FULL rollback snapshot of Current before touching
 -- anything (so any change, including Exact deletions and per-module undo, can be
 -- rolled back), then apply the given module set with the per-module strategy.
@@ -94,7 +77,7 @@ local function ApplyCapturedModules(snapshot, moduleSet, strategy)
     C:Ensures(liveSnapshot ~= nil, "expected a live snapshot to roll back to, but the logged-in character captured nothing")
     local rollbackSnapshot = Snapshot:FromCapturedModuleSet(liveSnapshot:Modules(), BuildCurrentSource())
 
-    local sourceModules = snapshot:Modules()
+    local sourceModules = snapshot:Modules(moduleSet)
     local moduleNames = snapshot:GetModuleNames(moduleSet)
 
     local debugHandle = Debugger:IsEnabled() and Debugger:BeginOperation("apply", {
@@ -144,7 +127,7 @@ function SnapshotManager:SaveCurrentSnapshot(note, moduleSet, onComplete)
     SaveTask:Run(function()
         local liveSnapshot = ProfileManager:RefreshLiveSnapshot()
         C:Ensures(liveSnapshot ~= nil, "expected a live snapshot to save, but the logged-in character captured nothing")
-        local snapshotModules = FilterCapturedModules(liveSnapshot:Modules(), moduleSet)
+        local snapshotModules = liveSnapshot:Modules(moduleSet)
         local snapshot = Snapshot:FromCapturedModuleSet(snapshotModules, BuildCurrentSource())
 
         local stored = ProfileManager:AddSnapshot(snapshot, note)

@@ -129,9 +129,10 @@ function Snapshot:GetHash()
     return SnapshotInfo:Hashed(self.info)
 end
 
--- The decoded { [moduleName] = capturedData } table the snapshot carries.
-function Snapshot:Modules()
-    return SnapshotInfo:Modules(self.info)
+-- The decoded { [moduleName] = capturedData } table the snapshot carries,
+-- optionally narrowed to a { [name] = true } / nested plugin-submodule selection.
+function Snapshot:Modules(moduleSet)
+    return SnapshotInfo:Modules(self.info, moduleSet)
 end
 
 -- True when this snapshot has the same content as another (same combined hash).
