@@ -35,7 +35,7 @@ end
 -- proxy carrying only those — `member = true` forwards a method of the backing
 -- addon object, `member = <function>` exposes that function directly. Only names
 -- listed here can be imported.
-local Imports = {
+local Exports = {
     -- Shared formatter/value tables.
     ChangeBadge = true,
     Contracts = true,
@@ -109,7 +109,7 @@ WowSync.Models = {
 local wasImportUpgradeMessageDisplayedOnce = false
 
 -- Resolve a public object by name: the whole object when fully exported, or a
--- cached proxy carrying only its whitelisted methods. Only names in the Imports
+-- cached proxy carrying only its whitelisted methods. Only names in the Exports
 -- whitelist can be imported; anything else is a programming error.
 function WowSync:Import(name)
     -- A pending one-time reset means the stored data is from an older schema. The
@@ -121,7 +121,7 @@ function WowSync:Import(name)
         wasImportUpgradeMessageDisplayedOnce = true
     end
 
-    local allowed = Imports[name]
+    local allowed = Exports[name]
     C:Ensures(allowed ~= nil, "Import: '%s' is not an exported object", tostring(name))
 
     if allowed == true then
