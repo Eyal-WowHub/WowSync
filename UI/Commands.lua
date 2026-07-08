@@ -6,6 +6,7 @@ local L = addon.L
 local CharacterManager = addon:GetObject("CharacterManager")
 local Debugger = addon:GetObject("Debugger")
 local GameWatcher = addon:GetObject("GameWatcher")
+local MinimapButton = addon:GetObject("MinimapButton")
 local ProfileManager = addon:GetObject("ProfileManager")
 local SaveTask = addon:GetObject("SaveTask")
 local SnapshotManager = addon:GetObject("SnapshotManager")
@@ -349,6 +350,23 @@ function Commands:OnInitialized()
             else
                 addon:Print(L["Usage: X"]:format("/ws watcher off|lazy"))
             end
+        elseif command == "button" then
+            local buttonMode = (arg or ""):lower()
+            if buttonMode == "show" then
+                if MinimapButton:Show() then
+                    addon:Print(L["Minimap button shown."])
+                else
+                    addon:Print(L["The minimap button needs the WowSync_UI companion installed and enabled."])
+                end
+            elseif buttonMode == "hide" then
+                if MinimapButton:Hide() then
+                    addon:Print(L["Minimap button hidden."])
+                else
+                    addon:Print(L["The minimap button needs the WowSync_UI companion installed and enabled."])
+                end
+            else
+                addon:Print(L["Usage: X"]:format("/ws button hide|show"))
+            end
         elseif command == "reset" then
             local resetTarget = (arg or ""):lower()
             if resetTarget == "database" or resetTarget == "db" then
@@ -403,6 +421,7 @@ function Commands:OnInitialized()
             addon:Print(L["  X - Y"]:format("/ws import", L["Open the WowSync_UI window to import a snapshot from a string"]))
             addon:Print(L["  X - Y"]:format("/ws status [addon|profile|watcher|debug]", L["Show what WowSync is currently doing"]))
             addon:Print(L["  X - Y"]:format("/ws watcher off|lazy", L["Track your setup live on demand, or turn tracking off entirely (lazy by default)"]))
+            addon:Print(L["  X - Y"]:format("/ws button hide|show", L["Show or hide the WowSync minimap button"]))
             addon:Print(L["  X - Y"]:format("/ws reset database|db", L["Delete all saved profiles and snapshots, while keeping your settings"]))
             addon:Print(L["  X - Y"]:format("/ws debug on|off", L["Record detailed debug data to WowSyncDebugDB (off clears it)"]))
             addon:Print(L["  X - Y"]:format("/ws help", L["Show the command list"]))

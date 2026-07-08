@@ -58,4 +58,25 @@ function MinimapButton:OnInitialized()
         settings.Minimap.minimapPos = 45
     end
     LibDBIcon:Register("WowSync", CreateLauncher(), settings.Minimap)
+    self._registered = true
+end
+
+-- Reveal the minimap launcher, persisting the choice through LibDBIcon. Returns
+-- false when no launcher is registered (the companion UI is unavailable).
+function MinimapButton:Show()
+    if not self._registered then
+        return false
+    end
+    LibDBIcon:Show("WowSync")
+    return true
+end
+
+-- Hide the minimap launcher, persisting the choice through LibDBIcon. Returns
+-- false when no launcher is registered (the companion UI is unavailable).
+function MinimapButton:Hide()
+    if not self._registered then
+        return false
+    end
+    LibDBIcon:Hide("WowSync")
+    return true
 end

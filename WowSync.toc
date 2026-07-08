@@ -79,8 +79,8 @@ Features\Share\ExportManager.lua
 Features\Share\ImportManager.lua
 
 UI\StaticPopupDialogs.lua
-UI\Commands.lua
 UI\MinimapButton.lua
+UI\Commands.lua
 
 Modules\ActionBars.lua
 Modules\Talents.lua
