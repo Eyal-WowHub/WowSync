@@ -87,25 +87,50 @@ function Plugin:GetStorage()
     return self.savedVariables
 end
 
--- Register a plugin and return its handle. spec = { name = <the plugin's addon
+-- Register a plugin and return its handle. plugin = { name = <the plugin's addon
 -- name>, savedVariables = <the plugin's own SavedVariables table, optional> }.
 -- Registering the same name twice returns the existing handle.
-function PluginManager:Register(spec)
-    C:IsTable(spec, 2)
-    C:IsString(spec.name, 2)
+function PluginManager:Register(plugin)
+    C:IsTable(plugin, 2)
+    C:IsString(plugin.name, 2)
 
-    local existing = plugins[spec.name]
+    local existing = plugins[plugin.name]
     if existing then
         return existing
     end
 
-    local plugin = setmetatable({
-        name = spec.name,
-        savedVariables = spec.savedVariables or {},
+    local instance = setmetatable({
+        name = plugin.name,
+        savedVariables = plugin.savedVariables or {},
         modules = {},
     }, Plugin)
-    plugins[spec.name] = plugin
-    return plugin
+    plugins[plugin.name] = instance
+    return instance
+end
+
+-- The registered plugins and their submodule names, each sorted, so the UI can
+-- offer selectable "Plugin: <name>" groups (Apply/Save/Share) mirroring the diff
+-- preview. Empty when no plugin is installed.
+function PluginManager:GetSubModuleLayout()
+    local pluginNames = {}
+    for pluginName in pairs(plugins) do
+        pluginNames[#pluginNames + 1] = pluginName
+    end
+    table.sort(pluginNames)
+
+    local layout = {}
+    for _, pluginName in ipairs(pluginNames) do
+        local plugin = plugins[pluginName]
+        local moduleNames = {}
+        for moduleName in pairs(plugin.modules) do
+            moduleNames[#moduleNames + 1] = moduleName
+        end
+        if #moduleNames > 0 then
+            table.sort(moduleNames)
+            layout[#layout + 1] = { plugin = pluginName, subModules = moduleNames }
+        end
+    end
+    return layout
 end
 
 --[[ Backing for the core Plugin module ]]
