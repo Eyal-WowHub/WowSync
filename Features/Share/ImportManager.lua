@@ -31,22 +31,13 @@ local function BuildImportSnapshot(sharedData)
     return snapshotInfo
 end
 
--- Selector parts: a hash (or prefix) and an optional #Index disambiguator.
-local function ParseSelector(selector)
-    local hash, indexText = selector:match("^([%w]+)#(%d+)$")
-    if indexText then
-        return hash:lower(), tonumber(indexText)
-    end
-    return selector:lower(), nil
-end
-
 -- Resolve an entry within a container by hash/prefix, optionally pinned to a
 -- specific #Index. Returns the raw stored entry, or nil + a reason
 -- ("not-found" / "ambiguous") + candidates. Entries are hashed through the
 -- store, which normalizes a payload-less duplicate shell to its owner's hash.
 local function FindSnapshot(container, selector)
     local snapshots = container.Snapshots
-    local hash, snapshotIndex = ParseSelector(selector)
+    local hash, snapshotIndex = SnapshotInfo.ParseSelector(selector)
 
     if snapshotIndex then
         for index = 1, #snapshots do
