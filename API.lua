@@ -104,7 +104,7 @@ WowSync.Models = {
     SnapshotApplyMode = addon.SnapshotApplyMode,
 }
 
--- Whether the import-blocked notice has been printed this session, so a burst of
+-- Whether the pending-reset notice has been printed this session, so a burst of
 -- plugin imports during a pending reset announces itself only once.
 local wasImportUpgradeMessageDisplayedOnce = false
 
@@ -112,15 +112,13 @@ local wasImportUpgradeMessageDisplayedOnce = false
 -- cached proxy carrying only its whitelisted methods. Only names in the Imports
 -- whitelist can be imported; anything else is a programming error.
 function WowSync:Import(name)
-    -- A pending one-time reset leaves the stored data incompatible, so the API
-    -- hands nothing out: it warns in chat once and returns nil rather than an
-    -- object backed by stale data.
-    if Upgrade:IsPending() then
-        if not wasImportUpgradeMessageDisplayedOnce then
-            addon:Warn(L["WowSync needs a one-time reset before its API is available. Accept the reset prompt to continue."])
-            wasImportUpgradeMessageDisplayedOnce = true
-        end
-        return
+    -- A pending one-time reset means the stored data is from an older schema. The
+    -- API is still handed out — plugins can register and wire themselves up — but
+    -- warn once so the player knows the saved data is stale until they run the
+    -- reset (nothing here raises the prompt; /wowsync does).
+    if Upgrade:IsPending() and not wasImportUpgradeMessageDisplayedOnce then
+        addon:Warn(L["The database schema was changed and requires a one-time reset. Run /wowsync to reset it."])
+        wasImportUpgradeMessageDisplayedOnce = true
     end
 
     local allowed = Imports[name]
