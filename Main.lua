@@ -8,8 +8,11 @@ local DEV_MODE = C_AddOns.GetAddOnMetadata(addon:GetName(), "X-WowSync-DevMode")
 -- The contract checker shared by every WowSync file.
 addon.Contracts = LibStub("Contracts-1.0"):New(DEV_MODE and "none" or "expensive")
 
--- On-disk schema revision.
-local SCHEMA_VERSION = 1
+-- On-disk schema revision. Bumped to 2 for the overhaul that reshaped saved data
+-- incompatibly; a database below this is reset once on first use (see
+-- UI/Upgrade). Exposed so the upgrade gate can stamp it after the reset.
+local SCHEMA_VERSION = 2
+addon.SchemaVersion = SCHEMA_VERSION
 
 -- The complete saved-variables shape. Every field is written to disk on load so
 -- the file is fully self-describing for external tools that parse it directly.
@@ -45,4 +48,11 @@ end
 -- belong under a preceding prefixed line.
 function addon:PrintLine(msg)
     DEFAULT_CHAT_FRAME:AddMessage(msg)
+end
+
+-- Prints a warning: the accent-coloured addon name prefix followed by the
+-- message tinted warning yellow.
+function addon:Warn(msg)
+    local prefix = addon.Colorizer:Wrap(addon.ACCENT_COLOR, addon:GetName()) .. ": "
+    DEFAULT_CHAT_FRAME:AddMessage(prefix .. addon.Colorizer:Wrap(addon.WARNING_COLOR, msg))
 end

@@ -4,6 +4,7 @@ local L = addon.L
 
 local ImportManager = addon:GetObject("ImportManager")
 local ProfileManager = addon:GetObject("ProfileManager")
+local Upgrade = addon:GetObject("Upgrade")
 
 --[[
     Shared StaticPopup dialog definitions.
@@ -41,6 +42,23 @@ StaticPopupDialogs["WOWSYNC_RESET_DB"] = {
         ProfileManager:ResetDatabase()
         ImportManager:ResetDatabase()
         C_UI.Reload()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    showAlert = true,
+    preferredIndex = 3,
+}
+
+-- Announces the one-time reset this overhaul requires: the old saved data is
+-- incompatible, so it must be cleared once before WowSync can be used again.
+-- Dismissible, but the UI toggle and slash handler re-raise it until accepted.
+StaticPopupDialogs["WOWSYNC_UPGRADE"] = {
+    text = L["WowSync has had a major overhaul and your old data is no longer compatible. A one-time reset is required to continue: this deletes every saved profile, snapshot, and imported profile, but keeps your settings."],
+    button1 = L["Reset now"],
+    button2 = L["Later"],
+    OnAccept = function()
+        Upgrade:PerformReset()
     end,
     timeout = 0,
     whileDead = true,

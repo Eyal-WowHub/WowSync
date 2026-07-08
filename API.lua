@@ -4,9 +4,15 @@ WowSync = addon:NewObject(addon:GetName())
 local C = addon.Contracts
 local L = addon.L
 
+local Upgrade = addon:GetObject("Upgrade")
+
 -- Loads the companion UI addon on demand, then fires WOWSYNC_UI_TOGGLED so the
--- UI can open or toggle its window.
+-- UI can open or toggle its window. A pending one-time upgrade reset intercepts
+-- the toggle, raising the reset prompt instead of opening the window.
 local function ToggleUI()
+    if Upgrade:ShowIfPending() then
+        return
+    end
     if not C_AddOns.IsAddOnLoaded("WowSync_UI") and not C_AddOns.LoadAddOn("WowSync_UI") then
         addon:Print(L["WowSync_UI addon not found."])
         return
@@ -98,10 +104,25 @@ WowSync.Models = {
     SnapshotApplyMode = addon.SnapshotApplyMode,
 }
 
+-- Whether the import-blocked notice has been printed this session, so a burst of
+-- plugin imports during a pending reset announces itself only once.
+local wasImportUpgradeMessageDisplayedOnce = false
+
 -- Resolve a public object by name: the whole object when fully exported, or a
 -- cached proxy carrying only its whitelisted methods. Only names in the Imports
 -- whitelist can be imported; anything else is a programming error.
 function WowSync:Import(name)
+    -- A pending one-time reset leaves the stored data incompatible, so the API
+    -- hands nothing out: it warns in chat once and returns nil rather than an
+    -- object backed by stale data.
+    if Upgrade:IsPending() then
+        if not wasImportUpgradeMessageDisplayedOnce then
+            addon:Warn(L["WowSync needs a one-time reset before its API is available. Accept the reset prompt to continue."])
+            wasImportUpgradeMessageDisplayedOnce = true
+        end
+        return
+    end
+
     local allowed = Imports[name]
     C:Ensures(allowed ~= nil, "Import: '%s' is not an exported object", tostring(name))
 

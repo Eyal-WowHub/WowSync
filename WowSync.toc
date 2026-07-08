@@ -78,6 +78,7 @@ Features\Share\ImportedHashDictionary.lua
 Features\Share\ExportManager.lua
 Features\Share\ImportManager.lua
 
+UI\Upgrade.lua
 UI\StaticPopupDialogs.lua
 UI\MinimapButton.lua
 UI\Commands.lua

@@ -11,6 +11,7 @@ local ProfileManager = addon:GetObject("ProfileManager")
 local SaveTask = addon:GetObject("SaveTask")
 local SnapshotManager = addon:GetObject("SnapshotManager")
 local UndoManager = addon:GetObject("UndoManager")
+local Upgrade = addon:GetObject("Upgrade")
 
 --[[
     Slash command interface ("/wowsync", "/ws").
@@ -152,6 +153,12 @@ function Commands:OnInitialized()
     SLASH_WOWSYNC1 = "/wowsync"
     SLASH_WOWSYNC2 = "/ws"
     SlashCmdList["WOWSYNC"] = function(input)
+        -- A pending one-time upgrade reset intercepts every command, raising the
+        -- reset prompt until the player accepts it.
+        if Upgrade:ShowIfPending() then
+            return
+        end
+
         local command, arg = strsplit(" ", strtrim(input or ""), 2)
         command = (command or ""):lower()
         arg = arg and strtrim(arg)
