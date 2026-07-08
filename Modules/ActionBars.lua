@@ -22,17 +22,19 @@ ActionBars.Config = {
         37-48   Action Bar 5 (MultiBarLeft)
         49-60   Action Bar 3 (MultiBarBottomRight)
         61-72   Action Bar 2 (MultiBarBottomLeft)
+        73-120  Class stance/form bonus bars (Druid forms, Warrior stances, ...)
         145-156 Action Bar 6
         157-168 Action Bar 7
         169-180 Action Bar 8
 
-    Class-specific stance/form bars (73-120) and
-    possess/skyriding bar (121-132) are not captured.
+    The possess/skyriding/vehicle override bar (121-132) is game-managed and
+    transient, so it is deliberately not captured.
 ]]
 
 local SPEC_SLOTS = { 1, 12 }
 local SHARED_SLOT_RANGES = {
     { 13, 72 },
+    { 73, 120 },  -- class stance/form bonus bars
     { 145, 180 },
 }
 
