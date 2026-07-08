@@ -11,14 +11,26 @@ local ExportManager = addon:NewObject("ExportManager")
 ]]
 
 local C = addon.Contracts
+local SnapshotInfo = addon.SnapshotInfo
 
 local ProfileManager = addon:GetObject("ProfileManager")
 local ShareCodec = addon:GetObject("ShareCodec")
 
+-- Encode a module set to a shared string, paired with the export's
+-- hash-of-hashes fingerprint over that same subset. Returns the string, nil,
+-- and the fingerprint, or nil and a reason when encoding fails.
+local function EncodeWithFingerprint(modules, classID, timestamp, notes)
+    local share, reason = ShareCodec:Encode(modules, classID, timestamp, notes)
+    if not share then
+        return nil, reason
+    end
+    return share, nil, (SnapshotInfo:Fingerprint(modules))
+end
+
 -- Anonymised shared string for a profile snapshot (latest when selector is
 -- nil). opts.modules narrows the export to a { [name] = true } subset and
 -- opts.notes sets the travelling note (falling back to the snapshot's own).
--- Returns the string, or nil + a reason.
+-- Returns the string and its content fingerprint, or nil + a reason.
 function ExportManager:ExportSavedSnapshot(profileName, selector, opts)
     C:IsString(profileName, 2)
     opts = opts or {}
@@ -45,12 +57,12 @@ function ExportManager:ExportSavedSnapshot(profileName, selector, opts)
 
     local classID = snapshot:GetCharacterInfo().ClassID
     local notes = opts.notes ~= nil and opts.notes or snapshot:GetNotes()
-    return ShareCodec:Encode(modules, classID, snapshot:GetTimestamp(), notes)
+    return EncodeWithFingerprint(modules, classID, snapshot:GetTimestamp(), notes)
 end
 
 -- Anonymised shared string for a character's current live snapshot. opts.modules
 -- narrows the export to a { [name] = true } subset and opts.notes attaches a note.
--- Returns the string, or nil + a reason.
+-- Returns the string and its content fingerprint, or nil + a reason.
 function ExportManager:ExportLiveSnapshot(charKey, opts)
     C:IsString(charKey, 2)
     opts = opts or {}
@@ -69,5 +81,5 @@ function ExportManager:ExportLiveSnapshot(charKey, opts)
     if next(modules) == nil then
         return nil, "no-modules"
     end
-    return ShareCodec:Encode(modules, liveSnapshot:GetCharacterInfo().ClassID, liveSnapshot:GetTimestamp(), opts.notes)
+    return EncodeWithFingerprint(modules, liveSnapshot:GetCharacterInfo().ClassID, liveSnapshot:GetTimestamp(), opts.notes)
 end
