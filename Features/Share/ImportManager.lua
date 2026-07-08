@@ -231,7 +231,9 @@ function ImportManager:MoveImportDown(importID)
     return ImportStore:MoveImport(importID, 1)
 end
 
--- Remove one snapshot from a container by selector. Returns whether one was removed.
+-- Remove one snapshot from a container by selector, and drop the whole container
+-- once its last snapshot is gone so an emptied import never lingers as a
+-- confusing zero-snapshot row. Returns whether one was removed.
 function ImportManager:DeleteSnapshot(importID, selector)
     C:IsNumber(importID, 2)
     C:IsString(selector, 3)
@@ -239,7 +241,11 @@ function ImportManager:DeleteSnapshot(importID, selector)
     if not snapshot then
         return false
     end
-    return ImportStore:RemoveSnapshot(container, snapshot)
+    local removed = ImportStore:RemoveSnapshot(container, snapshot)
+    if removed and #container.Snapshots == 0 then
+        ImportStore:DeleteImport(importID)
+    end
+    return removed
 end
 
 -- How many duplicates would be removed alongside the snapshot at selector, so
