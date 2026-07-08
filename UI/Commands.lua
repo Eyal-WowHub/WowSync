@@ -422,7 +422,7 @@ function Commands:OnInitialized()
             addon:Print(L["  X - Y"]:format("/ws status [addon|profile|watcher|debug]", L["Show what WowSync is currently doing"]))
             addon:Print(L["  X - Y"]:format("/ws watcher off|lazy", L["Track your setup live on demand, or turn tracking off entirely (lazy by default)"]))
             addon:Print(L["  X - Y"]:format("/ws button hide|show", L["Show or hide the WowSync minimap button"]))
-            addon:Print(L["  X - Y"]:format("/ws reset database|db", L["Delete all saved profiles and snapshots, while keeping your settings"]))
+            addon:Print(L["  X - Y"]:format("/ws reset database|db", L["Delete all saved profiles, snapshots, and imports, while keeping your settings"]))
             addon:Print(L["  X - Y"]:format("/ws debug on|off", L["Record detailed debug data to WowSyncDebugDB (off clears it)"]))
             addon:Print(L["  X - Y"]:format("/ws help", L["Show the command list"]))
         else

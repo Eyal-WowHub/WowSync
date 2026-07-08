@@ -94,7 +94,7 @@ Anything that could interfere during combat (such as action bars) waits until yo
 | `/ws status [addon\|profile\|watcher\|debug]` | Show what WowSync is currently doing. |
 | `/ws watcher off\|lazy` | Track your setup live on demand, or turn tracking off entirely (lazy by default). |
 | `/ws button hide\|show` | Show or hide the WowSync minimap button. |
-| `/ws reset database\|db` | Delete all saved profiles and snapshots, while keeping your settings. |
+| `/ws reset database\|db` | Delete all saved profiles, snapshots, and imports, while keeping your settings. |
 | `/ws debug on\|off` | Record detailed debug data to WowSyncDebugDB (off clears it). |
 | `/ws help` | Show the command list. |
 

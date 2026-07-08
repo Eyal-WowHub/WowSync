@@ -131,6 +131,14 @@ function ImportManager:ImportString(text, opts)
     return { ImportID = importID, Name = container.Name, Duplicate = warning == "duplicate" }
 end
 
+-- Wipes every imported profile while leaving user settings intact, mirroring
+-- ProfileManager:ResetDatabase. The table is emptied in place so ImportStore's
+-- cached reference stays valid; callers reload the UI afterwards so every view
+-- reinitialises from the now-empty imports.
+function ImportManager:ResetDatabase()
+    wipe(addon.DB.Imports)
+end
+
 --[[ Containers (UI) ]]
 
 -- The imported profiles as flat summaries, sorted by class then saved order so
