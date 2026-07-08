@@ -24,7 +24,8 @@ local ModuleRegistry = addon.ModuleRegistry
         ModuleRegistry:Override), to layer over ActionBars, Chat and the like.
 
     Each plugin keeps its own isolated slice of every snapshot (data is keyed by
-    plugin name) and its own SavedVariables (handed in at Register). Because the
+    plugin name) and its own db, a SavedVariables table handed in at Register.
+    Because the
     consolidated data is keyed by plugin and module name, the Plugin module's hash
     reflects each plugin's named slice — a change in one plugin is visible without
     disturbing the others.
@@ -81,14 +82,8 @@ function Plugin:OverrideModule(module)
     return ModuleRegistry:Override(module)
 end
 
--- The plugin's own saved-variables table (declared in its TOC and handed to
--- Register). This is the plugin's private store; WowSync's own DB is never shared.
-function Plugin:GetStorage()
-    return self.savedVariables
-end
-
 -- Register a plugin and return its handle. plugin = { name = <the plugin's addon
--- name>, savedVariables = <the plugin's own SavedVariables table, optional> }.
+-- name>, db = <the plugin's own SavedVariables table, optional> }.
 -- Registering the same name twice returns the existing handle.
 function PluginManager:Register(plugin)
     C:IsTable(plugin, 2)
@@ -101,7 +96,7 @@ function PluginManager:Register(plugin)
 
     local instance = setmetatable({
         name = plugin.name,
-        savedVariables = plugin.savedVariables or {},
+        db = plugin.db or {},
         modules = {},
     }, Plugin)
     plugins[plugin.name] = instance
