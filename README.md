@@ -60,7 +60,7 @@ Imports live in their own list, separate from your characters, and are locked to
 
 The import list is grouped by class, with your logged-in character's class shown first so the setups you can actually use sit right at the top. When a class holds more than one container, hover or select a row to reveal up/down arrows on its right edge; use them to reorder the containers within that class, and the order is remembered between sessions.
 
-A container's snapshots read newest first, just like a character's timeline, and can be **pinned** — right-click a snapshot to pin or unpin it. Pinned snapshots float to the top of the timeline and are marked in orange. Apply an import exactly like any snapshot, picking modules and Merge or Exact per module. Open either flow with `/ws export` or `/ws import`.
+A container's snapshots read newest first, just like a character's timeline, and can be **pinned** — right-click a snapshot to pin or unpin it. Pinned snapshots float to the top of the timeline and are marked in orange. Apply an import exactly like any snapshot, picking modules and Merge or Exact per module.
 
 ## Moving, Resizing & Locking
 
@@ -84,13 +84,6 @@ Anything that could interfere during combat (such as action bars) waits until yo
 | Command | Description |
 |---|---|
 | `/ws` | Open or close the WowSync UI window. |
-| `/ws save [note]` | Save a snapshot of your current setup, optionally with a short note. |
-| `/ws apply <name>[@hash[#index]] [--merge\|--exact]` | Apply a profile's latest snapshot, or a specific snapshot by hash (merge by default). |
-| `/ws undo` | Undo the last applied snapshot. |
-| `/ws delete <name>[@hash[#index]]` | Delete a profile, or delete a specific snapshot by hash. |
-| `/ws list [name]` | List all saved profiles, or list one profile's snapshots. |
-| `/ws export` | Open the window to export a snapshot you can share. |
-| `/ws import` | Open the window to import a snapshot from a string. |
 | `/ws status [addon\|profile\|watcher\|debug]` | Show what WowSync is currently doing. |
 | `/ws watcher off\|lazy` | Track your setup live on demand, or turn tracking off entirely (lazy by default). |
 | `/ws button hide\|show` | Show or hide the WowSync minimap button. |
@@ -98,14 +91,12 @@ Anything that could interfere during combat (such as action bars) waits until yo
 | `/ws debug on\|off` | Record detailed debug data to WowSyncDebugDB (off clears it). |
 | `/ws help` | Show the command list. |
 
-When targeting a specific snapshot, `@hash` accepts the short hash shown by `/ws list <name>`. As with Git, any unambiguous prefix works; if two snapshots share the same hash, add `#index` (for example `@a1b2#3`) to pick exactly one.
-
 `/ws debug` is a diagnostic aid for bug reports, not part of everyday use. **What** it does: while on, WowSync records detailed internal events (commands, saves, and UI actions) to its `WowSyncDebugDB` saved-variables file. **Why** you'd use it: if something misbehaves, turning it on captures exactly what the addon did so the log can be shared when reporting an issue. **How** to use it: run `/ws debug on`, reproduce the problem, then reload or log out so the events are written to `WowSyncDebugDB.lua` in your account's `SavedVariables` folder — that file is what you attach to a bug report. Use `/ws status debug` to confirm recording is on and how many events have been captured. Logging persists across sessions until you run `/ws debug off`, which stops recording and clears the log.
 
 
 ## Undo
 
-Applying a snapshot is reversible. After an apply, use **Undo** (in the window or `/ws undo`) to restore your previous setup. The window keeps a history of recent changes, so you can step back through several applies in one go — pick an entry in the **Recent changes** list to undo everything back to that point.
+Applying a snapshot is reversible. After an apply, use **Undo** in the window to restore your previous setup. The window keeps a history of recent changes, so you can step back through several applies in one go — pick an entry in the **Recent changes** list to undo everything back to that point.
 
 Talent loadouts are an exception: undo can restore loadouts that were removed, but it will not delete talent loadouts that an apply added. Any extra loadouts can be removed manually in the talent UI.
 
