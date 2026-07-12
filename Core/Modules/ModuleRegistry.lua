@@ -135,19 +135,20 @@ function ModuleRegistry:ApplyModules(moduleNames, sourceModules, strategy, class
     strategy = strategy or {}
     local defaultMode = strategy.default or "merge"
     local overrides = strategy.overrides or {}
-    local meta = { ClassID = classID }
+    local metadata = { ClassID = classID }
     local applyResults = {}
     local applied = false
     local tasks = {}
     for name, module in self:IterableModulesByPriority(moduleNames) do
         local capturedData = sourceModules[name]
         if module and capturedData ~= nil then
-            local canApply, warning = module:CanApply(meta)
+            local canApply, warning = module:CanApply(metadata)
             if not canApply then
                 applyResults[name] = { applied = false, reason = warning }
             else
                 local mode = overrides[name] or defaultMode
-                local applySucceeded, applyReturn = pcall(module.Apply, module, capturedData, meta, { mode = mode })
+                local applyOptions = { mode = mode, undo = strategy.undo }
+                local applySucceeded, applyReturn = pcall(module.Apply, module, capturedData, metadata, applyOptions)
                 if applySucceeded then
                     applyResults[name] = { applied = true, mode = mode, warning = warning }
                     applied = true

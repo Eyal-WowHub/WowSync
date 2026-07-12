@@ -34,7 +34,9 @@ addon.ModuleInterface = ModuleInterface
         metadata carries the snapshot's provenance (notably ClassID).
         applyOptions.mode is "merge" (add/overwrite snapshot items, leave the
         rest) or "exact" (also remove live items absent from the snapshot);
-        modules that only support merge may ignore applyOptions. The only
+        modules that only support merge may ignore applyOptions. applyOptions.undo
+        is true when the write restores a rollback (an undo) rather than a forward
+        apply, for a module that must behave differently then. The only
         contract member with real side effects. Called by SnapshotManager during
         apply and undo. A module whose work finishes only after Apply returns
         (e.g. talents, whose loadout imports are event-driven) returns an

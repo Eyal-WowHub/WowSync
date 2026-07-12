@@ -40,6 +40,10 @@ local Exports = {
     ChangeBadge = true,
     Contracts = true,
 
+    -- Async primitive a plugin returns from Apply to defer completion until its
+    -- own asynchronous work (e.g. a user prompt) settles.
+    AsyncTask = true,
+
     -- Namespaced helper surfaces.
     Console = {
         Print = function(...) addon:Print(...) end,

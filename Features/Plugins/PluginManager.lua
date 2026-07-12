@@ -3,6 +3,7 @@ local PluginManager = {}
 addon.PluginManager = PluginManager
 
 local C = addon.Contracts
+local AsyncTask = addon.AsyncTask
 local Interface = addon.ModuleInterface
 local ModuleRegistry = addon.ModuleRegistry
 
@@ -160,17 +161,25 @@ end
 -- left untouched in the snapshot), and each module's own CanApply gate is honoured.
 -- A module's Apply is guarded so one failing plugin never aborts the rest.
 function PluginManager:ApplyAll(capturedData, meta, applyOptions)
+    -- A plugin module whose apply finishes later (e.g. after a user answers a
+    -- prompt) returns an AsyncTask; gather them so the caller can wait for the
+    -- whole plugin apply, the same way built-in modules defer.
+    local tasks = {}
     for pluginName, modulesData in pairs(capturedData or {}) do
         local plugin = plugins[pluginName]
         if plugin then
             for moduleName, data in pairs(modulesData) do
                 local module = plugin.modules[moduleName]
                 if module and module:CanApply(meta) then
-                    pcall(module.Apply, module, data, meta, applyOptions)
+                    local ok, applyReturn = pcall(module.Apply, module, data, meta, applyOptions)
+                    if ok and getmetatable(applyReturn) == AsyncTask then
+                        tinsert(tasks, applyReturn)
+                    end
                 end
             end
         end
     end
+    return AsyncTask:WhenAll(tasks)
 end
 
 -- Whether a module's declared apply modes include Exact, so its removals are real

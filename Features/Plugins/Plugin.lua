@@ -41,8 +41,10 @@ function Plugin:CanApply()
 end
 
 -- Apply the consolidated plugin data, dispatching each slice back to its owner.
+-- A slice whose apply settles later hands back an AsyncTask; the aggregate is
+-- returned so the write is not considered finished until every slice has.
 function Plugin:Apply(capturedData, sourceMetadata, applyOptions)
-    PluginManager:ApplyAll(capturedData, sourceMetadata, applyOptions)
+    return PluginManager:ApplyAll(capturedData, sourceMetadata, applyOptions)
 end
 
 -- Preview the consolidated plugin changes, aggregated across every plugin module.

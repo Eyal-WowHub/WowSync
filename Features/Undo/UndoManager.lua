@@ -149,7 +149,7 @@ function UndoManager:UndoLastApply(moduleSet)
     -- the very game events it tracks, and it must not mirror them back as if the
     -- player had made them.
     WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_UNDO_STARTED")
-    local applyResults, _, undoTask = ModuleRegistry:ApplyModules(moduleNames, rollbackModules, { default = "exact" }, snapshot:GetClassID())
+    local applyResults, _, undoTask = ModuleRegistry:ApplyModules(moduleNames, rollbackModules, { default = "exact", undo = true }, snapshot:GetClassID())
     self:Pop()
     ProfileManager:RefreshLiveSnapshot()
 
