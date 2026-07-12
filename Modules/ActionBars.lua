@@ -449,8 +449,8 @@ function ActionBars:GetDebugState()
         Slots = slots,
         SpecID = specID,
         ShapeshiftForm = GetShapeshiftForm(),
-        BonusBarOffset = GetBonusBarOffset(),
-        ActionBarPage = GetActionBarPage(),
+        BonusBarOffset = C_ActionBar.GetBonusBarOffset(),
+        ActionBarPage = C_ActionBar.GetActionBarPage(),
     }
 end
 
