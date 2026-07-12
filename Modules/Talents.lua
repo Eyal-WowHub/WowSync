@@ -2,6 +2,7 @@ local _, addon = ...
 local Talents = addon:NewObject("Talents")
 
 local L = addon.L
+local AsyncTask = addon.AsyncTask
 local HashSet = addon.HashSet
 local ModuleRegistry = addon.ModuleRegistry
 local SnapshotApplyMode = addon.SnapshotApplyMode
@@ -257,10 +258,10 @@ function Talents:Capture()
         StarterBuildActive = C_ClassTalents.GetHasStarterBuild() and C_ClassTalents.GetStarterBuildActive() or false,
     }
 
-    local numSpecs = GetNumSpecializations()
-
-    for specIndex = 1, numSpecs do
-        local specID = GetSpecializationInfo(specIndex)
+    -- Only the active spec's loadouts are captured: ImportLoadout is spec-locked,
+    -- so a snapshot can only ever be restored into the spec it was taken in.
+    local specID = GetSpecializationInfo(GetSpecialization())
+    if specID then
         local specEntry = {
             Loadouts = {},
             ActiveLoadoutConfigID = C_ClassTalents.GetLastSelectedSavedConfigID(specID),
@@ -268,13 +269,9 @@ function Talents:Capture()
 
         local configIDs = C_ClassTalents.GetConfigIDsBySpecID(specID)
         if configIDs then
-            -- Loadout names can repeat; keep only the first of each name so a
-            -- snapshot never carries colliding loadouts.
-            local seenNames = {}
             for _, configID in ipairs(configIDs) do
                 local loadout = GetLoadoutData(configID, specID)
-                if loadout and not seenNames[loadout.Name] then
-                    seenNames[loadout.Name] = true
+                if loadout then
                     loadout.WasActive = (configID == specEntry.ActiveLoadoutConfigID)
                     tinsert(specEntry.Loadouts, loadout)
                 end
@@ -289,28 +286,224 @@ function Talents:Capture()
     return capturedData
 end
 
+--[[ Loadout import ]]
+
+-- ImportLoadout starts an asynchronous config creation that only reports on a
+-- later TRAIT_CONFIG_CREATED, and a second import fired before the first finishes
+-- is silently dropped -- so the loadouts must be created strictly one at a time.
+-- LoadoutImporter (below) is that state machine; this bounds how long it waits
+-- for any one create to report back before moving on.
+local IMPORT_TIMEOUT_SECONDS = 5
+
+-- Commit the current spec's loadout named `name` the same way the Talent UI does.
+-- A just-imported config is not ready to load until a later TRAIT_CONFIG_UPDATED
+-- reports it populated, so an unready target waits for that event (bounded by a
+-- timeout) rather than loading into an empty config.
+local ACTIVATE_READY_TIMEOUT_SECONDS = 5
+
+local function LoadLoadoutByName(specID, name)
+    local configID
+    for _, id in ipairs(C_ClassTalents.GetConfigIDsBySpecID(specID) or {}) do
+        local configInfo = C_Traits.GetConfigInfo(id)
+        if configInfo and configInfo.name == name then
+            configID = id
+            break
+        end
+    end
+    if not configID then return end
+
+    local function Commit()
+        C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, configID)
+        local loadResult = C_ClassTalents.LoadConfig(configID, true)
+        if loadResult == Enum.LoadConfigResult.Error then
+            addon:Print(L["Could not activate talent loadout 'X'."]:format(name))
+        else
+            addon:Print(L["Activated talent loadout 'X'."]:format(name))
+        end
+    end
+
+    if C_ClassTalents.IsConfigPopulated(configID) then
+        Commit()
+        return
+    end
+
+    -- The config exists but is not ready yet; load it once it reports populated.
+    local timer
+    local function OnConfigReady(_, _, updatedConfigID)
+        if updatedConfigID ~= configID or not C_ClassTalents.IsConfigPopulated(configID) then
+            return
+        end
+        timer:Cancel()
+        Talents:UnregisterEvent("TRAIT_CONFIG_UPDATED", OnConfigReady)
+        Commit()
+    end
+
+    Talents:RegisterEvent("TRAIT_CONFIG_UPDATED", OnConfigReady)
+    timer = C_Timer.NewTimer(ACTIVATE_READY_TIMEOUT_SECONDS, function()
+        Talents:UnregisterEvent("TRAIT_CONFIG_UPDATED", OnConfigReady)
+        addon:Print(L["Could not activate talent loadout 'X'."]:format(name))
+    end)
+end
+
+-- Re-select the loadout (or Starter Build) that was active when the snapshot was
+-- saved, so the character ends up on the same build it had.
+local function ActivateSavedSelection(specID, activeLoadoutName, starterBuildActive)
+    if not specID then return end
+    if starterBuildActive then
+        if C_ClassTalents.GetHasStarterBuild() then
+            C_ClassTalents.SetStarterBuildActive(true)
+            addon:Print(L["Activated the Starter Build."])
+        end
+        return
+    end
+    if activeLoadoutName then
+        LoadLoadoutByName(specID, activeLoadoutName)
+    end
+end
+
+--[[
+    LoadoutImporter — the sequential loadout-import state machine.
+
+    Imports a queue of talent loadouts into the current spec one at a time (each
+    ImportLoadout must finish creating before the next starts), then re-selects
+    the loadout that was active when the snapshot was saved. Its states:
+
+        Start        -- listen for created configs, import the first loadout
+        (importing)  -- a loadout is in flight; wait for its TRAIT_CONFIG_CREATED
+                        or the per-loadout timeout
+        Advance      -- that create landed (or timed out); import the next
+        Finish       -- queue drained: re-select the active loadout, then settle
+        Cancel       -- a newer import superseded this one: settle, no activation
+
+    It settles exactly once, calling onDone -- the resolve of the apply's
+    AsyncTask -- so the write is never left hanging.
+]]
+local LoadoutImporter = {}
+LoadoutImporter.__index = LoadoutImporter
+
+-- params: specID, configID, treeID, existingStrings, queue, activeLoadoutName,
+-- starterBuildActive, and onDone (called once when the import settles).
+function LoadoutImporter:New(params)
+    return setmetatable({
+        specID = params.specID,
+        configID = params.configID,
+        treeID = params.treeID,
+        existingStrings = params.existingStrings,
+        queue = params.queue,
+        activeLoadoutName = params.activeLoadoutName,
+        starterBuildActive = params.starterBuildActive,
+        onDone = params.onDone,
+        timer = nil,
+        finished = false,
+    }, self)
+end
+
+-- Enter the machine: listen for created configs, then import the first loadout.
+function LoadoutImporter:Start()
+    self.onConfigCreated = function(_, _, configInfo)
+        -- Only a combat config finishing means the in-flight import completed.
+        if not self.timer then return end
+        if type(configInfo) == "table" and configInfo.type and configInfo.type ~= Enum.TraitConfigType.Combat then
+            return
+        end
+        self:Advance()
+    end
+    Talents:RegisterEvent("TRAIT_CONFIG_CREATED", self.onConfigCreated)
+    self:ProcessNext()
+end
+
+-- The in-flight import reported back (or its timeout fired): import the next.
+function LoadoutImporter:Advance()
+    if self.timer then
+        self.timer:Cancel()
+        self.timer = nil
+    end
+    self:ProcessNext()
+end
+
+-- Import queued loadouts until one is actually created (then wait for it) or the
+-- queue is drained (then finish); skips and failures fall through to the next.
+function LoadoutImporter:ProcessNext()
+    while true do
+        local loadout = tremove(self.queue, 1)
+        if not loadout then
+            self:Finish()
+            return
+        end
+
+        if loadout.ExportString then
+            if self.existingStrings[loadout.ExportString] then
+                addon:Print(L["Skipped talent loadout 'X' (an identical loadout already exists)."]:format(loadout.Name))
+            else
+                local importSucceeded, importResult, importError = pcall(ImportLoadoutFromString, self.configID, self.treeID, loadout.ExportString, loadout.Name)
+                if not importSucceeded then
+                    addon:Print(L["Failed to import 'X': Y"]:format(loadout.Name, tostring(importResult)))
+                    addon:Print(L["  Export string: X"]:format(loadout.ExportString))
+                elseif importResult then
+                    self.existingStrings[loadout.ExportString] = true
+                    local activeTag = loadout.WasActive and L[" (was active)"] or ""
+                    addon:Print(L["Imported talent loadout 'X'Y"]:format(loadout.Name, activeTag))
+                    -- Wait for its TRAIT_CONFIG_CREATED (or the timeout) before the next.
+                    self.timer = C_Timer.NewTimer(IMPORT_TIMEOUT_SECONDS, function() self:Advance() end)
+                    return
+                else
+                    addon:Print(L["Failed to import 'X': Y"]:format(loadout.Name, importError or L["Unknown error"]))
+                    addon:Print(L["  Export string: X"]:format(loadout.ExportString))
+                end
+            end
+        end
+    end
+end
+
+-- Drop the event and timer registrations, shared by both terminal transitions.
+function LoadoutImporter:Teardown()
+    if self.timer then
+        self.timer:Cancel()
+        self.timer = nil
+    end
+    if self.onConfigCreated then
+        Talents:UnregisterEvent("TRAIT_CONFIG_CREATED", self.onConfigCreated)
+    end
+end
+
+-- Terminal: the queue drained. Re-select the active loadout, then settle.
+function LoadoutImporter:Finish()
+    if self.finished then return end
+    self.finished = true
+    self:Teardown()
+    ActivateSavedSelection(self.specID, self.activeLoadoutName, self.starterBuildActive)
+    self.onDone()
+end
+
+-- Terminal: a newer import took over. Settle without re-selecting anything.
+function LoadoutImporter:Cancel()
+    if self.finished then return end
+    self.finished = true
+    self:Teardown()
+    self.onDone()
+end
+
+-- The import currently running, so a new apply can supersede it. nil when idle.
+local activeImport
+
 function Talents:Apply(capturedData, sourceMetadata)
     local currentSpecID = GetSpecializationInfo(GetSpecialization())
     local specEntry = capturedData.Specs[currentSpecID]
 
     if not specEntry then
-        return
-    end
-
-    if capturedData.StarterBuildActive then
-        addon:Print(L["Note: This profile was saved with the Starter Build active."])
+        return AsyncTask:Resolved()
     end
 
     local configID = C_ClassTalents.GetActiveConfigID()
     if not configID then
         addon:Print(L["Could not retrieve active talent configuration."])
-        return
+        return AsyncTask:Resolved()
     end
 
     local treeID = C_ClassTalents.GetTraitTreeForSpec(currentSpecID)
     if not treeID then
         addon:Print(L["Could not retrieve talent tree for current spec."])
-        return
+        return AsyncTask:Resolved()
     end
 
     -- Loadouts already saved on this character, keyed by their exported content.
@@ -330,32 +523,33 @@ function Talents:Apply(capturedData, sourceMetadata)
         end
     end
 
-    local importedCount = 0
+    local activeLoadoutName
     for _, loadout in ipairs(specEntry.Loadouts) do
-        if loadout.ExportString then
-            if existingStrings[loadout.ExportString] then
-                addon:Print(L["Skipped talent loadout 'X' (an identical loadout already exists)."]:format(loadout.Name))
-            else
-                local importSucceeded, importResult, importError = pcall(ImportLoadoutFromString, configID, treeID, loadout.ExportString, loadout.Name)
-                if not importSucceeded then
-                    addon:Print(L["Failed to import 'X': Y"]:format(loadout.Name, tostring(importResult)))
-                    addon:Print(L["  Export string: X"]:format(loadout.ExportString))
-                elseif importResult then
-                    existingStrings[loadout.ExportString] = true
-                    local activeTag = loadout.WasActive and L[" (was active)"] or ""
-                    addon:Print(L["Imported talent loadout 'X'Y"]:format(loadout.Name, activeTag))
-                    importedCount = importedCount + 1
-                else
-                    addon:Print(L["Failed to import 'X': Y"]:format(loadout.Name, importError or L["Unknown error"]))
-                    addon:Print(L["  Export string: X"]:format(loadout.ExportString))
-                end
-            end
+        if loadout.WasActive then
+            activeLoadoutName = loadout.Name
+            break
         end
     end
 
-    if importedCount > 0 then
-        addon:Print(L["Loadouts created. Open the Talent UI to activate your desired loadout."])
+    local queue = {}
+    for _, loadout in ipairs(specEntry.Loadouts) do
+        tinsert(queue, loadout)
     end
+
+    return AsyncTask:Run(function(resolve)
+        if activeImport then activeImport:Cancel() end
+        activeImport = LoadoutImporter:New({
+            specID = currentSpecID,
+            configID = configID,
+            treeID = treeID,
+            existingStrings = existingStrings,
+            queue = queue,
+            activeLoadoutName = activeLoadoutName,
+            starterBuildActive = capturedData.StarterBuildActive,
+            onDone = resolve,
+        })
+        activeImport:Start()
+    end)
 end
 
 -- Flatten the current spec's loadouts into a keyed list, hashing only the
