@@ -185,7 +185,7 @@ function ActionBars:PlaceAction(slotID, slotInfo, isSameClass)
 
     -- Pick up the action onto the cursor, then place it in the slot
     if slotInfo.type == "spell" then
-        if not C_SpellBook.IsPlayerSpell(slotInfo.id) then
+        if not C_SpellBook.IsSpellKnownOrInSpellBook(slotInfo.id) then
             if not isSameClass then
                 return -- Cross-class: skip unknown spells
             end
