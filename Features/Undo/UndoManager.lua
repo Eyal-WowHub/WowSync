@@ -149,10 +149,15 @@ function UndoManager:UndoLastApply(moduleSet)
     -- the very game events it tracks, and it must not mirror them back as if the
     -- player had made them.
     WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_UNDO_STARTED")
-    local applyResults = ModuleRegistry:ApplyModules(moduleNames, rollbackModules, { default = "exact" }, snapshot:GetClassID())
+    local applyResults, _, undoTask = ModuleRegistry:ApplyModules(moduleNames, rollbackModules, { default = "exact" }, snapshot:GetClassID())
     self:Pop()
     ProfileManager:RefreshLiveSnapshot()
-    WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_UNDO_FINISHED")
+
+    -- The undo is only truly finished once every module's asynchronous work has
+    -- settled; a fully synchronous undo resolves the task immediately.
+    undoTask:OnSettled(function()
+        WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_UNDO_FINISHED")
+    end)
 
     if Debugger:IsEnabled() then
         Debugger:EndOperation(debugHandle, rollbackModules, applyResults)

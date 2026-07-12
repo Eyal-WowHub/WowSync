@@ -32,6 +32,7 @@ Libs\Internal\Database.lua
 Libs\Internal\Time.lua
 Libs\Internal\BoundedList.lua
 Libs\Internal\FrameTask.lua
+Libs\Internal\AsyncTask.lua
 
 Locales\enUS.lua
 
@@ -67,6 +68,7 @@ Features\Snapshots\SnapshotApplyMode.lua
 Features\Snapshots\ApplyResult.lua
 Features\Snapshots\Differ.lua
 Features\Snapshots\SnapshotManager.lua
+Features\Snapshots\SnapshotActionMonitor.lua
 
 Features\Undo\UndoStore.lua
 Features\Undo\UndoManager.lua

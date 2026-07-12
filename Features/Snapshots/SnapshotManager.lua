@@ -89,13 +89,19 @@ local function ApplyCapturedModules(snapshot, moduleSet, strategy)
     -- the very game events it tracks, and it must not mirror them back as if the
     -- player had made them.
     WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_APPLY_STARTED")
-    local applyResults, applied = ModuleRegistry:ApplyModules(moduleNames, sourceModules, strategy, snapshot:GetClassID())
+    local applyResults, applied, applyTask = ModuleRegistry:ApplyModules(moduleNames, sourceModules, strategy, snapshot:GetClassID())
     -- Only record an undo point when an apply actually happened.
     if applied then
         WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_APPLY_CHANGED", rollbackSnapshot)
         ProfileManager:RefreshLiveSnapshot()
     end
-    WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_APPLY_FINISHED")
+
+    -- The apply is only truly finished once every module's asynchronous work has
+    -- settled; for a fully synchronous apply the task is already resolved and this
+    -- fires immediately.
+    applyTask:OnSettled(function()
+        WowSync:TriggerEvent("WOWSYNC_SNAPSHOT_APPLY_FINISHED")
+    end)
 
     if Debugger:IsEnabled() then
         Debugger:EndOperation(debugHandle, sourceModules, applyResults)

@@ -29,14 +29,17 @@ addon.ModuleInterface = ModuleInterface
         plain, serializable table. No side effects. Called by LiveStore when
         mirroring live state and when saving a snapshot.
 
-    Apply(capturedData, sourceMetadata, applyOptions)
+    Apply(capturedData, sourceMetadata, applyOptions) [-> AsyncTask]
         Write a previously captured module table back into the game. The source
         metadata carries the snapshot's provenance (notably ClassID).
         applyOptions.mode is "merge" (add/overwrite snapshot items, leave the
         rest) or "exact" (also remove live items absent from the snapshot);
         modules that only support merge may ignore applyOptions. The only
         contract member with real side effects. Called by SnapshotManager during
-        apply and undo.
+        apply and undo. A module whose work finishes only after Apply returns
+        (e.g. talents, whose loadout imports are event-driven) returns an
+        AsyncTask it settles when done, and the write is not considered finished
+        until then; a synchronous module returns nothing.
 
     CanApply(sourceMetadata) -> boolean[, warning]
         Pre-flight gate asked before Apply. Returns whether applying is sensible

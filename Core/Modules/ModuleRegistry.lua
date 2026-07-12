@@ -3,6 +3,7 @@ local ModuleRegistry = {}
 addon.ModuleRegistry = ModuleRegistry
 
 local C = addon.Contracts
+local AsyncTask = addon.AsyncTask
 local Interface = addon.ModuleInterface
 local ModuleIds = addon.ModuleIds
 
@@ -35,6 +36,7 @@ function ModuleRegistry:Register(module)
 
     local moduleName = module:GetName()
     C:Ensures(not registeredModules[moduleName], "Register: module '%s' is already registered", moduleName)
+
     C:Ensures(ModuleIds:GetId(moduleName) ~= nil, "Register: module '%s' has no id assigned in ModuleIds", moduleName)
 
     registeredModules[moduleName] = module
@@ -123,8 +125,10 @@ end
 -- Snapshot:GetModuleNames) to the live game in apply-priority order, honoring
 -- each module's CanApply gate and per-module mode (strategy.default, with
 -- strategy.overrides[name] taking precedence). classID is the target character's
--- class, passed to each module's CanApply/Apply. Returns the per-module results
--- and whether anything was actually applied.
+-- class, passed to each module's CanApply/Apply. A module whose work finishes
+-- after Apply returns hands back an AsyncTask; those are gathered into one
+-- returned task. Returns the per-module results, whether anything was actually
+-- applied, and the combined task (already resolved when nothing is asynchronous).
 function ModuleRegistry:ApplyModules(moduleNames, sourceModules, strategy, classID)
     C:IsArray(moduleNames, 2)
     C:IsTable(sourceModules, 3)
@@ -134,6 +138,7 @@ function ModuleRegistry:ApplyModules(moduleNames, sourceModules, strategy, class
     local meta = { ClassID = classID }
     local applyResults = {}
     local applied = false
+    local tasks = {}
     for name, module in self:IterableModulesByPriority(moduleNames) do
         local capturedData = sourceModules[name]
         if module and capturedData ~= nil then
@@ -142,15 +147,20 @@ function ModuleRegistry:ApplyModules(moduleNames, sourceModules, strategy, class
                 applyResults[name] = { applied = false, reason = warning }
             else
                 local mode = overrides[name] or defaultMode
-                local applySucceeded, applyError = pcall(module.Apply, module, capturedData, meta, { mode = mode })
+                local applySucceeded, applyReturn = pcall(module.Apply, module, capturedData, meta, { mode = mode })
                 if applySucceeded then
                     applyResults[name] = { applied = true, mode = mode, warning = warning }
                     applied = true
+                    -- A module returns an AsyncTask when its apply settles later;
+                    -- gather them so the caller can wait for the whole write.
+                    if getmetatable(applyReturn) == AsyncTask then
+                        tinsert(tasks, applyReturn)
+                    end
                 else
-                    applyResults[name] = { applied = false, reason = tostring(applyError) }
+                    applyResults[name] = { applied = false, reason = tostring(applyReturn) }
                 end
             end
         end
     end
-    return applyResults, applied
+    return applyResults, applied, AsyncTask:WhenAll(tasks)
 end
