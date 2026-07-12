@@ -5,6 +5,10 @@ local addon = LibStub("Addon-1.0"):New(...)
 -- Developer builds run every contract check; releases skip the expensive ones.
 local DEV_MODE = C_AddOns.GetAddOnMetadata(addon:GetName(), "X-WowSync-DevMode") == "1"
 
+-- Exposed so other files (notably the dev-only import surface in API) can gate on
+-- it without re-reading the metadata.
+addon.DevMode = DEV_MODE
+
 -- The contract checker shared by every WowSync file.
 addon.Contracts = LibStub("Contracts-1.0"):New(DEV_MODE and "none" or "expensive")
 
@@ -34,7 +38,7 @@ function addon:OnInitialized()
     WowSyncDB = addon.Database:ApplyDefaults(WowSyncDB or {}, DB_DEFAULTS)
     self.DB = WowSyncDB
     if DEV_MODE then
-        self:Print(addon.L["Developer mode is active — contract checks are fully enabled."])
+        self:Print(addon.L["Developer mode is active."])
     end
 end
 

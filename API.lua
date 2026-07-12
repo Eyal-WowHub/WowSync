@@ -73,6 +73,30 @@ local Exports = {
     },
 }
 
+-- Internal objects exported only in a developer build (X-WowSync-DevMode), so the
+-- WowSync_TestSuite can drive them in smoke/integration tests. That flag is
+-- stripped from every release, so in a packaged build these stay unreachable and
+-- the import surface is exactly the whitelist above.
+if addon.DevMode then
+    local devExports = {
+        FrameTask = true,
+        SaveTask = true,
+        Debugger = true,
+        Snapshot = true,
+        SnapshotInfo = true,
+        HashSet = true,
+        Differ = true,
+        Codec = true,
+        ShareCodec = true,
+        LiveStore = true,
+        ProfileStore = true,
+        SnapshotActionMonitor = true,
+    }
+    for name, spec in pairs(devExports) do
+        Exports[name] = spec
+    end
+end
+
 -- Built proxies, keyed by name, so repeated imports of a partially-exported
 -- surface hand back the same proxy. Fully-exported entries need no cache.
 local proxies = {}
@@ -107,6 +131,11 @@ end
 WowSync.Models = {
     SnapshotApplyMode = addon.SnapshotApplyMode,
 }
+
+-- Whether this is an unpackaged developer build (X-WowSync-DevMode). Exposed on
+-- the public object so companion addons can gate dev-only behaviour on the same
+-- flag without re-reading the metadata themselves.
+WowSync.DevMode = addon.DevMode
 
 -- Whether the pending-reset notice has been printed this session, so a burst of
 -- plugin imports during a pending reset announces itself only once.
