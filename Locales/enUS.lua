@@ -4,7 +4,6 @@ addon.L = L
 
 -- Slash command feedback
 L["WowSync_UI addon not found."] = "WowSync_UI addon not found."
-L["WowSync_UI is required to import and export. Enable it in your AddOns list."] = "WowSync_UI is required to import and export. Enable it in your AddOns list."
 L["Left-click to open."] = "Left-click to open."
 L["Live tracking is on demand."] = "Live tracking is on demand."
 L["Live tracking is off."] = "Live tracking is off."

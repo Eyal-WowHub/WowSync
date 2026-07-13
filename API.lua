@@ -20,16 +20,6 @@ local function ToggleUI()
     WowSync:TriggerEvent("WOWSYNC_UI_TOGGLED")
 end
 
--- Loads the companion UI addon on demand, then fires WOWSYNC_UI_OPEN_SHARE_DIALOG
--- so the UI can open its share dialog; action is "import" or "export".
-local function OpenShareDialog(action)
-    if not C_AddOns.IsAddOnLoaded("WowSync_UI") and not C_AddOns.LoadAddOn("WowSync_UI") then
-        addon:Print(L["WowSync_UI is required to import and export. Enable it in your AddOns list."])
-        return
-    end
-    WowSync:TriggerEvent("WOWSYNC_UI_OPEN_SHARE_DIALOG", action)
-end
-
 -- The public export surface, resolved through WowSync:Import(name). A `true`
 -- entry exports the whole object or table; a table of members exports a cached
 -- proxy carrying only those — `member = true` forwards a method of the backing
@@ -51,7 +41,6 @@ local Exports = {
     },
     UI = {
         ToggleUI = ToggleUI,
-        OpenShareDialog = OpenShareDialog,
     },
 
     -- Domain objects.
