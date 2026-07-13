@@ -87,20 +87,22 @@ if addon.DevMode then
     end
 end
 
--- Built proxies, keyed by name, so repeated imports of a partially-exported
--- surface hand back the same proxy. Fully-exported entries need no cache.
-local proxies = {}
+-- Built proxies, grouped by the export surface they belong to, so repeated
+-- imports of a partially-exported name hand back the same proxy without colliding
+-- with a like-named export in another addon's surface. Weak keys let a surface's
+-- proxies fall away with the export table itself.
+local proxyCaches = setmetatable({}, { __mode = "k" })
 
--- A proxy exposing only the whitelisted members of an export. A `true` member is
--- forwarded to the method of that name on the backing addon object (which stays
--- the receiver). A function member is forwarded with the proxy receiver dropped,
--- so it is written as a plain function.
-local function BuildProxy(name, members)
+-- A proxy exposing only the whitelisted members of an export drawn from `tbl`. A
+-- `true` member is forwarded to the method of that name on the backing object
+-- (which stays the receiver). A function member is forwarded with the proxy
+-- receiver dropped, so it is written as a plain function.
+local function BuildProxy(tbl, name, members)
     local proxy = {}
-    local object  -- the backing addon object, resolved only when a `true` member needs it
+    local object  -- the backing object, resolved only when a `true` member needs it
     for key, member in pairs(members) do
         if member == true then
-            object = object or addon:GetObject(name)
+            object = object or tbl:GetObject(name)
             local method = object[key]
             C:Ensures(type(method) == "function", "Import: '%s' has no method '%s'", name, key)
             proxy[key] = function(_, ...)
@@ -131,32 +133,46 @@ WowSync.DevMode = addon.DevMode
 -- plugin imports during a pending reset announces itself only once.
 local wasImportUpgradeMessageDisplayedOnce = false
 
--- Resolve a public object by name: the whole object when fully exported, or a
--- cached proxy carrying only its whitelisted methods. Only names in the Exports
--- whitelist can be imported; anything else is a programming error.
+-- Resolve a name against an export surface: the whole object when fully exported
+-- (`true`), or a cached proxy carrying only its whitelisted members. `tbl` is the
+-- Addon-1.0 object backing the surface, so a companion addon or plugin can offer
+-- its own import method over its own objects and whitelist. Only names present in
+-- `exports` can be imported; anything else is a programming error.
+function WowSync:ImportFrom(tbl, exports, name)
+    C:IsTable(tbl, 2)
+    C:IsTable(exports, 3)
+    C:IsString(name, 4)
+
+    local allowed = exports[name]
+    C:Ensures(allowed ~= nil, "Import: '%s' is not an exported object", name)
+
+    if allowed == true then
+        return (tbl.GetObject and tbl:GetObject(name, true)) or tbl[name]
+    end
+
+    local cache = proxyCaches[exports]
+    if not cache then
+        cache = {}
+        proxyCaches[exports] = cache
+    end
+    local proxy = cache[name]
+    if not proxy then
+        proxy = BuildProxy(tbl, name, allowed)
+        cache[name] = proxy
+    end
+    return proxy
+end
+
+-- Resolve one of this addon's public objects by name, over the core export
+-- surface. A pending one-time reset still hands the API out but warns once, so a
+-- burst of plugin imports during a pending reset announces itself a single time.
 function WowSync:Import(name)
-    -- A pending one-time reset means the stored data is from an older schema. The
-    -- API is still handed out — plugins can register and wire themselves up — but
-    -- warn once so the player knows the saved data is stale until they run the
-    -- reset (nothing here raises the prompt; /wowsync does).
     if Upgrade:IsPending() and not wasImportUpgradeMessageDisplayedOnce then
         addon:Warn(L["The database schema was changed and requires a one-time reset. Run /wowsync to reset it."])
         wasImportUpgradeMessageDisplayedOnce = true
     end
 
-    local allowed = Exports[name]
-    C:Ensures(allowed ~= nil, "Import: '%s' is not an exported object", tostring(name))
-
-    if allowed == true then
-        return addon:GetObject(name, true) or addon[name]
-    end
-
-    local proxy = proxies[name]
-    if not proxy then
-        proxy = BuildProxy(name, allowed)
-        proxies[name] = proxy
-    end
-    return proxy
+    return self:ImportFrom(addon, Exports, name)
 end
 
 --[[ Addon entry points ]]
