@@ -90,6 +90,7 @@ if addon.DevMode then
         ShareCodec = true,
         LiveStore = true,
         ProfileStore = true,
+        ImportStore = true,
         SnapshotActionMonitor = true,
     }
     for name, spec in pairs(devExports) do
